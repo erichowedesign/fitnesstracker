@@ -40,7 +40,7 @@ struct UpperPushView: View {
                 .padding(.horizontal, 16)
             }
             .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
-            .background { GlassSceneBackground() }
+            .background { ThermalWashBackground() }
             .navigationTitle("Routine A")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
@@ -168,32 +168,6 @@ private struct GuideRow: View {
         .padding(.horizontal, 16)
         .frame(minHeight: 152)
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
-    }
-}
-
-private struct GlassSceneBackground: View {
-    var body: some View {
-        MeshGradient(
-            width: 3,
-            height: 3,
-            points: [
-                SIMD2(0.0, 0.0), SIMD2(0.5, 0.0), SIMD2(1.0, 0.0),
-                SIMD2(0.0, 0.5), SIMD2(0.5, 0.5), SIMD2(1.0, 0.5),
-                SIMD2(0.0, 1.0), SIMD2(0.5, 1.0), SIMD2(1.0, 1.0),
-            ],
-            colors: [
-                Color(red: 0.16, green: 0.20, blue: 0.48),
-                Color(red: 0.48, green: 0.22, blue: 0.32),
-                Color(red: 0.12, green: 0.34, blue: 0.50),
-                Color(red: 0.62, green: 0.32, blue: 0.12),
-                Color(red: 0.18, green: 0.14, blue: 0.26),
-                Color(red: 0.10, green: 0.42, blue: 0.44),
-                Color(red: 0.07, green: 0.10, blue: 0.20),
-                Color(red: 0.36, green: 0.12, blue: 0.18),
-                Color(red: 0.05, green: 0.20, blue: 0.28),
-            ]
-        )
-        .ignoresSafeArea()
     }
 }
 
