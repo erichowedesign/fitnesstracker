@@ -4,8 +4,8 @@ import SwiftUI
 import UIKit
 
 enum WashPlayback {
-    /// Slower than real time so the heat map can be read behind glass.
-    static let rate: Float = 0.4
+    /// Full-speed wash behind glass.
+    static let rate: Float = 1.0
     static let resourceName = "AdobeStock_621992661"
     static let resourceExtension = "mp4"
 }
