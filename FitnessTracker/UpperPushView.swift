@@ -126,8 +126,8 @@ struct UpperPushView: View {
             Text("Exercise")
                 .font(.title2)
                 .fontWeight(.bold)
-            GlassEffectContainer(spacing: 6) {
-                VStack(spacing: 6) {
+            GlassEffectContainer(spacing: 12) {
+                VStack(spacing: 12) {
                     ForEach(routine.exercises) { exercise in
                         GuideRow(title: exercise.name, meta: exercise.meta, slug: exercise.slug)
                     }
