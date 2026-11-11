@@ -3,6 +3,7 @@ import SwiftUI
 struct UpperPushView: View {
     @Environment(SessionStore.self) private var store
     @State private var didSave = false
+    @State private var showCompleteButton = false
 
     private let routine = WorkoutPlan.upperPush()
 
@@ -29,7 +30,7 @@ struct UpperPushView: View {
                         .font(.body)
                         .padding(.top, 24)
 
-                    section("Warm-up", steps: routine.warmup)
+                    section("Warm-up", steps: routine.warmup, revealsCompleteButton: true)
                     exerciseSection
                     section("Cool Down", steps: routine.cooldown)
 
@@ -38,23 +39,21 @@ struct UpperPushView: View {
                         .padding(.bottom, 8)
                 }
                 .padding(.horizontal, 16)
+                .padding(.bottom, 88)
             }
             .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
             .background { ThermalWashBackground() }
+            .overlay(alignment: .bottom) {
+                ZStack {
+                    if showCompleteButton {
+                        completeWorkoutButton
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .animation(.smooth(duration: 0.4), value: showCompleteButton)
+            }
             .navigationTitle("Routine A")
             .toolbarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .bottomBar) {
-                    Button("Complete Workout") {
-                        store.complete(routine)
-                        didSave = true
-                    }
-                    .buttonStyle(.glassProminent)
-                    .controlSize(.large)
-                    .frame(maxWidth: .infinity)
-                }
-            }
-            .toolbarBackgroundVisibility(.visible, for: .bottomBar)
             .alert("Workout saved", isPresented: $didSave) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -105,11 +104,32 @@ struct UpperPushView: View {
         .accessibilityLabel("5 exercises, 60 minutes, difficulty three of five")
     }
 
-    private func section(_ title: String, steps: [GuideStep]) -> some View {
+    private var completeWorkoutButton: some View {
+        Button {
+            store.complete(routine)
+            didSave = true
+        } label: {
+            Text("Complete Workout")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.glass)
+        .controlSize(.extraLarge)
+        .buttonBorderShape(.capsule)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+    }
+
+    private func section(_ title: String, steps: [GuideStep], revealsCompleteButton: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 24) {
             Text(title)
                 .font(.title2)
                 .fontWeight(.bold)
+                .onGeometryChange(for: CGRect.self) { proxy in
+                    proxy.frame(in: .global)
+                } action: { _, frame in
+                    guard revealsCompleteButton, frame.height > 1 else { return }
+                    showCompleteButton = frame.minY <= UIScreen.main.bounds.height / 2
+                }
             GlassEffectContainer(spacing: 6) {
                 VStack(spacing: 6) {
                     ForEach(steps) { step in
