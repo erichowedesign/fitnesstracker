@@ -21,6 +21,7 @@ struct UpperPushView: View {
                     IllustrationView(slug: routine.heroSlug, label: routine.name)
                         .frame(maxWidth: .infinity)
                         .frame(height: 370)
+                        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
                         .padding(.top, 64)
 
                     glanceCard
