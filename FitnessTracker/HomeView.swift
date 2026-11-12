@@ -111,9 +111,9 @@ struct HomeView: View {
     }
 }
 
-/// Same continuous roundness as the 152pt-tall tiles, scaled to the illustration square.
-private func homeIllustrationThumb(size: CGFloat) -> RoundedRectangle {
-    RoundedRectangle(cornerRadius: size * (34 / 152), style: .continuous)
+/// Apple concentric corners: innerRadius = tile 34 − gap to the illustration square.
+private func homeIllustrationThumb(gap: CGFloat) -> RoundedRectangle {
+    RoundedRectangle(cornerRadius: 34 - gap, style: .continuous)
 }
 
 private struct UpNextCard: View {
@@ -127,7 +127,7 @@ private struct UpNextCard: View {
                     .frame(width: 210, height: 210)
             }
             .frame(width: 210, height: 210)
-            .clipShape(homeIllustrationThumb(size: 210))
+            .clipShape(homeIllustrationThumb(gap: 20))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             .padding(.top, 28)
             .padding(.trailing, 20)
@@ -185,7 +185,7 @@ private struct RoutineListCard: View {
                         .frame(width: 120, height: 120)
                 }
                 .frame(width: 120, height: 120)
-                .clipShape(homeIllustrationThumb(size: 120))
+                .clipShape(homeIllustrationThumb(gap: 16))
                 .foregroundStyle(.white)
                 VStack(alignment: .leading, spacing: 23) {
                     Text("Routine \(routine.rotationIndex)")
