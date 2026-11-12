@@ -86,6 +86,7 @@ struct HomeView: View {
                 .buttonBorderShape(.circle)
                 .accessibilityLabel("More")
             }
+            .sharedBackgroundVisibility(.hidden)
         }
         .navigationDestination(for: Routine.self) { routine in
             RoutineView(routine: routine)
