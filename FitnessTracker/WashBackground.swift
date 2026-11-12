@@ -13,16 +13,16 @@ enum WashPlayback {
 enum WashGrade: Hashable {
     case grayscale
     case thermal
-    case nightVision
-    case ultraviolet
-    case ember
+    case purpleOrange
+    case redYellow
+    case blackGreen
 
     static func forRoutine(_ id: String) -> WashGrade {
         switch id {
         case "A": return .thermal
-        case "B": return .nightVision
-        case "C": return .ultraviolet
-        case "D": return .ember
+        case "B": return .purpleOrange
+        case "C": return .redYellow
+        case "D": return .blackGreen
         default: return .thermal
         }
     }
@@ -224,17 +224,17 @@ private enum WashLook {
         switch grade {
         case .grayscale: return grayscaleMap
         case .thermal: return thermalMap
-        case .nightVision: return nightVisionMap
-        case .ultraviolet: return ultravioletMap
-        case .ember: return emberMap
+        case .purpleOrange: return purpleOrangeMap
+        case .redYellow: return redYellowMap
+        case .blackGreen: return blackGreenMap
         }
     }
 
     private static let grayscaleMap = makeColorMap(sampleGray)
     private static let thermalMap = makeColorMap(sampleThermal)
-    private static let nightVisionMap = makeColorMap(sampleNightVision)
-    private static let ultravioletMap = makeColorMap(sampleUltraviolet)
-    private static let emberMap = makeColorMap(sampleEmber)
+    private static let purpleOrangeMap = makeColorMap(samplePurpleOrange)
+    private static let redYellowMap = makeColorMap(sampleRedYellow)
+    private static let blackGreenMap = makeColorMap(sampleBlackGreen)
 
     private static func channel(_ value: Double) -> UInt8 {
         UInt8(clamping: Int((min(max(value, 0), 1) * 255).rounded()))
@@ -287,55 +287,46 @@ private enum WashLook {
         return stops.last!.1
     }
 
+    private static let white: (Double, Double, Double) = (1.00, 1.00, 1.00)
+
+    /// Dark primary holds, bright secondary hits, then snaps to pure white.
+    private static func triple(
+        primary: (Double, Double, Double),
+        secondary: (Double, Double, Double)
+    ) -> (Double) -> (Double, Double, Double) {
+        { t in
+            lerp(t, [
+                (0.00, primary),
+                (0.40, primary),
+                (0.68, secondary),
+                (0.78, secondary),
+                (0.86, white),
+                (1.00, white),
+            ])
+        }
+    }
+
     private static func sampleGray(_ t: Double) -> (Double, Double, Double) {
-        lerp(t, [
-            (0.00, (0.00, 0.00, 0.00)),
-            (0.55, (0.04, 0.04, 0.05)),
-            (0.82, (0.16, 0.16, 0.18)),
-            (1.00, (0.96, 0.96, 0.97)),
-        ])
+        triple(primary: (0.00, 0.00, 0.00), secondary: (0.52, 0.52, 0.55))(t)
     }
 
-    /// Black / blue cold → yellow → white-hot.
+    /// Blue primary, lime secondary, white tertiary.
     private static func sampleThermal(_ t: Double) -> (Double, Double, Double) {
-        lerp(t, [
-            (0.00, (0.00, 0.00, 0.00)),
-            (0.18, (0.00, 0.04, 0.42)),
-            (0.38, (0.02, 0.38, 1.00)),
-            (0.58, (0.15, 0.85, 0.95)),
-            (0.72, (1.00, 0.95, 0.05)),
-            (0.88, (1.00, 1.00, 0.72)),
-            (1.00, (1.00, 1.00, 1.00)),
-        ])
+        triple(primary: (0.02, 0.38, 1.00), secondary: (1.00, 0.95, 0.05))(t)
     }
 
-    /// Dark green primary → lime secondary → white.
-    private static func sampleNightVision(_ t: Double) -> (Double, Double, Double) {
-        lerp(t, [
-            (0.00, (0.00, 0.14, 0.03)),
-            (0.42, (0.00, 0.14, 0.03)),
-            (0.70, (0.72, 1.00, 0.00)),
-            (1.00, (1.00, 1.00, 1.00)),
-        ])
+    /// Deep purple primary, orange secondary, white tertiary.
+    private static func samplePurpleOrange(_ t: Double) -> (Double, Double, Double) {
+        triple(primary: (0.36, 0.00, 0.62), secondary: (1.00, 0.48, 0.00))(t)
     }
 
-    /// Indigo primary → magenta secondary → white.
-    private static func sampleUltraviolet(_ t: Double) -> (Double, Double, Double) {
-        lerp(t, [
-            (0.00, (0.10, 0.00, 0.42)),
-            (0.42, (0.10, 0.00, 0.42)),
-            (0.70, (1.00, 0.00, 0.78)),
-            (1.00, (1.00, 1.00, 1.00)),
-        ])
+    /// Red primary, yellow secondary, white tertiary.
+    private static func sampleRedYellow(_ t: Double) -> (Double, Double, Double) {
+        triple(primary: (0.92, 0.04, 0.04), secondary: (1.00, 0.92, 0.05))(t)
     }
 
-    /// Deep red primary → orange secondary → white.
-    private static func sampleEmber(_ t: Double) -> (Double, Double, Double) {
-        lerp(t, [
-            (0.00, (0.32, 0.00, 0.00)),
-            (0.42, (0.32, 0.00, 0.00)),
-            (0.70, (1.00, 0.42, 0.00)),
-            (1.00, (1.00, 1.00, 1.00)),
-        ])
+    /// Black primary, green secondary, white tertiary.
+    private static func sampleBlackGreen(_ t: Double) -> (Double, Double, Double) {
+        triple(primary: (0.00, 0.00, 0.00), secondary: (0.12, 1.00, 0.18))(t)
     }
 }
