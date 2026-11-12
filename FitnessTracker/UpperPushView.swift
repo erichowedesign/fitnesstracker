@@ -302,7 +302,8 @@ private struct MainWorkoutRow: View {
                 weight: weight,
                 isEditingWeight: isEditing,
                 weightDraft: $weightDraft,
-                onCommit: onCommit
+                onCommit: onCommit,
+                onKeyboardDone: onClose
             )
             .offset(x: offsetX)
         }
@@ -347,6 +348,7 @@ private struct GuideRow: View {
     var isEditingWeight: Bool = false
     var weightDraft: Binding<String>? = nil
     var onCommit: (() -> Void)? = nil
+    var onKeyboardDone: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 20) {
@@ -378,7 +380,11 @@ private struct GuideRow: View {
     @ViewBuilder
     private var weightValue: some View {
         if isEditingWeight, let weightDraft {
-            WeightField(draft: weightDraft, onCommit: { onCommit?() })
+            WeightField(
+                draft: weightDraft,
+                onCommit: { onCommit?() },
+                onDone: { onKeyboardDone?() }
+            )
         } else if let weight {
             Text(weight)
         }
@@ -388,6 +394,7 @@ private struct GuideRow: View {
 private struct WeightField: View {
     @Binding var draft: String
     let onCommit: () -> Void
+    let onDone: () -> Void
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -412,7 +419,7 @@ private struct WeightField: View {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
                     Button("Done") {
-                        focused = false
+                        onDone()
                     }
                 }
             }
