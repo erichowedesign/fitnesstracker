@@ -8,6 +8,12 @@ enum WashPlayback {
     static let rate: Float = 1.0
     static let resourceName = "AdobeStock_621992661"
     static let resourceExtension = "mp4"
+
+    static var screenSize: CGSize {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first
+        return scene?.screen.bounds.size ?? .zero
+    }
 }
 
 enum WashGrade: Hashable {
@@ -58,6 +64,36 @@ struct WashBackground: View {
 struct ThermalWashBackground: View {
     var body: some View {
         WashBackground(grade: .thermal)
+    }
+}
+
+/// Home-tile portal: the full-screen wash, clipped to this view, graded per routine.
+struct WashWindow: View {
+    var grade: WashGrade
+    @Environment(WashTheme.self) private var wash
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+
+    var body: some View {
+        GeometryReader { tile in
+            let screen = WashPlayback.screenSize
+            let frame = tile.frame(in: .global)
+            WashPlayerLayer(
+                isActive: isActive,
+                grade: grade
+            )
+            .frame(width: screen.height, height: screen.width)
+            .rotationEffect(.degrees(90))
+            .frame(width: screen.width, height: screen.height, alignment: .center)
+            .offset(x: -frame.minX, y: -frame.minY)
+        }
+        .clipped()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var isActive: Bool {
+        !reduceMotion && scenePhase != .background && wash.grade == .grayscale
     }
 }
 

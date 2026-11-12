@@ -110,6 +110,8 @@ private struct UpNextCard: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
+            WashWindow(grade: WashGrade.forRoutine(routine.id))
+
             IllustrationView(slug: routine.heroSlug, label: routine.name)
                 .frame(width: 210, height: 210)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
@@ -141,6 +143,7 @@ private struct UpNextCard: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 370)
+        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(routine.name), \(routine.focus), \(routine.workoutsLine)")
@@ -151,25 +154,29 @@ private struct RoutineListCard: View {
     let routine: Routine
 
     var body: some View {
-        HStack(spacing: 20) {
-            IllustrationView(slug: routine.heroSlug, label: routine.name)
-                .frame(width: 120, height: 120)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(routine.focus)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                Text(routine.name)
-                    .font(.headline)
-                Text("\(routine.exerciseCountLabel) workouts")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+        ZStack(alignment: .leading) {
+            WashWindow(grade: WashGrade.forRoutine(routine.id))
+            HStack(spacing: 20) {
+                IllustrationView(slug: routine.heroSlug, label: routine.name)
+                    .frame(width: 120, height: 120)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(routine.focus)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    Text(routine.name)
+                        .font(.headline)
+                    Text("\(routine.exerciseCountLabel) workouts")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
             }
-            Spacer(minLength: 0)
+            .padding(16)
         }
-        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 152)
+        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(routine.name), \(routine.focus), \(routine.exerciseCountLabel) workouts")
