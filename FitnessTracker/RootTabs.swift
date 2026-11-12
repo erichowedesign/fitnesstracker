@@ -90,6 +90,8 @@ struct RootTabs: View {
         } label: {
             VStack(spacing: 1) {
                 Image(systemName: selected ? systemImage : (unselectedImage ?? systemImage))
+                    .symbolVariant(.none)
+                    .environment(\.symbolVariants, .none)
                     .font(.system(size: 20, weight: .medium))
                     .frame(height: 28)
                 Text(title)
