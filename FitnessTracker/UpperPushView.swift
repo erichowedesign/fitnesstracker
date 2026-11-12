@@ -74,19 +74,13 @@ struct UpperPushView: View {
         VStack(spacing: 0) {
             Color.clear.frame(height: 16)
             HStack(alignment: .top, spacing: 56) {
-                VStack(spacing: 3) {
+                VStack(alignment: .leading, spacing: 3) {
                     glanceLabel("exercises")
-                    Text("05")
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .monospacedDigit()
+                    glanceNumber("05")
                 }
-                VStack(spacing: 3) {
+                VStack(alignment: .leading, spacing: 3) {
                     glanceLabel("minutes")
-                    Text("45–60")
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .monospacedDigit()
+                    glanceNumber("60")
                 }
                 VStack(spacing: 6) {
                     glanceLabel("difficulty")
@@ -108,13 +102,20 @@ struct UpperPushView: View {
         .frame(height: 120)
         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("5 exercises, 45 to 60 minutes, difficulty three of five")
+        .accessibilityLabel("5 exercises, 60 minutes, difficulty three of five")
     }
 
     private func glanceLabel(_ title: String) -> some View {
         Text(title)
             .font(.subheadline)
-            .frame(height: 16)
+            .frame(height: 16, alignment: .leading)
+    }
+
+    private func glanceNumber(_ value: String) -> some View {
+        Text(value)
+            .font(.system(size: 34, weight: .semibold))
+            .monospacedDigit()
+            .frame(height: 41, alignment: .leading)
     }
 
     private var topStatusScrim: some View {
