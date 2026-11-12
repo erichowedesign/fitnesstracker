@@ -13,6 +13,11 @@ struct HomeView: View {
         store.remainingRoutines(after: upNext, in: routines)
     }
 
+    /// Lets the last tile scroll into the upper half, clear of the pinned tab bar.
+    private var homeScrollBottomInset: CGFloat {
+        max(WashPlayback.screenSize.height * 0.5, 400)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -57,6 +62,7 @@ struct HomeView: View {
             .padding(.top, 8)
             .padding(.bottom, 24)
         }
+        .contentMargins(.bottom, homeScrollBottomInset, for: .scrollContent)
         .scrollContentBackground(.hidden)
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
