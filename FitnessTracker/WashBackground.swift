@@ -13,16 +13,16 @@ enum WashPlayback {
 enum WashGrade: Hashable {
     case grayscale
     case thermal
-    case green
-    case magenta
-    case amber
+    case nightVision
+    case ultraviolet
+    case ember
 
     static func forRoutine(_ id: String) -> WashGrade {
         switch id {
         case "A": return .thermal
-        case "B": return .green
-        case "C": return .magenta
-        case "D": return .amber
+        case "B": return .nightVision
+        case "C": return .ultraviolet
+        case "D": return .ember
         default: return .thermal
         }
     }
@@ -209,12 +209,12 @@ private enum WashLook {
             return makeColorMap(sampleGray)
         case .thermal:
             return makeColorMap(sampleThermal)
-        case .green:
-            return makeColorMap(sampleGreen)
-        case .magenta:
-            return makeColorMap(sampleMagenta)
-        case .amber:
-            return makeColorMap(sampleAmber)
+        case .nightVision:
+            return makeColorMap(sampleNightVision)
+        case .ultraviolet:
+            return makeColorMap(sampleUltraviolet)
+        case .ember:
+            return makeColorMap(sampleEmber)
         }
     }
 
@@ -287,36 +287,36 @@ private enum WashLook {
         ])
     }
 
-    private static func sampleGreen(_ t: Double) -> (Double, Double, Double) {
+    /// Black → dark green → lime → white.
+    private static func sampleNightVision(_ t: Double) -> (Double, Double, Double) {
         lerp(t, [
             (0.00, (0.00, 0.00, 0.00)),
-            (0.18, (0.00, 0.18, 0.08)),
-            (0.38, (0.02, 0.55, 0.22)),
-            (0.58, (0.20, 0.92, 0.38)),
-            (0.76, (0.78, 1.00, 0.28)),
-            (1.00, (1.00, 1.00, 0.92)),
+            (0.22, (0.00, 0.16, 0.04)),
+            (0.52, (0.08, 0.72, 0.12)),
+            (0.78, (0.55, 1.00, 0.18)),
+            (1.00, (1.00, 1.00, 1.00)),
         ])
     }
 
-    private static func sampleMagenta(_ t: Double) -> (Double, Double, Double) {
+    /// Black → indigo → magenta → white.
+    private static func sampleUltraviolet(_ t: Double) -> (Double, Double, Double) {
         lerp(t, [
             (0.00, (0.00, 0.00, 0.00)),
-            (0.18, (0.28, 0.00, 0.32)),
-            (0.40, (0.78, 0.05, 0.62)),
-            (0.62, (1.00, 0.28, 0.82)),
-            (0.82, (1.00, 0.72, 0.92)),
-            (1.00, (1.00, 0.96, 1.00)),
+            (0.22, (0.10, 0.00, 0.38)),
+            (0.52, (0.48, 0.04, 0.92)),
+            (0.78, (1.00, 0.18, 0.82)),
+            (1.00, (1.00, 1.00, 1.00)),
         ])
     }
 
-    private static func sampleAmber(_ t: Double) -> (Double, Double, Double) {
+    /// Black → deep red → orange → white.
+    private static func sampleEmber(_ t: Double) -> (Double, Double, Double) {
         lerp(t, [
             (0.00, (0.00, 0.00, 0.00)),
-            (0.18, (0.28, 0.08, 0.00)),
-            (0.40, (0.82, 0.32, 0.02)),
-            (0.62, (1.00, 0.62, 0.08)),
-            (0.82, (1.00, 0.88, 0.42)),
-            (1.00, (1.00, 0.98, 0.88)),
+            (0.22, (0.32, 0.00, 0.00)),
+            (0.52, (0.92, 0.12, 0.02)),
+            (0.78, (1.00, 0.48, 0.04)),
+            (1.00, (1.00, 1.00, 1.00)),
         ])
     }
 }
