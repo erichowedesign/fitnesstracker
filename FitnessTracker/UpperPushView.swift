@@ -546,7 +546,7 @@ struct DisableRoutineInteractivePop: UIViewControllerRepresentable {
 /// Each drawing is the same asset as that row, fitted to one centered square.
 private struct RoutineHeroCycle: View {
     let exercises: [Exercise]
-    private let interval: TimeInterval = 0.8
+    private let interval: TimeInterval = 1.6
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: interval)) { context in
