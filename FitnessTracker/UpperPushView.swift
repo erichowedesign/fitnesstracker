@@ -74,15 +74,15 @@ struct UpperPushView: View {
         VStack(spacing: 0) {
             Color.clear.frame(height: 16)
             HStack(alignment: .top, spacing: 56) {
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 8) {
                     glanceLabel("exercises")
                     glanceNumber("05")
                 }
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 8) {
                     glanceLabel("minutes")
                     glanceNumber("60")
                 }
-                VStack(spacing: 6) {
+                VStack(spacing: 8) {
                     glanceLabel("difficulty")
                     HStack(alignment: .bottom, spacing: 4) {
                         ForEach(0..<5, id: \.self) { index in
