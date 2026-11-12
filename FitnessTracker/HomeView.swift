@@ -171,50 +171,57 @@ private struct UpNextCard: View {
     var matchEnabled: Bool
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            ZStack {
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topLeading) {
                 WashWindow(grade: WashGrade.forRoutine(routine.id))
-                    .clipShape(homeIllustrationThumb(gap: 20))
                 IllustrationView(slug: routine.heroSlug, label: routine.name)
-                    .frame(width: 210, height: 210)
+                    .frame(width: 192, height: 192)
                     .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .foregroundStyle(.white)
                 Color.clear
                     .matchedTransitionSource(id: routine.id, in: hero)
+                Text("Routine \(routine.rotationIndex)")
+                    .font(.subheadline)
+                    .foregroundStyle(.white)
+                    .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
+                    .padding(.top, 16)
+                    .padding(.leading, 32)
             }
-            .frame(width: 210, height: 210)
-            .clipShape(homeIllustrationThumb(gap: 20))
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-            .padding(.top, 28)
-            .padding(.trailing, 20)
+            .frame(maxWidth: .infinity)
+            .frame(height: 216)
+            .clipped()
 
-            Text("Routine \(routine.rotationIndex)")
-                .font(.subheadline)
-                .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
-                .padding(.top, 22)
-                .padding(.leading, 22)
-
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(routine.name)
-                    .font(.title)
-                    .fontWeight(.bold)
+                    .font(.system(size: 28, weight: .bold))
+                    .frame(height: 34, alignment: .leading)
                     .homeHeroMatch("title-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                 Text(routine.focus)
                     .font(.body)
                     .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
-                HStack(spacing: 8) {
-                    Text("\(routine.workoutsLine) /")
+                    .padding(.top, 4)
+                Spacer(minLength: 0)
+                HStack(alignment: .center, spacing: 8) {
+                    Text("\(routine.exerciseCountLabel) workouts / \(routine.minutes) minutes /")
                         .font(.subheadline)
-                    DifficultyBars(filled: routine.difficulty)
-                        .scaleEffect(0.55, anchor: .leading)
-                        .frame(width: 48, height: 18)
+                    HStack(spacing: 4) {
+                        ForEach(0..<5, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                .fill(.white)
+                                .frame(width: 4, height: 14)
+                        }
+                    }
                 }
-                .padding(.top, 6)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-            .padding(22)
+            .padding(.horizontal, 32)
+            .padding(.top, 20)
+            .padding(.bottom, 24)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .foregroundStyle(.white)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 370)
+        .frame(height: 358)
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
