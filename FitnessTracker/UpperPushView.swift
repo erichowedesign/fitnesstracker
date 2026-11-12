@@ -21,7 +21,7 @@ struct UpperPushView: View {
                     IllustrationView(slug: routine.heroSlug, label: routine.name)
                         .frame(maxWidth: .infinity)
                         .frame(height: 370)
-                        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+                        .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
                         .padding(.top, 32)
 
                     glanceCard
@@ -106,7 +106,7 @@ struct UpperPushView: View {
         .padding(16)
         .frame(maxWidth: .infinity)
         .frame(height: 120)
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("5 exercises, 45 to 60 minutes, difficulty three of five")
     }
@@ -225,7 +225,7 @@ private struct GuideRow: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 152)
-        .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
     }
 }
 
