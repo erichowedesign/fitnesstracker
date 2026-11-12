@@ -64,7 +64,7 @@ struct RootTabs: View {
                     .offset(x: selectedPillX)
 
                 HStack(spacing: -8) {
-                    tabButton(.home, title: "Home", systemImage: "house.fill", unselectedImage: "house")
+                    tabButton(.home, title: "Home", systemImage: "house")
                     tabButton(.history, title: "History", systemImage: "clock.arrow.circlepath")
                     tabButton(.library, title: "Library", systemImage: "book")
                 }
