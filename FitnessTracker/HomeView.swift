@@ -155,15 +155,19 @@ private struct RoutineListCard: View {
 
     private var poseSlug: String {
         switch routine.id {
+        case "B": return "standing-calf-raise"
         case "C": return "seated-row"
         case "D": return "step-up"
         default: return routine.exercises.first?.slug ?? routine.heroSlug
         }
     }
 
+    /// Figma vector size inside the 120 box.
     private var poseSize: CGSize {
         switch routine.id {
+        case "B": return CGSize(width: 53, height: 85)
         case "C": return CGSize(width: 96, height: 64)
+        case "D": return CGSize(width: 88, height: 110)
         default: return CGSize(width: 120, height: 120)
         }
     }
@@ -171,23 +175,26 @@ private struct RoutineListCard: View {
     var body: some View {
         ZStack(alignment: .leading) {
             WashWindow(grade: WashGrade.forRoutine(routine.id))
-            HStack(alignment: .center, spacing: 20) {
-                IllustrationView(slug: poseSlug, label: routine.name)
+            HStack(alignment: .top, spacing: 20) {
+                IllustrationView(slug: poseSlug, label: routine.name, fill: true)
                     .frame(width: poseSize.width, height: poseSize.height)
+                    .clipped()
                     .frame(width: 120, height: 120)
                     .foregroundStyle(.white)
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 23) {
                     Text("Routine \(routine.rotationIndex)")
                         .font(.system(size: 15))
                         .frame(height: 18, alignment: .leading)
-                    Text(routine.name)
-                        .font(.system(size: 22, weight: .semibold))
-                        .frame(height: 25, alignment: .leading)
-                        .lineLimit(1)
-                    Text(routine.focus)
-                        .font(.system(size: 16))
-                        .multilineTextAlignment(.leading)
-                        .lineLimit(2)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(routine.name)
+                            .font(.system(size: 22, weight: .semibold))
+                            .frame(height: 25, alignment: .leading)
+                            .lineLimit(1)
+                        Text(routine.focus)
+                            .font(.system(size: 16))
+                            .multilineTextAlignment(.leading)
+                            .lineLimit(2)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .foregroundStyle(.white)
