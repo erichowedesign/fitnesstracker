@@ -55,8 +55,9 @@ struct HomeView: View {
         }
         .scrollContentBackground(.hidden)
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
-        .background { Color.black.ignoresSafeArea() }
-        .containerBackground(.clear, for: .navigation)
+        .background {
+            WashBackground(grade: wash.grade)
+        }
         .toolbarBackground(.hidden, for: .navigationBar)
         .navigationTitle("Foundation")
         .toolbarTitleDisplayMode(.inline)

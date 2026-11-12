@@ -7,14 +7,10 @@ struct FoundationApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                Color.black.ignoresSafeArea()
-                WashBackground(grade: wash.grade)
-                RootTabs()
-            }
-            .environment(store)
-            .environment(wash)
-            .preferredColorScheme(.dark)
+            RootTabs()
+                .environment(store)
+                .environment(wash)
+                .preferredColorScheme(.dark)
         }
     }
 }

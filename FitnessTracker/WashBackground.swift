@@ -67,14 +67,19 @@ private struct WashPlayerLayer: UIViewRepresentable {
 
     func makeUIView(context: Context) -> WashPlayerView {
         let view = WashPlayerView()
-        view.setGrade(grade)
-        view.setActive(isActive)
+        view.backgroundColor = .black
+        DispatchQueue.main.async {
+            view.setGrade(grade)
+            view.setActive(isActive)
+        }
         return view
     }
 
     func updateUIView(_ uiView: WashPlayerView, context: Context) {
-        uiView.setGrade(grade)
-        uiView.setActive(isActive)
+        DispatchQueue.main.async {
+            uiView.setGrade(grade)
+            uiView.setActive(isActive)
+        }
     }
 }
 
@@ -159,6 +164,17 @@ private final class WashPlayerView: UIView {
         let colorMap = WashLook.colorMap(for: mappedGrade)
         let contrast: CGFloat = mappedGrade == .grayscale ? 1.7 : 1.35
         let brightness: CGFloat = mappedGrade == .grayscale ? -0.12 : 0.05
+        if player == nil {
+            let placeholder = AVPlayerItem(asset: asset)
+            let player = AVPlayer(playerItem: placeholder)
+            player.isMuted = true
+            player.actionAtItemEnd = .none
+            player.preventsDisplaySleepDuringVideoPlayback = false
+            self.player = player
+            playerLayer.player = player
+            observe(placeholder)
+            applyPlaybackState()
+        }
         AVVideoComposition.videoComposition(with: asset, applyingCIFiltersWithHandler: { request in
             let source = request.sourceImage.clampedToExtent()
             let contrasted = source.applyingFilter("CIColorControls", parameters: [
