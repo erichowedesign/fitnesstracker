@@ -22,6 +22,27 @@ final class SessionStore {
         sessions = Self.read(from: url)
     }
 
+    func nextRoutine(in routines: [Routine]) -> Routine {
+        guard let first = routines.first else {
+            fatalError("No routines in the plan.")
+        }
+        guard let lastId = sessions.first?.routineId,
+              let index = routines.firstIndex(where: { $0.id == lastId })
+        else {
+            return first
+        }
+        return routines[(index + 1) % routines.count]
+    }
+
+    func remainingRoutines(after upNext: Routine, in routines: [Routine]) -> [Routine] {
+        guard let index = routines.firstIndex(where: { $0.id == upNext.id }) else {
+            return routines
+        }
+        return (1..<routines.count).map { offset in
+            routines[(index + offset) % routines.count]
+        }
+    }
+
     func complete(_ routine: Routine) {
         let session = FinishedSession(
             id: UUID(),

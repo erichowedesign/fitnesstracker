@@ -32,15 +32,32 @@ struct SeedExercise: Codable {
     let videoUrl: String?
 }
 
-struct Routine: Identifiable {
+struct Routine: Identifiable, Hashable {
     let id: String
     let name: String
     let focus: String
     let summary: String
     let heroSlug: String
+    let rotationIndex: Int
     let warmup: [GuideStep]
     let exercises: [Exercise]
     let cooldown: [GuideStep]
+    let minutes: Int
+    let difficulty: Int
+
+    var exerciseCountLabel: String {
+        String(format: "%02d", exercises.count)
+    }
+
+    var workoutsLine: String {
+        "\(exerciseCountLabel) workouts / \(minutes) minutes"
+    }
+
+    static func == (lhs: Routine, rhs: Routine) -> Bool { lhs.id == rhs.id }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 }
 
 struct Exercise: Identifiable {
@@ -98,22 +115,28 @@ enum WorkoutPlan {
         }
     }
 
+    static func all() -> [Routine] {
+        load().routines.enumerated().map { index, seed in
+            makeRoutine(seed, rotationIndex: index + 1)
+        }
+    }
+
     static func upperPush() -> Routine {
-        guard let seed = load().routines.first(where: { $0.id == "A" }) else {
+        guard let routine = all().first(where: { $0.id == "A" }) else {
             fatalError("Upper Push (routine A) is missing from workouts.json.")
         }
-        return Routine(
+        return routine
+    }
+
+    private static func makeRoutine(_ seed: SeedRoutine, rotationIndex: Int) -> Routine {
+        Routine(
             id: seed.id,
             name: seed.name,
             focus: seed.focus,
-            summary: "Build your pressing foundation with dumbbell and cable movements for the chest, shoulders, and triceps. Choose comfortable ranges and controlled reps.",
-            heroSlug: "standing-dumbbell-press",
-            warmup: [
-                GuideStep(title: "Easy Walk", metaParts: ["3–5 minutes"], slug: "walking"),
-                GuideStep(title: "Shoulder Circles", metaParts: ["30 seconds", "2 sets"], slug: "arm-circles"),
-                GuideStep(title: "Band External Rotations", metaParts: ["12 reps", "2 sets"], slug: "cable-rear-delt-fly"),
-                GuideStep(title: "Progressive Light Bench", metaParts: ["10 reps", "2 sets"], slug: "dumbbell-bench-press"),
-            ],
+            summary: summary(for: seed.id, focus: seed.focus),
+            heroSlug: heroSlug(for: seed.id, name: seed.name),
+            rotationIndex: rotationIndex,
+            warmup: guideSteps(routineId: seed.id, phase: .warmup, instructions: seed.warmup.instructions),
             exercises: seed.exercises.map { exercise in
                 Exercise(
                     id: "\(seed.id)-\(exercise.hevyTemplateId)",
@@ -131,12 +154,90 @@ enum WorkoutPlan {
                     displayWeight: displayWeight(for: exercise.name)
                 )
             },
-            cooldown: [
-                GuideStep(title: "Easy Walk", metaParts: ["3 minutes"], slug: "walking"),
-                GuideStep(title: "Shoulder Stretch", metaParts: ["30 seconds each side"], slug: "cross-body-shoulder-stretch"),
-                GuideStep(title: "Standing Chest Stretch", metaParts: ["30 seconds each side"], slug: "doorway-chest-stretch"),
-            ]
+            cooldown: guideSteps(routineId: seed.id, phase: .cooldown, instructions: seed.cooldown.instructions),
+            minutes: 60,
+            difficulty: 3
         )
+    }
+
+    private static func summary(for id: String, focus: String) -> String {
+        switch id {
+        case "A":
+            return "Build your pressing foundation with dumbbell and cable movements for the chest, shoulders, and triceps. Choose comfortable ranges and controlled reps."
+        case "B":
+            return "Build lower-body control with machine work for the hips, legs, and trunk. Stay in a comfortable range and keep each rep steady."
+        case "C":
+            return "Build the back, arms, and grip with cable pulling and assisted pull-ups. Log the assistance, not added weight."
+        case "D":
+            return "Build a lower-body foundation and trunk control with bridges, squats, steps, and bracing. Use a comfortable depth and slow reps."
+        default:
+            return focus
+        }
+    }
+
+    private static func heroSlug(for id: String, name: String) -> String {
+        switch id {
+        case "A": return "standing-dumbbell-press"
+        case "B": return "hip-abduction-machine"
+        case "C": return "assisted-pull-up"
+        case "D": return "glute-bridge"
+        default: return illustrationSlug(for: name)
+        }
+    }
+
+    private enum GuidePhase {
+        case warmup, cooldown
+    }
+
+    private static func guideSteps(routineId: String, phase: GuidePhase, instructions: String) -> [GuideStep] {
+        if routineId == "A" {
+            switch phase {
+            case .warmup:
+                return [
+                    GuideStep(title: "Easy Walk", metaParts: ["3–5 minutes"], slug: "walking"),
+                    GuideStep(title: "Shoulder Circles", metaParts: ["30 seconds", "2 sets"], slug: "arm-circles"),
+                    GuideStep(title: "Band External Rotations", metaParts: ["12 reps", "2 sets"], slug: "cable-rear-delt-fly"),
+                    GuideStep(title: "Progressive Light Bench", metaParts: ["10 reps", "2 sets"], slug: "dumbbell-bench-press"),
+                ]
+            case .cooldown:
+                return [
+                    GuideStep(title: "Easy Walk", metaParts: ["3 minutes"], slug: "walking"),
+                    GuideStep(title: "Shoulder Stretch", metaParts: ["30 seconds each side"], slug: "cross-body-shoulder-stretch"),
+                    GuideStep(title: "Standing Chest Stretch", metaParts: ["30 seconds each side"], slug: "doorway-chest-stretch"),
+                ]
+            }
+        }
+        return instructions
+            .split(separator: ";")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .map { label in
+                let presented = presentStep(label)
+                return GuideStep(
+                    title: presented.title,
+                    metaParts: presented.meta.isEmpty ? [] : [presented.meta],
+                    slug: illustrationSlug(for: label)
+                )
+            }
+    }
+
+    private static func presentStep(_ label: String) -> (title: String, meta: String) {
+        let cleaned = label.trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "."))
+        let pattern = #"^(\d+)\s*min(?:ute)?s?\s+(.+)$"#
+        if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+           let match = regex.firstMatch(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned)),
+           let minutesRange = Range(match.range(at: 1), in: cleaned),
+           let restRange = Range(match.range(at: 2), in: cleaned) {
+            return (sentence(String(cleaned[restRange])), "\(cleaned[minutesRange]) minutes")
+        }
+        return (sentence(cleaned), "")
+    }
+
+    private static func sentence(_ value: String) -> String {
+        let text = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let first = text.first else { return text }
+        return String(first).uppercased() + text.dropFirst()
     }
 
     private static func displayWeight(for name: String) -> String {
@@ -171,6 +272,32 @@ enum WorkoutPlan {
         if name.range(of: "pushdown|tricep", options: options) != nil {
             return "tricep-pushdown"
         }
+        if name.range(of: "leg curl", options: options) != nil { return "seated-leg-curl" }
+        if name.range(of: "leg extension", options: options) != nil { return "leg-extension" }
+        if name.range(of: "abduction", options: options) != nil { return "hip-abduction-machine" }
+        if name.range(of: "adduction", options: options) != nil { return "hip-adduction-machine" }
+        if name.range(of: "calf", options: options) != nil { return "standing-calf-raise" }
+        if name.range(of: "pallof", options: options) != nil { return "pallof-press" }
+        if name.range(of: "pull-?up", options: options) != nil { return "assisted-pull-up" }
+        if name.range(of: "pulldown", options: options) != nil { return "lat-pulldown" }
+        if name.range(of: "face pull", options: options) != nil { return "face-pull" }
+        if name.range(of: "farmer", options: options) != nil { return "farmer-carry" }
+        if name.range(of: "biceps|\\bcurl\\b", options: options) != nil { return "cable-curl" }
+        if name.range(of: "cable row|seated row|\\brow\\b", options: options) != nil { return "seated-row" }
+        if name.range(of: "glute bridge", options: options) != nil { return "glute-bridge" }
+        if name.range(of: "step-?up", options: options) != nil { return "step-up" }
+        if name.range(of: "bird dog", options: options) != nil { return "bird-dog" }
+        if name.range(of: "squat", options: options) != nil { return "bodyweight-squat" }
+        if name.range(of: "hip flexor", options: options) != nil { return "kneeling-hip-flexor-stretch" }
+        if name.range(of: "hamstring", options: options) != nil { return "hamstring-stretch" }
+        if name.range(of: "external rotation", options: options) != nil { return "cable-rear-delt-fly" }
+        if name.range(of: "shoulder circle|arm circle|scapular motion", options: options) != nil { return "arm-circles" }
+        if name.range(of: "scapular", options: options) != nil { return "band-pull-apart" }
+        if name.range(of: "hinge", options: options) != nil { return "dumbbell-romanian-deadlift" }
+        if name.range(of: "\\bbike\\b", options: options) != nil { return "assault-bike" }
+        if name.range(of: "march", options: options) != nil { return "high-knees" }
+        if name.range(of: "hip circle|breath|relaxed", options: options) != nil { return "cat-cow-stretch" }
+        if name.range(of: "walk", options: options) != nil { return "walking" }
         return "walking"
     }
 }

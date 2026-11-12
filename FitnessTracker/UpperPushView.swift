@@ -1,7 +1,15 @@
 import SwiftUI
 
 struct UpperPushView: View {
+    var body: some View {
+        RoutineView(routine: WorkoutPlan.upperPush())
+    }
+}
+
+struct RoutineView: View {
     @Environment(SessionStore.self) private var store
+    @Environment(WashTheme.self) private var wash
+    let routine: Routine
     @State private var didSave = false
     @State private var showCompleteButton = false
     @State private var openWeightRowID: String?
@@ -9,11 +17,8 @@ struct UpperPushView: View {
     @State private var weightDraft = ""
     @State private var weights: [String: String] = [:]
 
-    private let routine = WorkoutPlan.upperPush()
-
     var body: some View {
-        NavigationStack {
-            ScrollView {
+        ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(routine.name)
                         .font(.largeTitle)
@@ -48,31 +53,33 @@ struct UpperPushView: View {
                 .padding(.top, 34)
                 .padding(.bottom, 88)
             }
-            .scrollDismissesKeyboard(.immediately)
-            .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
-            .background { ThermalWashBackground() }
-            .overlay(alignment: .top) {
-                topStatusScrim
-            }
-            .overlay(alignment: .bottom) {
-                ZStack {
-                    if showCompleteButton {
-                        completeWorkoutButton
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                }
-                .animation(.smooth(duration: 0.4), value: showCompleteButton)
-            }
-            .navigationTitle("Routine A")
-            .toolbarTitleDisplayMode(.inline)
-            .alert("Workout saved", isPresented: $didSave) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("Upper Push is stored on this iPhone.")
-            }
+        .scrollDismissesKeyboard(.immediately)
+        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
+        .overlay(alignment: .top) {
+            topStatusScrim
         }
-        .preferredColorScheme(.dark)
-        .tint(.white)
+        .safeAreaInset(edge: .bottom) {
+            ZStack {
+                if showCompleteButton {
+                    completeWorkoutButton
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.smooth(duration: 0.4), value: showCompleteButton)
+        }
+        .navigationTitle("Routine \(routine.id)")
+        .toolbarTitleDisplayMode(.inline)
+        .alert("Workout saved", isPresented: $didSave) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("\(routine.name) is stored on this iPhone.")
+        }
+        .onAppear {
+            wash.grade = WashGrade.forRoutine(routine.id)
+        }
+        .onDisappear {
+            wash.grade = .grayscale
+        }
     }
 
     private var glanceCard: some View {
@@ -81,22 +88,15 @@ struct UpperPushView: View {
             HStack(alignment: .top, spacing: 56) {
                 VStack(alignment: .leading, spacing: 8) {
                     glanceLabel("exercises")
-                    glanceNumber("05")
+                    glanceNumber(routine.exerciseCountLabel)
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     glanceLabel("minutes")
-                    glanceNumber("60")
+                    glanceNumber("\(routine.minutes)")
                 }
                 VStack(spacing: 8) {
                     glanceLabel("difficulty")
-                    HStack(alignment: .bottom, spacing: 4) {
-                        ForEach(0..<5, id: \.self) { index in
-                            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                .fill(.white.opacity(index < 3 ? 1 : 0.35))
-                                .frame(width: 8, height: 31)
-                        }
-                    }
-                    .accessibilityHidden(true)
+                    DifficultyBars(filled: routine.difficulty)
                 }
             }
             Spacer(minLength: 0)
@@ -107,7 +107,7 @@ struct UpperPushView: View {
         .frame(height: 120)
         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("5 exercises, 60 minutes, difficulty three of five")
+        .accessibilityLabel("\(routine.exercises.count) exercises, \(routine.minutes) minutes, difficulty \(routine.difficulty) of five")
     }
 
     private func glanceLabel(_ title: String) -> some View {
@@ -459,6 +459,10 @@ private struct MetaLine: View {
 }
 
 #Preview {
-    UpperPushView()
-        .environment(SessionStore())
+    NavigationStack {
+        RoutineView(routine: WorkoutPlan.upperPush())
+    }
+    .environment(SessionStore())
+    .environment(WashTheme())
+    .preferredColorScheme(.dark)
 }

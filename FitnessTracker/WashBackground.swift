@@ -1,0 +1,322 @@
+import AVFoundation
+import CoreImage
+import SwiftUI
+import UIKit
+
+enum WashPlayback {
+    /// Full-speed wash behind glass.
+    static let rate: Float = 1.0
+    static let resourceName = "AdobeStock_621992661"
+    static let resourceExtension = "mp4"
+}
+
+enum WashGrade: Hashable {
+    case grayscale
+    case thermal
+    case green
+    case magenta
+    case amber
+
+    static func forRoutine(_ id: String) -> WashGrade {
+        switch id {
+        case "A": return .thermal
+        case "B": return .green
+        case "C": return .magenta
+        case "D": return .amber
+        default: return .thermal
+        }
+    }
+}
+
+@Observable
+final class WashTheme {
+    var grade: WashGrade = .grayscale
+}
+
+struct WashBackground: View {
+    var grade: WashGrade
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+
+    var body: some View {
+        GeometryReader { geo in
+            WashPlayerLayer(isActive: !reduceMotion && scenePhase == .active, grade: grade)
+                .frame(width: geo.size.height, height: geo.size.width)
+                .rotationEffect(.degrees(90))
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
+                .clipped()
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
+struct ThermalWashBackground: View {
+    var body: some View {
+        WashBackground(grade: .thermal)
+    }
+}
+
+private struct WashPlayerLayer: UIViewRepresentable {
+    var isActive: Bool
+    var grade: WashGrade
+
+    func makeUIView(context: Context) -> WashPlayerView {
+        let view = WashPlayerView()
+        view.setGrade(grade)
+        view.setActive(isActive)
+        return view
+    }
+
+    func updateUIView(_ uiView: WashPlayerView, context: Context) {
+        uiView.setGrade(grade)
+        uiView.setActive(isActive)
+    }
+}
+
+private final class WashPlayerView: UIView {
+    override class var layerClass: AnyClass { AVPlayerLayer.self }
+
+    private var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
+    private var player: AVPlayer?
+    private var loopObserver: NSObjectProtocol?
+    private var statusObserver: NSKeyValueObservation?
+    private var wantsPlayback = false
+    private var grade: WashGrade = .thermal
+    private var asset: AVURLAsset?
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        playerLayer.videoGravity = .resizeAspectFill
+        backgroundColor = .black
+        isUserInteractionEnabled = false
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    deinit {
+        if let loopObserver {
+            NotificationCenter.default.removeObserver(loopObserver)
+        }
+        statusObserver = nil
+        player?.pause()
+    }
+
+    func setActive(_ active: Bool) {
+        wantsPlayback = active
+        applyPlaybackState()
+    }
+
+    func setGrade(_ newGrade: WashGrade) {
+        if newGrade == grade, player != nil { return }
+        grade = newGrade
+        rebuild()
+    }
+
+    private func applyPlaybackState() {
+        guard let player else { return }
+        if wantsPlayback {
+            player.playImmediately(atRate: WashPlayback.rate)
+        } else {
+            player.pause()
+        }
+    }
+
+    private func observe(_ item: AVPlayerItem) {
+        statusObserver = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+            guard item.status == .readyToPlay else { return }
+            DispatchQueue.main.async {
+                self?.applyPlaybackState()
+            }
+        }
+        if let loopObserver {
+            NotificationCenter.default.removeObserver(loopObserver)
+        }
+        loopObserver = NotificationCenter.default.addObserver(
+            forName: .AVPlayerItemDidPlayToEndTime,
+            object: item,
+            queue: .main
+        ) { [weak self] _ in
+            self?.player?.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] finished in
+                guard finished else { return }
+                self?.applyPlaybackState()
+            }
+        }
+    }
+
+    private func rebuild() {
+        guard let url = Self.videoURL() else { return }
+        let asset = AVURLAsset(url: url)
+        self.asset = asset
+        let mappedGrade = grade
+        AVVideoComposition.videoComposition(with: asset, applyingCIFiltersWithHandler: { request in
+            let source = request.sourceImage.clampedToExtent()
+            let contrasted = source.applyingFilter("CIColorControls", parameters: [
+                kCIInputContrastKey: 1.35,
+                kCIInputSaturationKey: 0,
+                kCIInputBrightnessKey: 0.05,
+            ])
+            let graded: CIImage
+            if mappedGrade == .grayscale {
+                graded = contrasted
+            } else {
+                graded = contrasted.applyingFilter("CIColorMap", parameters: [
+                    "inputGradientImage": WashLook.colorMap(for: mappedGrade),
+                ])
+            }
+            request.finish(with: graded.cropped(to: request.sourceImage.extent), context: nil)
+        }) { [weak self] composition, _ in
+            DispatchQueue.main.async {
+                guard let self, self.grade == mappedGrade else { return }
+                let item = AVPlayerItem(asset: asset)
+                if let composition {
+                    item.videoComposition = composition
+                }
+                if let player = self.player {
+                    player.replaceCurrentItem(with: item)
+                } else {
+                    let player = AVPlayer(playerItem: item)
+                    player.isMuted = true
+                    player.actionAtItemEnd = .none
+                    player.preventsDisplaySleepDuringVideoPlayback = false
+                    self.player = player
+                    self.playerLayer.player = player
+                }
+                self.observe(item)
+                self.applyPlaybackState()
+            }
+        }
+    }
+
+    private static func videoURL() -> URL? {
+        let bundle = Bundle.main
+        return bundle.url(
+            forResource: WashPlayback.resourceName,
+            withExtension: WashPlayback.resourceExtension,
+            subdirectory: "background-videos"
+        ) ?? bundle.url(forResource: WashPlayback.resourceName, withExtension: WashPlayback.resourceExtension)
+    }
+}
+
+private enum WashLook {
+    static func colorMap(for grade: WashGrade) -> CIImage {
+        switch grade {
+        case .grayscale:
+            return makeColorMap(sampleGray)
+        case .thermal:
+            return makeColorMap(sampleThermal)
+        case .green:
+            return makeColorMap(sampleGreen)
+        case .magenta:
+            return makeColorMap(sampleMagenta)
+        case .amber:
+            return makeColorMap(sampleAmber)
+        }
+    }
+
+    private static func makeColorMap(_ sample: (Double) -> (Double, Double, Double)) -> CIImage {
+        let width = 256
+        var pixels = [UInt8](repeating: 255, count: width * 4)
+        for x in 0..<width {
+            let color = sample(Double(x) / 255)
+            pixels[x * 4 + 0] = UInt8((color.0 * 255).rounded())
+            pixels[x * 4 + 1] = UInt8((color.1 * 255).rounded())
+            pixels[x * 4 + 2] = UInt8((color.2 * 255).rounded())
+            pixels[x * 4 + 3] = 255
+        }
+        let space = CGColorSpaceCreateDeviceRGB()
+        let context = CGContext(
+            data: &pixels,
+            width: width,
+            height: 1,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: space,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )
+        guard let image = context?.makeImage() else {
+            return CIImage(color: .black)
+        }
+        return CIImage(cgImage: image)
+    }
+
+    private static func lerp(
+        _ t: Double,
+        _ stops: [(Double, (Double, Double, Double))]
+    ) -> (Double, Double, Double) {
+        let t = min(max(t, 0), 1)
+        for index in 0..<(stops.count - 1) {
+            let start = stops[index]
+            let end = stops[index + 1]
+            if t >= start.0, t <= end.0 {
+                let span = end.0 - start.0
+                let u = span == 0 ? 0 : (t - start.0) / span
+                return (
+                    start.1.0 + (end.1.0 - start.1.0) * u,
+                    start.1.1 + (end.1.1 - start.1.1) * u,
+                    start.1.2 + (end.1.2 - start.1.2) * u
+                )
+            }
+        }
+        return stops.last!.1
+    }
+
+    private static func sampleGray(_ t: Double) -> (Double, Double, Double) {
+        lerp(t, [
+            (0.00, (0.00, 0.00, 0.00)),
+            (0.45, (0.22, 0.22, 0.24)),
+            (0.75, (0.55, 0.55, 0.58)),
+            (1.00, (0.92, 0.92, 0.94)),
+        ])
+    }
+
+    /// Black / blue cold → yellow → white-hot.
+    private static func sampleThermal(_ t: Double) -> (Double, Double, Double) {
+        lerp(t, [
+            (0.00, (0.00, 0.00, 0.00)),
+            (0.18, (0.00, 0.04, 0.42)),
+            (0.38, (0.02, 0.38, 1.00)),
+            (0.58, (0.15, 0.85, 0.95)),
+            (0.72, (1.00, 0.95, 0.05)),
+            (0.88, (1.00, 1.00, 0.72)),
+            (1.00, (1.00, 1.00, 1.00)),
+        ])
+    }
+
+    private static func sampleGreen(_ t: Double) -> (Double, Double, Double) {
+        lerp(t, [
+            (0.00, (0.00, 0.00, 0.00)),
+            (0.18, (0.00, 0.18, 0.08)),
+            (0.38, (0.02, 0.55, 0.22)),
+            (0.58, (0.20, 0.92, 0.38)),
+            (0.76, (0.78, 1.00, 0.28)),
+            (1.00, (1.00, 1.00, 0.92)),
+        ])
+    }
+
+    private static func sampleMagenta(_ t: Double) -> (Double, Double, Double) {
+        lerp(t, [
+            (0.00, (0.00, 0.00, 0.00)),
+            (0.18, (0.28, 0.00, 0.32)),
+            (0.40, (0.78, 0.05, 0.62)),
+            (0.62, (1.00, 0.28, 0.82)),
+            (0.82, (1.00, 0.72, 0.92)),
+            (1.00, (1.00, 0.96, 1.00)),
+        ])
+    }
+
+    private static func sampleAmber(_ t: Double) -> (Double, Double, Double) {
+        lerp(t, [
+            (0.00, (0.00, 0.00, 0.00)),
+            (0.18, (0.28, 0.08, 0.00)),
+            (0.40, (0.82, 0.32, 0.02)),
+            (0.62, (1.00, 0.62, 0.08)),
+            (0.82, (1.00, 0.88, 0.42)),
+            (1.00, (1.00, 0.98, 0.88)),
+        ])
+    }
+}
