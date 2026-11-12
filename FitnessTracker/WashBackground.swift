@@ -156,18 +156,13 @@ private final class WashPlayerView: UIView {
         AVVideoComposition.videoComposition(with: asset, applyingCIFiltersWithHandler: { request in
             let source = request.sourceImage.clampedToExtent()
             let contrasted = source.applyingFilter("CIColorControls", parameters: [
-                kCIInputContrastKey: 1.35,
+                kCIInputContrastKey: mappedGrade == .grayscale ? 1.7 : 1.35,
                 kCIInputSaturationKey: 0,
-                kCIInputBrightnessKey: 0.05,
+                kCIInputBrightnessKey: mappedGrade == .grayscale ? -0.12 : 0.05,
             ])
-            let graded: CIImage
-            if mappedGrade == .grayscale {
-                graded = contrasted
-            } else {
-                graded = contrasted.applyingFilter("CIColorMap", parameters: [
-                    "inputGradientImage": WashLook.colorMap(for: mappedGrade),
-                ])
-            }
+            let graded = contrasted.applyingFilter("CIColorMap", parameters: [
+                "inputGradientImage": WashLook.colorMap(for: mappedGrade),
+            ])
             request.finish(with: graded.cropped(to: request.sourceImage.extent), context: nil)
         }) { [weak self] composition, _ in
             DispatchQueue.main.async {
@@ -268,9 +263,9 @@ private enum WashLook {
     private static func sampleGray(_ t: Double) -> (Double, Double, Double) {
         lerp(t, [
             (0.00, (0.00, 0.00, 0.00)),
-            (0.45, (0.22, 0.22, 0.24)),
-            (0.75, (0.55, 0.55, 0.58)),
-            (1.00, (0.92, 0.92, 0.94)),
+            (0.55, (0.04, 0.04, 0.05)),
+            (0.82, (0.16, 0.16, 0.18)),
+            (1.00, (0.96, 0.96, 0.97)),
         ])
     }
 
@@ -287,35 +282,32 @@ private enum WashLook {
         ])
     }
 
-    /// Black → dark green → lime → white.
+    /// Dark green primary → lime secondary → white.
     private static func sampleNightVision(_ t: Double) -> (Double, Double, Double) {
         lerp(t, [
-            (0.00, (0.00, 0.00, 0.00)),
-            (0.22, (0.00, 0.16, 0.04)),
-            (0.52, (0.08, 0.72, 0.12)),
-            (0.78, (0.55, 1.00, 0.18)),
+            (0.00, (0.00, 0.14, 0.03)),
+            (0.42, (0.00, 0.14, 0.03)),
+            (0.70, (0.72, 1.00, 0.00)),
             (1.00, (1.00, 1.00, 1.00)),
         ])
     }
 
-    /// Black → indigo → magenta → white.
+    /// Indigo primary → magenta secondary → white.
     private static func sampleUltraviolet(_ t: Double) -> (Double, Double, Double) {
         lerp(t, [
-            (0.00, (0.00, 0.00, 0.00)),
-            (0.22, (0.10, 0.00, 0.38)),
-            (0.52, (0.48, 0.04, 0.92)),
-            (0.78, (1.00, 0.18, 0.82)),
+            (0.00, (0.10, 0.00, 0.42)),
+            (0.42, (0.10, 0.00, 0.42)),
+            (0.70, (1.00, 0.00, 0.78)),
             (1.00, (1.00, 1.00, 1.00)),
         ])
     }
 
-    /// Black → deep red → orange → white.
+    /// Deep red primary → orange secondary → white.
     private static func sampleEmber(_ t: Double) -> (Double, Double, Double) {
         lerp(t, [
-            (0.00, (0.00, 0.00, 0.00)),
-            (0.22, (0.32, 0.00, 0.00)),
-            (0.52, (0.92, 0.12, 0.02)),
-            (0.78, (1.00, 0.48, 0.04)),
+            (0.00, (0.32, 0.00, 0.00)),
+            (0.42, (0.32, 0.00, 0.00)),
+            (0.70, (1.00, 0.42, 0.00)),
             (1.00, (1.00, 1.00, 1.00)),
         ])
     }
