@@ -82,11 +82,8 @@ struct HomeView: View {
                 } label: {
                     Image(systemName: "ellipsis")
                 }
-                .buttonStyle(.glass)
-                .buttonBorderShape(.circle)
                 .accessibilityLabel("More")
             }
-            .sharedBackgroundVisibility(.hidden)
         }
         .navigationDestination(for: Routine.self) { routine in
             RoutineView(routine: routine)
