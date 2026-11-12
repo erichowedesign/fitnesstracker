@@ -153,31 +153,32 @@ private struct UpNextCard: View {
 private struct RoutineListCard: View {
     let routine: Routine
 
+    private var poseSlug: String {
+        routine.exercises.first?.slug ?? routine.heroSlug
+    }
+
     var body: some View {
         ZStack(alignment: .leading) {
             WashWindow(grade: WashGrade.forRoutine(routine.id))
             HStack(alignment: .center, spacing: 20) {
-                IllustrationView(slug: routine.heroSlug, label: routine.name)
+                IllustrationView(slug: poseSlug, label: routine.name)
                     .frame(width: 120, height: 120)
                     .foregroundStyle(.white)
-                VStack(alignment: .leading, spacing: 23) {
-                    Text(routine.focus)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Routine \(routine.rotationIndex)")
                         .font(.system(size: 15))
                         .frame(height: 18, alignment: .leading)
+                    Text(routine.name)
+                        .font(.system(size: 22, weight: .semibold))
+                        .frame(height: 25, alignment: .leading)
                         .lineLimit(1)
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(routine.name)
-                            .font(.system(size: 22, weight: .semibold))
-                            .frame(height: 25, alignment: .leading)
-                            .lineLimit(1)
-                        Text("\(routine.exerciseCountLabel) workouts")
-                            .font(.system(size: 16))
-                            .frame(height: 20, alignment: .leading)
-                            .lineLimit(1)
-                    }
+                    Text(routine.focus)
+                        .font(.system(size: 16))
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(2)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .foregroundStyle(.white)
-                Spacer(minLength: 0)
             }
             .padding(16)
         }
@@ -186,7 +187,7 @@ private struct RoutineListCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(routine.name), \(routine.focus), \(routine.exerciseCountLabel) workouts")
+        .accessibilityLabel("Routine \(routine.rotationIndex), \(routine.name), \(routine.focus)")
     }
 }
 
