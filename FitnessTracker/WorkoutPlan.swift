@@ -74,6 +74,40 @@ struct Exercise: Identifiable {
     let slug: String
     let displayWeight: String?
 
+    var tutorialFrames: [String] {
+        (1...3).map { "\(slug)-frame-\($0)" }
+    }
+
+    var tutorialMuscles: String {
+        switch name {
+        case "Dumbbell Bench Press":
+            return "Arms, Chest, Shoulders"
+        case "Cable Bench Press":
+            return "Chest, Shoulders"
+        case "Dumbbell Shoulder Press":
+            return "Arms, Core, Shoulders"
+        case "Dumbbell Lateral Raise":
+            return "Shoulders, Upper Back"
+        case "Cable Triceps Pushdown":
+            return "Arms, Shoulders"
+        default:
+            return equipment.capitalized
+        }
+    }
+
+    var tutorialHints: [String] {
+        switch name {
+        case "Dumbbell Bench Press":
+            return [
+                "Keep your core engaged and your head, shoulders, and back flat against the pad",
+                "Avoid locking out your elbows at the top",
+                "Your arms should stay at roughly 90-degree angles at the bottom",
+            ]
+        default:
+            return []
+        }
+    }
+
     var metaParts: [String] {
         let work: String
         if let targetDurationSeconds, targetReps == nil {

@@ -18,7 +18,7 @@ struct RoutineView: View {
     @State private var editingWeightRowID: String?
     @State private var weightDraft = ""
     @State private var weights: [String: String] = [:]
-    @State private var showBenchTutorial = false
+    @State private var tutorial: ExerciseTutorial?
 
     var body: some View {
         ScrollView {
@@ -103,21 +103,13 @@ struct RoutineView: View {
         .background {
             DisableRoutineInteractivePop()
         }
-        .navigationDestination(isPresented: $showBenchTutorial) {
+        .navigationDestination(item: $tutorial) { item in
             ExerciseTutorialView(
-                exerciseName: "Dumbbell Bench Press",
-                muscles: "Arms, Chest, Shoulders",
+                exerciseName: item.name,
+                muscles: item.muscles,
                 grade: WashGrade.forRoutine(routine.id),
-                frames: [
-                    "dumbbell-bench-press-frame-1",
-                    "dumbbell-bench-press-frame-2",
-                    "dumbbell-bench-press-frame-3",
-                ],
-                hints: [
-                    "Keep your core engaged and your head, shoulders, and back flat against the pad",
-                    "Avoid locking out your elbows at the top",
-                    "Your arms should stay at roughly 90-degree angles at the bottom",
-                ]
+                frames: item.frames,
+                hints: item.hints
             )
         }
     }
@@ -240,7 +232,7 @@ struct RoutineView: View {
                             onClose: { closeWeightRow(exercise.id) },
                             onEdit: { beginWeightEdit(exercise) },
                             onCommit: commitWeightEdit,
-                            onSelect: exercise.name == "Dumbbell Bench Press" ? openBenchTutorial : nil
+                            onSelect: { openTutorial(exercise) }
                         )
                     }
                 }
@@ -249,11 +241,16 @@ struct RoutineView: View {
         .padding(.top, 48)
     }
 
-    private func openBenchTutorial() {
+    private func openTutorial(_ exercise: Exercise) {
         if let id = openWeightRowID {
             closeWeightRow(id)
         }
-        showBenchTutorial = true
+        tutorial = ExerciseTutorial(
+            name: exercise.name,
+            muscles: exercise.tutorialMuscles,
+            frames: exercise.tutorialFrames,
+            hints: exercise.tutorialHints
+        )
     }
 
     private func openWeightRow(_ id: String) {

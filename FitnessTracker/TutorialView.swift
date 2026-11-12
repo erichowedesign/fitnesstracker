@@ -1,5 +1,12 @@
 import SwiftUI
 
+struct ExerciseTutorial: Hashable {
+    let name: String
+    let muscles: String
+    let frames: [String]
+    let hints: [String]
+}
+
 struct ExerciseTutorialView: View {
     @Environment(\.dismiss) private var dismiss
     let exerciseName: String
@@ -92,14 +99,12 @@ struct ExerciseTutorialView: View {
     }
 
     private var cyclingHero: some View {
-        Group {
-            if frames.count == 3 {
-                BenchPressMorphView(slugs: frames, label: exerciseName)
-                    .padding(28)
-            } else {
-                IllustrationView(slug: frames.first ?? "", label: exerciseName)
-                    .padding(28)
-            }
+        TimelineView(.periodic(from: .now, by: 0.45)) { context in
+            let index = frames.isEmpty
+                ? 0
+                : Int(context.date.timeIntervalSinceReferenceDate / 0.45) % frames.count
+            IllustrationView(slug: frames[index], label: exerciseName)
+                .padding(28)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 370)
