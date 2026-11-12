@@ -29,6 +29,10 @@ struct LibraryWorkout: Identifiable, Hashable {
 }
 
 enum LibraryCatalog {
+    static func workout(slug: String) -> LibraryWorkout? {
+        workouts.first { $0.slug == slug }
+    }
+
     static let workouts: [LibraryWorkout] = [
         LibraryWorkout(slug: "ab-wheel", name: "Ab Wheel Rollout", equipment: "Bodyweight", muscle: "Core", routineID: nil),
         LibraryWorkout(slug: "active-hang", name: "Active Hang", equipment: "Pull-up Bar", muscle: "Lats", routineID: nil),

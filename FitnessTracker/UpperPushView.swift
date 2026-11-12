@@ -208,6 +208,10 @@ struct RoutineView: View {
                 VStack(spacing: 12) {
                     ForEach(steps) { step in
                         GuideRow(title: step.title, metaParts: step.metaParts, slug: step.slug)
+                            .contentShape(Rectangle())
+                            .onTapGesture { openTutorial(step) }
+                            .accessibilityAddTraits(.isButton)
+                            .accessibilityHint("Opens the tutorial")
                     }
                 }
             }
@@ -243,14 +247,32 @@ struct RoutineView: View {
     }
 
     private func openTutorial(_ exercise: Exercise) {
+        presentTutorial(
+            name: exercise.name,
+            muscles: exercise.tutorialMuscles,
+            slug: exercise.slug,
+            hints: exercise.tutorialHints
+        )
+    }
+
+    private func openTutorial(_ step: GuideStep) {
+        presentTutorial(
+            name: step.title,
+            muscles: LibraryCatalog.workout(slug: step.slug)?.muscle ?? "",
+            slug: step.slug,
+            hints: []
+        )
+    }
+
+    private func presentTutorial(name: String, muscles: String, slug: String, hints: [String]) {
         if let id = openWeightRowID {
             closeWeightRow(id)
         }
         tutorial = ExerciseTutorial(
-            name: exercise.name,
-            muscles: exercise.tutorialMuscles,
-            frames: exercise.tutorialFrames,
-            hints: exercise.tutorialHints
+            name: name,
+            muscles: muscles,
+            frames: Exercise.tutorialFrames(for: slug),
+            hints: hints
         )
     }
 
@@ -407,9 +429,17 @@ private struct GuideRow: View {
     var onCommit: (() -> Void)? = nil
     var onKeyboardDone: (() -> Void)? = nil
 
+    /// Rows keep their existing still. Workouts that only live in the library use that workout's first frame.
+    private var thumbnailSlug: String {
+        if UIImage(named: slug) != nil {
+            return slug
+        }
+        return "library/\(slug)/frame-1"
+    }
+
     var body: some View {
         HStack(spacing: 20) {
-            IllustrationView(slug: slug, label: title)
+            IllustrationView(slug: thumbnailSlug, label: title)
                 .frame(width: 120, height: 120)
             VStack(alignment: .leading, spacing: 0) {
                 Text(title)

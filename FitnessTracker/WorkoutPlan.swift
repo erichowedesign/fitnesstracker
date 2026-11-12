@@ -75,24 +75,28 @@ struct Exercise: Identifiable {
     let displayWeight: String?
 
     var tutorialFrames: [String] {
-        (1...3).map { "\(slug)-frame-\($0)" }
+        Self.tutorialFrames(for: slug)
     }
 
-    var tutorialMuscles: String {
-        switch name {
-        case "Dumbbell Bench Press":
-            return "Arms, Chest, Shoulders"
-        case "Cable Bench Press":
-            return "Chest, Shoulders"
-        case "Dumbbell Shoulder Press":
-            return "Arms, Core, Shoulders"
-        case "Dumbbell Lateral Raise":
-            return "Shoulders, Upper Back"
-        case "Cable Triceps Pushdown":
-            return "Arms, Shoulders"
-        default:
-            return equipment.capitalized
+    /// Upper Push keeps the frame set already aligned for its tutorials.
+    /// Every other workout uses that workout's three library frames.
+    static func tutorialFrames(for slug: String) -> [String] {
+        if alignedTutorialSlugs.contains(slug) {
+            return (1...3).map { "\(slug)-frame-\($0)" }
         }
+        return (1...3).map { "library/\(slug)/frame-\($0)" }
+    }
+
+    private static let alignedTutorialSlugs: Set<String> = [
+        "cable-fly",
+        "dumbbell-bench-press",
+        "lateral-raise",
+        "standing-dumbbell-press",
+        "tricep-pushdown",
+    ]
+
+    var tutorialMuscles: String {
+        LibraryCatalog.workout(slug: slug)?.muscle ?? equipment.capitalized
     }
 
     var tutorialHints: [String] {
@@ -322,6 +326,8 @@ enum WorkoutPlan {
         if name.range(of: "step-?up", options: options) != nil { return "step-up" }
         if name.range(of: "bird dog", options: options) != nil { return "bird-dog" }
         if name.range(of: "squat", options: options) != nil { return "bodyweight-squat" }
+        if name.range(of: "clamshell", options: options) != nil { return "clamshell" }
+        if name.range(of: "leg swing", options: options) != nil { return "leg-swings-stretch" }
         if name.range(of: "hip flexor", options: options) != nil { return "kneeling-hip-flexor-stretch" }
         if name.range(of: "hamstring", options: options) != nil { return "hamstring-stretch" }
         if name.range(of: "external rotation", options: options) != nil { return "cable-rear-delt-fly" }
