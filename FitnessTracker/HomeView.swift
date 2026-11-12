@@ -111,6 +111,11 @@ struct HomeView: View {
     }
 }
 
+/// Same continuous roundness as the 152pt-tall tiles, scaled to the illustration square.
+private func homeIllustrationThumb(size: CGFloat) -> RoundedRectangle {
+    RoundedRectangle(cornerRadius: size * (34 / 152), style: .continuous)
+}
+
 private struct UpNextCard: View {
     let routine: Routine
 
@@ -122,7 +127,7 @@ private struct UpNextCard: View {
                     .frame(width: 210, height: 210)
             }
             .frame(width: 210, height: 210)
-            .clipped()
+            .clipShape(homeIllustrationThumb(size: 210))
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             .padding(.top, 28)
             .padding(.trailing, 20)
@@ -171,27 +176,16 @@ private struct RoutineListCard: View {
         }
     }
 
-    /// Figma vector size inside the 120 box.
-    private var poseSize: CGSize {
-        switch routine.id {
-        case "B": return CGSize(width: 53, height: 85)
-        case "C": return CGSize(width: 96, height: 64)
-        case "D": return CGSize(width: 88, height: 110)
-        default: return CGSize(width: 120, height: 120)
-        }
-    }
-
     var body: some View {
         ZStack(alignment: .leading) {
             HStack(alignment: .top, spacing: 20) {
                 ZStack {
                     WashWindow(grade: WashGrade.forRoutine(routine.id))
-                    IllustrationView(slug: poseSlug, label: routine.name, fill: true)
-                        .frame(width: poseSize.width, height: poseSize.height)
-                        .clipped()
+                    IllustrationView(slug: poseSlug, label: routine.name)
+                        .frame(width: 120, height: 120)
                 }
                 .frame(width: 120, height: 120)
-                .clipped()
+                .clipShape(homeIllustrationThumb(size: 120))
                 .foregroundStyle(.white)
                 VStack(alignment: .leading, spacing: 23) {
                     Text("Routine \(routine.rotationIndex)")
