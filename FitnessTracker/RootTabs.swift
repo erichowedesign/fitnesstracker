@@ -7,6 +7,7 @@ private enum AppTab: Hashable {
 struct RootTabs: View {
     @Environment(WashTheme.self) private var wash
     @State private var tab: AppTab = .home
+    @State private var hidesFloatingTabBar = false
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -15,7 +16,7 @@ struct RootTabs: View {
             Group {
                 switch tab {
                 case .home:
-                    HomeView()
+                    HomeView(hidesFloatingTabBar: $hidesFloatingTabBar)
                 case .history:
                     NavigationStack {
                         PlaceholderScreen(title: "History")
@@ -29,6 +30,10 @@ struct RootTabs: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             tabBar
+                .opacity(hidesFloatingTabBar ? 0 : 1)
+                .allowsHitTesting(!hidesFloatingTabBar)
+                .accessibilityHidden(hidesFloatingTabBar)
+                .animation(HomeHeroMotion.animation, value: hidesFloatingTabBar)
         }
         .preferredColorScheme(.dark)
         .onAppear {

@@ -9,9 +9,14 @@ struct HomeView: View {
     @Environment(SessionStore.self) private var store
     @Environment(WashTheme.self) private var wash
     @Namespace private var hero
+    @Binding var hidesFloatingTabBar: Bool
     @State private var path: [Routine] = []
     @State private var heroMatchEnabled = true
     private let routines = WorkoutPlan.all()
+
+    init(hidesFloatingTabBar: Binding<Bool> = .constant(false)) {
+        _hidesFloatingTabBar = hidesFloatingTabBar
+    }
 
     private var upNext: Routine {
         store.nextRoutine(in: routines)
@@ -116,6 +121,7 @@ struct HomeView: View {
                 .homeHeroZoom(id: routine.id, in: hero)
         }
         .onChange(of: path) { _, newPath in
+            hidesFloatingTabBar = !newPath.isEmpty
             if newPath.isEmpty {
                 heroMatchEnabled = true
             }
@@ -142,6 +148,7 @@ struct HomeView: View {
 
     private func openRoutine(_ routine: Routine) {
         heroMatchEnabled = true
+        hidesFloatingTabBar = true
         withAnimation(HomeHeroMotion.animation) {
             path.append(routine)
         }

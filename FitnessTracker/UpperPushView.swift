@@ -68,6 +68,7 @@ struct RoutineView: View {
             .ignoresSafeArea()
         }
         .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .overlay(alignment: .top) {
             topStatusScrim
         }
@@ -83,7 +84,7 @@ struct RoutineView: View {
         .navigationTitle("Routine \(routine.id)")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
-            if hero != nil {
+            if hero != nil, heroMatchEnabled {
                 ToolbarItem(placement: .principal) {
                     Text("Routine \(routine.id)")
                         .font(.headline)
