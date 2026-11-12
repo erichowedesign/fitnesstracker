@@ -116,13 +116,16 @@ private struct UpNextCard: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            WashWindow(grade: WashGrade.forRoutine(routine.id))
-
-            IllustrationView(slug: routine.heroSlug, label: routine.name)
-                .frame(width: 210, height: 210)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                .padding(.top, 28)
-                .padding(.trailing, 20)
+            ZStack {
+                WashWindow(grade: WashGrade.forRoutine(routine.id))
+                IllustrationView(slug: routine.heroSlug, label: routine.name)
+                    .frame(width: 210, height: 210)
+            }
+            .frame(width: 210, height: 210)
+            .clipped()
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            .padding(.top, 28)
+            .padding(.trailing, 20)
 
             Text("Routine \(routine.rotationIndex)")
                 .font(.subheadline)
@@ -180,13 +183,16 @@ private struct RoutineListCard: View {
 
     var body: some View {
         ZStack(alignment: .leading) {
-            WashWindow(grade: WashGrade.forRoutine(routine.id))
             HStack(alignment: .top, spacing: 20) {
-                IllustrationView(slug: poseSlug, label: routine.name, fill: true)
-                    .frame(width: poseSize.width, height: poseSize.height)
-                    .clipped()
-                    .frame(width: 120, height: 120)
-                    .foregroundStyle(.white)
+                ZStack {
+                    WashWindow(grade: WashGrade.forRoutine(routine.id))
+                    IllustrationView(slug: poseSlug, label: routine.name, fill: true)
+                        .frame(width: poseSize.width, height: poseSize.height)
+                        .clipped()
+                }
+                .frame(width: 120, height: 120)
+                .clipped()
+                .foregroundStyle(.white)
                 VStack(alignment: .leading, spacing: 23) {
                     Text("Routine \(routine.rotationIndex)")
                         .font(.system(size: 15))
