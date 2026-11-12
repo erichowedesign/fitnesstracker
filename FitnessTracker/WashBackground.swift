@@ -153,36 +153,41 @@ private final class WashPlayerView: UIView {
         let asset = AVURLAsset(url: url)
         self.asset = asset
         let mappedGrade = grade
-        AVVideoComposition.videoComposition(with: asset, applyingCIFiltersWithHandler: { request in
-            let source = request.sourceImage.clampedToExtent()
-            let contrasted = source.applyingFilter("CIColorControls", parameters: [
-                kCIInputContrastKey: mappedGrade == .grayscale ? 1.7 : 1.35,
-                kCIInputSaturationKey: 0,
-                kCIInputBrightnessKey: mappedGrade == .grayscale ? -0.12 : 0.05,
-            ])
-            let graded = contrasted.applyingFilter("CIColorMap", parameters: [
-                "inputGradientImage": WashLook.colorMap(for: mappedGrade),
-            ])
-            request.finish(with: graded.cropped(to: request.sourceImage.extent), context: nil)
-        }) { [weak self] composition, _ in
-            DispatchQueue.main.async {
-                guard let self, self.grade == mappedGrade else { return }
-                let item = AVPlayerItem(asset: asset)
-                if let composition {
-                    item.videoComposition = composition
+        let colorMap = WashLook.colorMap(for: mappedGrade)
+        let contrast: CGFloat = mappedGrade == .grayscale ? 1.7 : 1.35
+        let brightness: CGFloat = mappedGrade == .grayscale ? -0.12 : 0.05
+        DispatchQueue.global(qos: .userInitiated).async {
+            AVVideoComposition.videoComposition(with: asset, applyingCIFiltersWithHandler: { request in
+                let source = request.sourceImage.clampedToExtent()
+                let contrasted = source.applyingFilter("CIColorControls", parameters: [
+                    kCIInputContrastKey: contrast,
+                    kCIInputSaturationKey: 0,
+                    kCIInputBrightnessKey: brightness,
+                ])
+                let graded = contrasted.applyingFilter("CIColorMap", parameters: [
+                    "inputGradientImage": colorMap,
+                ])
+                request.finish(with: graded.cropped(to: request.sourceImage.extent), context: nil)
+            }) { [weak self] composition, _ in
+                DispatchQueue.main.async {
+                    guard let self, self.grade == mappedGrade else { return }
+                    let item = AVPlayerItem(asset: asset)
+                    if let composition {
+                        item.videoComposition = composition
+                    }
+                    if let player = self.player {
+                        player.replaceCurrentItem(with: item)
+                    } else {
+                        let player = AVPlayer(playerItem: item)
+                        player.isMuted = true
+                        player.actionAtItemEnd = .none
+                        player.preventsDisplaySleepDuringVideoPlayback = false
+                        self.player = player
+                        self.playerLayer.player = player
+                    }
+                    self.observe(item)
+                    self.applyPlaybackState()
                 }
-                if let player = self.player {
-                    player.replaceCurrentItem(with: item)
-                } else {
-                    let player = AVPlayer(playerItem: item)
-                    player.isMuted = true
-                    player.actionAtItemEnd = .none
-                    player.preventsDisplaySleepDuringVideoPlayback = false
-                    self.player = player
-                    self.playerLayer.player = player
-                }
-                self.observe(item)
-                self.applyPlaybackState()
             }
         }
     }
@@ -200,17 +205,22 @@ private final class WashPlayerView: UIView {
 private enum WashLook {
     static func colorMap(for grade: WashGrade) -> CIImage {
         switch grade {
-        case .grayscale:
-            return makeColorMap(sampleGray)
-        case .thermal:
-            return makeColorMap(sampleThermal)
-        case .nightVision:
-            return makeColorMap(sampleNightVision)
-        case .ultraviolet:
-            return makeColorMap(sampleUltraviolet)
-        case .ember:
-            return makeColorMap(sampleEmber)
+        case .grayscale: return grayscaleMap
+        case .thermal: return thermalMap
+        case .nightVision: return nightVisionMap
+        case .ultraviolet: return ultravioletMap
+        case .ember: return emberMap
         }
+    }
+
+    private static let grayscaleMap = makeColorMap(sampleGray)
+    private static let thermalMap = makeColorMap(sampleThermal)
+    private static let nightVisionMap = makeColorMap(sampleNightVision)
+    private static let ultravioletMap = makeColorMap(sampleUltraviolet)
+    private static let emberMap = makeColorMap(sampleEmber)
+
+    private static func channel(_ value: Double) -> UInt8 {
+        UInt8(clamping: Int((min(max(value, 0), 1) * 255).rounded()))
     }
 
     private static func makeColorMap(_ sample: (Double) -> (Double, Double, Double)) -> CIImage {
@@ -218,9 +228,9 @@ private enum WashLook {
         var pixels = [UInt8](repeating: 255, count: width * 4)
         for x in 0..<width {
             let color = sample(Double(x) / 255)
-            pixels[x * 4 + 0] = UInt8((color.0 * 255).rounded())
-            pixels[x * 4 + 1] = UInt8((color.1 * 255).rounded())
-            pixels[x * 4 + 2] = UInt8((color.2 * 255).rounded())
+            pixels[x * 4 + 0] = channel(color.0)
+            pixels[x * 4 + 1] = channel(color.1)
+            pixels[x * 4 + 2] = channel(color.2)
             pixels[x * 4 + 3] = 255
         }
         let space = CGColorSpaceCreateDeviceRGB()
