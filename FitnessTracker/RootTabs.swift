@@ -29,6 +29,7 @@ struct RootTabs: View {
 }
 
 private struct PlaceholderScreen: View {
+    @Environment(WashTheme.self) private var wash
     let title: String
 
     var body: some View {
@@ -37,5 +38,9 @@ private struct PlaceholderScreen: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle(title)
             .toolbarTitleDisplayMode(.inline)
+            .containerBackground(for: .navigation) {
+                WashBackground(grade: wash.grade)
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
     }
 }
