@@ -155,7 +155,7 @@ private struct RoutineListCard: View {
 
     private var poseSlug: String {
         switch routine.id {
-        case "B": return "standing-calf-raise"
+        case "B": return "leg-extension"
         case "C": return "seated-row"
         case "D": return "step-up"
         default: return routine.exercises.first?.slug ?? routine.heroSlug
