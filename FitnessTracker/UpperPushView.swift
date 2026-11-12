@@ -18,6 +18,7 @@ struct RoutineView: View {
     @State private var editingWeightRowID: String?
     @State private var weightDraft = ""
     @State private var weights: [String: String] = [:]
+    @State private var showBenchTutorial = false
 
     var body: some View {
         ScrollView {
@@ -101,6 +102,23 @@ struct RoutineView: View {
         }
         .background {
             DisableRoutineInteractivePop()
+        }
+        .navigationDestination(isPresented: $showBenchTutorial) {
+            ExerciseTutorialView(
+                exerciseName: "Dumbbell Bench Press",
+                muscles: "Arms, Chest, Shoulders",
+                grade: WashGrade.forRoutine(routine.id),
+                frames: [
+                    "dumbbell-bench-press-frame-1",
+                    "dumbbell-bench-press-frame-2",
+                    "dumbbell-bench-press-frame-3",
+                ],
+                hints: [
+                    "Keep your core engaged and your head, shoulders, and back flat against the pad",
+                    "Avoid locking out your elbows at the top",
+                    "Your arms should stay at roughly 90-degree angles at the bottom",
+                ]
+            )
         }
     }
 
@@ -221,13 +239,21 @@ struct RoutineView: View {
                             onOpen: { openWeightRow(exercise.id) },
                             onClose: { closeWeightRow(exercise.id) },
                             onEdit: { beginWeightEdit(exercise) },
-                            onCommit: commitWeightEdit
+                            onCommit: commitWeightEdit,
+                            onSelect: exercise.name == "Dumbbell Bench Press" ? openBenchTutorial : nil
                         )
                     }
                 }
             }
         }
         .padding(.top, 48)
+    }
+
+    private func openBenchTutorial() {
+        if let id = openWeightRowID {
+            closeWeightRow(id)
+        }
+        showBenchTutorial = true
     }
 
     private func openWeightRow(_ id: String) {
@@ -297,6 +323,7 @@ private struct MainWorkoutRow: View {
     let onClose: () -> Void
     let onEdit: () -> Void
     let onCommit: () -> Void
+    var onSelect: (() -> Void)? = nil
 
     @State private var dragTranslation: CGFloat = 0
 
@@ -338,6 +365,10 @@ private struct MainWorkoutRow: View {
         .frame(height: 152)
         .clipped()
         .contentShape(Rectangle())
+        .onTapGesture {
+            guard !isOpen, abs(dragTranslation) < 4 else { return }
+            onSelect?()
+        }
         .simultaneousGesture(swipeGesture)
         .onChange(of: isOpen) { _, open in
             if !open {
@@ -487,7 +518,7 @@ private struct MetaLine: View {
 }
 
 /// iOS 26 treats overscroll-at-top as a content pop during zoom navigation.
-private struct DisableRoutineInteractivePop: UIViewControllerRepresentable {
+struct DisableRoutineInteractivePop: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> Controller {
         Controller()
     }
