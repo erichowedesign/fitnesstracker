@@ -15,9 +15,7 @@ struct RootTabs: View {
             Group {
                 switch tab {
                 case .home:
-                    NavigationStack {
-                        HomeView()
-                    }
+                    HomeView()
                 case .history:
                     NavigationStack {
                         PlaceholderScreen(title: "History")

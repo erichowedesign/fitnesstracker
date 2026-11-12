@@ -32,6 +32,7 @@ struct RoutineView: View {
                     IllustrationView(slug: routine.heroSlug, label: routine.name)
                         .frame(maxWidth: .infinity)
                         .frame(height: 370)
+                        .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: true)
                         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
                         .padding(.top, 32)
 

@@ -178,9 +178,9 @@ enum WorkoutPlan {
     private static func heroSlug(for id: String, name: String) -> String {
         switch id {
         case "A": return "standing-dumbbell-press"
-        case "B": return "hip-abduction-machine"
-        case "C": return "assisted-pull-up"
-        case "D": return "glute-bridge"
+        case "B": return "leg-extension"
+        case "C": return "seated-row"
+        case "D": return "step-up"
         default: return illustrationSlug(for: name)
         }
     }

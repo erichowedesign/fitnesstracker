@@ -1,10 +1,15 @@
 import SwiftUI
 
+enum HomeHeroMotion {
+    static let duration: TimeInterval = 0.8
+    static var animation: Animation { .smooth(duration: duration) }
+}
+
 struct HomeView: View {
     @Environment(SessionStore.self) private var store
     @Environment(WashTheme.self) private var wash
     @Namespace private var hero
-    @State private var openedRoutineID: String?
+    @State private var path: [Routine] = []
     private let routines = WorkoutPlan.all()
 
     private var upNext: Routine {
@@ -21,6 +26,13 @@ struct HomeView: View {
     }
 
     var body: some View {
+        NavigationStack(path: $path) {
+            homeScroll
+        }
+        .animation(HomeHeroMotion.animation, value: path)
+    }
+
+    private var homeScroll: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 Text("Get to Work")
@@ -38,11 +50,13 @@ struct HomeView: View {
                     .foregroundStyle(.white)
                     .padding(.top, 48)
 
-                NavigationLink(value: upNext) {
+                Button {
+                    openRoutine(upNext)
+                } label: {
                     UpNextCard(
                         routine: upNext,
                         hero: hero,
-                        isHeroSource: openedRoutineID != upNext.id
+                        isHeroSource: path.last?.id != upNext.id
                     )
                 }
                 .buttonStyle(.plain)
@@ -56,11 +70,13 @@ struct HomeView: View {
 
                 VStack(spacing: 12) {
                     ForEach(myRoutines) { routine in
-                        NavigationLink(value: routine) {
+                        Button {
+                            openRoutine(routine)
+                        } label: {
                             RoutineListCard(
                                 routine: routine,
                                 hero: hero,
-                                isHeroSource: openedRoutineID != routine.id
+                                isHeroSource: path.last?.id != routine.id
                             )
                         }
                         .buttonStyle(.plain)
@@ -98,12 +114,6 @@ struct HomeView: View {
         .navigationDestination(for: Routine.self) { routine in
             RoutineView(routine: routine, hero: hero)
                 .homeHeroZoom(id: routine.id, in: hero)
-                .onAppear { openedRoutineID = routine.id }
-                .onDisappear {
-                    if openedRoutineID == routine.id {
-                        openedRoutineID = nil
-                    }
-                }
         }
         .onAppear {
             wash.grade = .grayscale
@@ -122,6 +132,12 @@ struct HomeView: View {
             .ignoresSafeArea(edges: .top)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
+        }
+    }
+
+    private func openRoutine(_ routine: Routine) {
+        withAnimation(HomeHeroMotion.animation) {
+            path.append(routine)
         }
     }
 }
@@ -144,6 +160,7 @@ private struct UpNextCard: View {
                     .matchedTransitionSource(id: routine.id, in: hero)
                 IllustrationView(slug: routine.heroSlug, label: routine.name)
                     .frame(width: 210, height: 210)
+                    .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: isHeroSource)
             }
             .frame(width: 210, height: 210)
             .clipShape(homeIllustrationThumb(gap: 20))
@@ -191,15 +208,6 @@ private struct RoutineListCard: View {
     var hero: Namespace.ID
     var isHeroSource: Bool
 
-    private var poseSlug: String {
-        switch routine.id {
-        case "B": return "leg-extension"
-        case "C": return "seated-row"
-        case "D": return "step-up"
-        default: return routine.exercises.first?.slug ?? routine.heroSlug
-        }
-    }
-
     var body: some View {
         ZStack(alignment: .leading) {
             HStack(alignment: .top, spacing: 20) {
@@ -207,8 +215,9 @@ private struct RoutineListCard: View {
                     WashWindow(grade: WashGrade.forRoutine(routine.id))
                         .clipShape(homeIllustrationThumb(gap: 16))
                         .matchedTransitionSource(id: routine.id, in: hero)
-                    IllustrationView(slug: poseSlug, label: routine.name)
+                    IllustrationView(slug: routine.heroSlug, label: routine.name)
                         .frame(width: 120, height: 120)
+                        .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: isHeroSource)
                 }
                 .frame(width: 120, height: 120)
                 .clipShape(homeIllustrationThumb(gap: 16))
@@ -285,9 +294,7 @@ private struct HomeHeroZoomModifier: ViewModifier {
 }
 
 #Preview {
-    NavigationStack {
-        HomeView()
-    }
+    HomeView()
     .environment(SessionStore())
     .environment(WashTheme())
     .preferredColorScheme(.dark)
