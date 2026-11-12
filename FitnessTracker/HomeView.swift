@@ -29,7 +29,6 @@ struct HomeView: View {
         NavigationStack(path: $path) {
             homeScroll
         }
-        .animation(HomeHeroMotion.animation, value: path)
     }
 
     private var homeScroll: some View {
@@ -55,8 +54,7 @@ struct HomeView: View {
                 } label: {
                     UpNextCard(
                         routine: upNext,
-                        hero: hero,
-                        isHeroSource: path.last?.id != upNext.id
+                        hero: hero
                     )
                 }
                 .buttonStyle(.plain)
@@ -75,8 +73,7 @@ struct HomeView: View {
                         } label: {
                             RoutineListCard(
                                 routine: routine,
-                                hero: hero,
-                                isHeroSource: path.last?.id != routine.id
+                                hero: hero
                             )
                         }
                         .buttonStyle(.plain)
@@ -150,17 +147,17 @@ private func homeIllustrationThumb(gap: CGFloat) -> RoundedRectangle {
 private struct UpNextCard: View {
     let routine: Routine
     var hero: Namespace.ID
-    var isHeroSource: Bool
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             ZStack {
                 WashWindow(grade: WashGrade.forRoutine(routine.id))
                     .clipShape(homeIllustrationThumb(gap: 20))
-                    .matchedTransitionSource(id: routine.id, in: hero)
                 IllustrationView(slug: routine.heroSlug, label: routine.name)
                     .frame(width: 210, height: 210)
-                    .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: isHeroSource)
+                    .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: true)
+                Color.clear
+                    .matchedTransitionSource(id: routine.id, in: hero)
             }
             .frame(width: 210, height: 210)
             .clipShape(homeIllustrationThumb(gap: 20))
@@ -170,7 +167,7 @@ private struct UpNextCard: View {
 
             Text("Routine \(routine.rotationIndex)")
                 .font(.subheadline)
-                .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: isHeroSource)
+                .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: true)
                 .padding(.top, 22)
                 .padding(.leading, 22)
 
@@ -178,10 +175,10 @@ private struct UpNextCard: View {
                 Text(routine.name)
                     .font(.title)
                     .fontWeight(.bold)
-                    .homeHeroMatch("title-\(routine.id)", in: hero, isSource: isHeroSource)
+                    .homeHeroMatch("title-\(routine.id)", in: hero, isSource: true)
                 Text(routine.focus)
                     .font(.body)
-                    .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: isHeroSource)
+                    .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: true)
                 HStack(spacing: 8) {
                     Text("\(routine.workoutsLine) /")
                         .font(.subheadline)
@@ -206,7 +203,6 @@ private struct UpNextCard: View {
 private struct RoutineListCard: View {
     let routine: Routine
     var hero: Namespace.ID
-    var isHeroSource: Bool
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -214,10 +210,11 @@ private struct RoutineListCard: View {
                 ZStack {
                     WashWindow(grade: WashGrade.forRoutine(routine.id))
                         .clipShape(homeIllustrationThumb(gap: 16))
-                        .matchedTransitionSource(id: routine.id, in: hero)
                     IllustrationView(slug: routine.heroSlug, label: routine.name)
                         .frame(width: 120, height: 120)
-                        .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: isHeroSource)
+                        .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: true)
+                    Color.clear
+                        .matchedTransitionSource(id: routine.id, in: hero)
                 }
                 .frame(width: 120, height: 120)
                 .clipShape(homeIllustrationThumb(gap: 16))
@@ -226,18 +223,18 @@ private struct RoutineListCard: View {
                     Text("Routine \(routine.rotationIndex)")
                         .font(.system(size: 15))
                         .frame(height: 18, alignment: .leading)
-                        .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: isHeroSource)
+                        .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: true)
                     VStack(alignment: .leading, spacing: 6) {
                         Text(routine.name)
                             .font(.system(size: 22, weight: .semibold))
                             .frame(height: 25, alignment: .leading)
                             .lineLimit(1)
-                            .homeHeroMatch("title-\(routine.id)", in: hero, isSource: isHeroSource)
+                            .homeHeroMatch("title-\(routine.id)", in: hero, isSource: true)
                         Text(routine.focus)
                             .font(.system(size: 16))
                             .multilineTextAlignment(.leading)
                             .lineLimit(2)
-                            .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: isHeroSource)
+                            .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: true)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

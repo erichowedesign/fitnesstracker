@@ -23,16 +23,16 @@ struct RoutineView: View {
                     Text(routine.name)
                         .font(.largeTitle)
                         .fontWeight(.bold)
-                        .homeHeroMatch("title-\(routine.id)", in: hero, isSource: true)
+                        .homeHeroMatch("title-\(routine.id)", in: hero, isSource: false)
                     Text(routine.focus)
                         .font(.body)
-                        .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: true)
+                        .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: false)
                         .padding(.top, 8)
 
                     IllustrationView(slug: routine.heroSlug, label: routine.name)
                         .frame(maxWidth: .infinity)
                         .frame(height: 370)
-                        .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: true)
+                        .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: false)
                         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
                         .padding(.top, 32)
 
@@ -87,7 +87,7 @@ struct RoutineView: View {
                     Text("Routine \(routine.id)")
                         .font(.headline)
                         .fontWeight(.semibold)
-                        .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: true)
+                        .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: false)
                 }
             }
         }
