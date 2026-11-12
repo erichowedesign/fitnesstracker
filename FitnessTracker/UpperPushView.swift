@@ -86,6 +86,12 @@ struct RoutineView: View {
         }
     }
 
+    private static var screenMidY: CGFloat {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first
+        return (scene?.screen.bounds.height ?? 0) / 2
+    }
+
     private var glanceCard: some View {
         VStack(spacing: 0) {
             Color.clear.frame(height: 16)
@@ -167,7 +173,7 @@ struct RoutineView: View {
                     proxy.frame(in: .global)
                 } action: { _, frame in
                     guard revealsCompleteButton, frame.height > 1 else { return }
-                    showCompleteButton = frame.minY <= UIScreen.main.bounds.height / 2
+                    showCompleteButton = frame.minY <= Self.screenMidY
                 }
             GlassEffectContainer(spacing: 12) {
                 VStack(spacing: 12) {
