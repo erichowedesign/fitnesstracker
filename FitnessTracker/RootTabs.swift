@@ -1,30 +1,74 @@
 import SwiftUI
 
+private enum AppTab: Hashable {
+    case home, history, library
+}
+
 struct RootTabs: View {
     @Environment(WashTheme.self) private var wash
+    @State private var tab: AppTab = .home
 
     var body: some View {
-        TabView {
-            NavigationStack {
-                HomeView()
-            }
-            .tabItem { Label("Home", systemImage: "house.fill") }
+        ZStack(alignment: .bottom) {
+            Color.black.ignoresSafeArea()
 
-            NavigationStack {
-                PlaceholderScreen(title: "History")
+            Group {
+                switch tab {
+                case .home:
+                    NavigationStack {
+                        HomeView()
+                    }
+                case .history:
+                    NavigationStack {
+                        PlaceholderScreen(title: "History")
+                    }
+                case .library:
+                    NavigationStack {
+                        PlaceholderScreen(title: "Library")
+                    }
+                }
             }
-            .tabItem { Label("History", systemImage: "arrow.triangle.2.circlepath") }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            NavigationStack {
-                PlaceholderScreen(title: "Library")
-            }
-            .tabItem { Label("Library", systemImage: "book") }
+            tabBar
         }
-        .tint(.blue)
         .preferredColorScheme(.dark)
         .onAppear {
             wash.grade = .grayscale
         }
+    }
+
+    private var tabBar: some View {
+        HStack(spacing: 8) {
+            tabButton(.home, title: "Home", systemImage: "house.fill")
+            tabButton(.history, title: "History", systemImage: "arrow.triangle.2.circlepath")
+            tabButton(.library, title: "Library", systemImage: "book")
+        }
+        .padding(6)
+        .glassEffect(.regular.interactive(), in: Capsule())
+        .padding(.horizontal, 24)
+        .padding(.bottom, 8)
+    }
+
+    private func tabButton(_ value: AppTab, title: String, systemImage: String) -> some View {
+        Button {
+            tab = value
+        } label: {
+            Label(title, systemImage: systemImage)
+                .labelStyle(.titleAndIcon)
+                .font(.caption)
+                .foregroundStyle(tab == value ? Color.blue : Color.white.opacity(0.72))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background {
+                    if tab == value {
+                        Capsule()
+                            .fill(.white.opacity(0.16))
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(tab == value ? .isSelected : [])
     }
 }
 
@@ -38,9 +82,14 @@ private struct PlaceholderScreen: View {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background {
-                WashBackground(grade: wash.grade)
+                ZStack {
+                    Color.black
+                    WashBackground(grade: wash.grade)
+                }
+                .ignoresSafeArea()
             }
             .navigationTitle(title)
             .toolbarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
     }
 }

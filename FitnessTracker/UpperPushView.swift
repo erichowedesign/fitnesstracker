@@ -55,9 +55,13 @@ struct RoutineView: View {
             }
         .scrollDismissesKeyboard(.immediately)
         .scrollContentBackground(.hidden)
-        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
+        .foregroundStyle(.white)
         .background {
-            WashBackground(grade: wash.grade)
+            ZStack {
+                Color.black
+                WashBackground(grade: wash.grade)
+            }
+            .ignoresSafeArea()
         }
         .toolbarBackground(.hidden, for: .navigationBar)
         .overlay(alignment: .top) {

@@ -10,6 +10,7 @@ struct FoundationApp: App {
             RootTabs()
                 .environment(store)
                 .environment(wash)
+                .background(Color.black)
                 .preferredColorScheme(.dark)
         }
     }

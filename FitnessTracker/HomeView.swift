@@ -19,13 +19,16 @@ struct HomeView: View {
                 Text("Get to Work")
                     .font(.largeTitle)
                     .fontWeight(.bold)
+                    .foregroundStyle(.white)
                 Text("You got a lot of shit to get done")
                     .font(.body)
+                    .foregroundStyle(.white)
                     .padding(.top, 8)
 
                 Text("Up Next")
                     .font(.title2)
                     .fontWeight(.bold)
+                    .foregroundStyle(.white)
                     .padding(.top, 48)
 
                 NavigationLink(value: upNext) {
@@ -37,6 +40,7 @@ struct HomeView: View {
                 Text("My Routines")
                     .font(.title2)
                     .fontWeight(.bold)
+                    .foregroundStyle(.white)
                     .padding(.top, 48)
 
                 VStack(spacing: 12) {
@@ -54,9 +58,14 @@ struct HomeView: View {
             .padding(.bottom, 24)
         }
         .scrollContentBackground(.hidden)
-        .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
-            WashBackground(grade: wash.grade)
+            ZStack {
+                Color.black
+                WashBackground(grade: wash.grade)
+            }
+            .ignoresSafeArea()
         }
         .toolbarBackground(.hidden, for: .navigationBar)
         .navigationTitle("Foundation")
