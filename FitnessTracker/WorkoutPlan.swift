@@ -55,8 +55,9 @@ struct Exercise: Identifiable {
     let notes: String
     let tracksAssistance: Bool
     let slug: String
+    let displayWeight: String?
 
-    var meta: String {
+    var metaParts: [String] {
         let work: String
         if let targetDurationSeconds, targetReps == nil {
             work = "\(targetDurationSeconds) sec"
@@ -65,14 +66,23 @@ struct Exercise: Identifiable {
         } else {
             work = "—"
         }
-        return "\(sets) sets · \(work) · \(restSeconds) sec rest"
+        return [work, "\(sets) sets", Self.restLabel(restSeconds)]
+    }
+
+    private static func restLabel(_ seconds: Int) -> String {
+        let minutes = seconds / 60
+        let remainder = seconds % 60
+        if minutes > 0 {
+            return "\(minutes):\(String(format: "%02d", remainder)) rest"
+        }
+        return "\(seconds) sec rest"
     }
 }
 
 struct GuideStep: Identifiable {
     var id: String { title }
     let title: String
-    let meta: String
+    let metaParts: [String]
     let slug: String
 }
 
@@ -99,10 +109,10 @@ enum WorkoutPlan {
             summary: "Build your pressing foundation with dumbbell and cable movements for the chest, shoulders, and triceps. Choose comfortable ranges and controlled reps.",
             heroSlug: "standing-dumbbell-press",
             warmup: [
-                GuideStep(title: "Easy Walk", meta: "3–5 minutes", slug: "walking"),
-                GuideStep(title: "Shoulder Circles", meta: "30 seconds / 2 sets", slug: "arm-circles"),
-                GuideStep(title: "Band External Rotations", meta: "12 reps / 2 sets", slug: "cable-rear-delt-fly"),
-                GuideStep(title: "Progressive Light Bench", meta: "2 sets", slug: "dumbbell-bench-press"),
+                GuideStep(title: "Easy Walk", metaParts: ["3–5 minutes"], slug: "walking"),
+                GuideStep(title: "Shoulder Circles", metaParts: ["30 seconds", "2 sets"], slug: "arm-circles"),
+                GuideStep(title: "Band External Rotations", metaParts: ["12 reps", "2 sets"], slug: "cable-rear-delt-fly"),
+                GuideStep(title: "Progressive Light Bench", metaParts: ["10 reps", "2 sets"], slug: "dumbbell-bench-press"),
             ],
             exercises: seed.exercises.map { exercise in
                 Exercise(
@@ -117,15 +127,31 @@ enum WorkoutPlan {
                     notes: exercise.notes,
                     tracksAssistance: exercise.equipment.lowercased().contains("assisted")
                         || exercise.name.range(of: "assisted pull-?up", options: .regularExpression) != nil,
-                    slug: illustrationSlug(for: exercise.name)
+                    slug: illustrationSlug(for: exercise.name),
+                    displayWeight: displayWeight(for: exercise.name)
                 )
             },
             cooldown: [
-                GuideStep(title: "Easy Walk", meta: "3 minutes", slug: "walking"),
-                GuideStep(title: "Shoulder Stretch", meta: "30 seconds each side", slug: "cross-body-shoulder-stretch"),
-                GuideStep(title: "Standing Chest Stretch", meta: "30 seconds each side", slug: "doorway-chest-stretch"),
+                GuideStep(title: "Easy Walk", metaParts: ["3 minutes"], slug: "walking"),
+                GuideStep(title: "Shoulder Stretch", metaParts: ["30 seconds each side"], slug: "cross-body-shoulder-stretch"),
+                GuideStep(title: "Standing Chest Stretch", metaParts: ["30 seconds each side"], slug: "doorway-chest-stretch"),
             ]
         )
+    }
+
+    private static func displayWeight(for name: String) -> String {
+        switch name {
+        case "Dumbbell Bench Press", "Cable Triceps Pushdown":
+            return "45 lbs"
+        case "Cable Bench Press":
+            return "25 lbs"
+        case "Dumbbell Shoulder Press":
+            return "20 lbs"
+        case "Dumbbell Lateral Raise":
+            return "10 lbs"
+        default:
+            return "—"
+        }
     }
 
     static func illustrationSlug(for name: String) -> String {

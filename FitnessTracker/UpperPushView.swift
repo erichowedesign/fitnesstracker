@@ -22,17 +22,18 @@ struct UpperPushView: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 370)
                         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
-                        .padding(.top, 64)
+                        .padding(.top, 32)
 
                     glanceCard
-                        .padding(.top, 64)
+                        .padding(.top, 16)
 
                     Text(routine.summary)
                         .font(.body)
-                        .padding(.top, 24)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 48)
 
                     section("Warm-up", steps: routine.warmup, revealsCompleteButton: true)
-                    exerciseSection
+                    mainWorkoutSection
                     section("Cool Down", steps: routine.cooldown)
 
                     credit
@@ -40,6 +41,7 @@ struct UpperPushView: View {
                         .padding(.bottom, 8)
                 }
                 .padding(.horizontal, 16)
+                .padding(.top, 34)
                 .padding(.bottom, 88)
             }
             .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
@@ -69,26 +71,28 @@ struct UpperPushView: View {
     }
 
     private var glanceCard: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("\(routine.exercises.count)")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .monospacedDigit()
+        HStack(alignment: .center, spacing: 0) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text("exercises")
                     .font(.subheadline)
-            }
-            Spacer()
-            VStack(spacing: 2) {
-                Text("60")
+                Text("05")
                     .font(.title)
                     .fontWeight(.bold)
                     .monospacedDigit()
+            }
+            Spacer(minLength: 0)
+            VStack(alignment: .center, spacing: 3) {
                 Text("minutes")
                     .font(.subheadline)
+                Text("45–60")
+                    .font(.title)
+                    .fontWeight(.bold)
+                    .monospacedDigit()
             }
-            Spacer()
-            VStack(spacing: 3) {
+            Spacer(minLength: 0)
+            VStack(alignment: .trailing, spacing: 3) {
+                Text("difficulty")
+                    .font(.subheadline)
                 HStack(alignment: .bottom, spacing: 4) {
                     ForEach(0..<5, id: \.self) { index in
                         RoundedRectangle(cornerRadius: 7, style: .continuous)
@@ -97,15 +101,14 @@ struct UpperPushView: View {
                     }
                 }
                 .accessibilityHidden(true)
-                Text("Difficulty")
-                    .font(.subheadline)
             }
         }
-        .padding(.horizontal, 24)
-        .frame(height: 100)
+        .padding(16)
+        .frame(maxWidth: .infinity)
+        .frame(height: 120)
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("5 exercises, 60 minutes, difficulty three of five")
+        .accessibilityLabel("5 exercises, 45 to 60 minutes, difficulty three of five")
     }
 
     private var topStatusScrim: some View {
@@ -150,10 +153,10 @@ struct UpperPushView: View {
                     guard revealsCompleteButton, frame.height > 1 else { return }
                     showCompleteButton = frame.minY <= UIScreen.main.bounds.height / 2
                 }
-            GlassEffectContainer(spacing: 6) {
-                VStack(spacing: 6) {
+            GlassEffectContainer(spacing: 12) {
+                VStack(spacing: 12) {
                     ForEach(steps) { step in
-                        GuideRow(title: step.title, meta: step.meta, slug: step.slug)
+                        GuideRow(title: step.title, metaParts: step.metaParts, slug: step.slug)
                     }
                 }
             }
@@ -161,15 +164,20 @@ struct UpperPushView: View {
         .padding(.top, 48)
     }
 
-    private var exerciseSection: some View {
+    private var mainWorkoutSection: some View {
         VStack(alignment: .leading, spacing: 24) {
-            Text("Exercise")
+            Text("Main Workout")
                 .font(.title2)
                 .fontWeight(.bold)
             GlassEffectContainer(spacing: 12) {
                 VStack(spacing: 12) {
                     ForEach(routine.exercises) { exercise in
-                        GuideRow(title: exercise.name, meta: exercise.meta, slug: exercise.slug)
+                        GuideRow(
+                            title: exercise.name,
+                            metaParts: exercise.metaParts,
+                            slug: exercise.slug,
+                            weight: exercise.displayWeight
+                        )
                     }
                 }
             }
@@ -189,25 +197,53 @@ struct UpperPushView: View {
 
 private struct GuideRow: View {
     let title: String
-    let meta: String
+    let metaParts: [String]
     let slug: String
+    var weight: String? = nil
 
     var body: some View {
         HStack(spacing: 20) {
             IllustrationView(slug: slug, label: title)
                 .frame(width: 120, height: 120)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 0) {
                 Text(title)
                     .font(.headline)
-                Text(meta)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                MetaLine(parts: metaParts)
+                    .padding(.top, 4)
+                if let weight {
+                    Text("Weight")
+                        .font(.headline)
+                        .padding(.top, 20)
+                    Text(weight)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 4)
+                }
             }
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 16)
-        .frame(minHeight: 152)
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 152)
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+    }
+}
+
+private struct MetaLine: View {
+    let parts: [String]
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
+                if index > 0 {
+                    Text("·")
+                }
+                Text(part)
+            }
+        }
+        .font(.subheadline)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
     }
 }
 
