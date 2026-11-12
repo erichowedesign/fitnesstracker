@@ -22,9 +22,7 @@ struct RootTabs: View {
                         PlaceholderScreen(title: "History")
                     }
                 case .library:
-                    NavigationStack {
-                        PlaceholderScreen(title: "Library")
-                    }
+                    LibraryView(hidesFloatingTabBar: $hidesFloatingTabBar)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
