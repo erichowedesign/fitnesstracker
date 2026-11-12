@@ -56,9 +56,8 @@ struct RoutineView: View {
         .scrollDismissesKeyboard(.immediately)
         .scrollContentBackground(.hidden)
         .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
-        .containerBackground(for: .navigation) {
-            WashBackground(grade: wash.grade)
-        }
+        .background { Color.black.ignoresSafeArea() }
+        .containerBackground(.clear, for: .navigation)
         .toolbarBackground(.hidden, for: .navigationBar)
         .overlay(alignment: .top) {
             topStatusScrim

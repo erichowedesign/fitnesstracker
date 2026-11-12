@@ -39,12 +39,15 @@ struct WashBackground: View {
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        GeometryReader { geo in
-            WashPlayerLayer(isActive: !reduceMotion && scenePhase == .active, grade: grade)
-                .frame(width: geo.size.height, height: geo.size.width)
-                .rotationEffect(.degrees(90))
-                .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
-                .clipped()
+        ZStack {
+            Color.black
+            GeometryReader { geo in
+                WashPlayerLayer(isActive: !reduceMotion && scenePhase != .background, grade: grade)
+                    .frame(width: geo.size.height, height: geo.size.width)
+                    .rotationEffect(.degrees(90))
+                    .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
+                    .clipped()
+            }
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
@@ -156,38 +159,36 @@ private final class WashPlayerView: UIView {
         let colorMap = WashLook.colorMap(for: mappedGrade)
         let contrast: CGFloat = mappedGrade == .grayscale ? 1.7 : 1.35
         let brightness: CGFloat = mappedGrade == .grayscale ? -0.12 : 0.05
-        DispatchQueue.global(qos: .userInitiated).async {
-            AVVideoComposition.videoComposition(with: asset, applyingCIFiltersWithHandler: { request in
-                let source = request.sourceImage.clampedToExtent()
-                let contrasted = source.applyingFilter("CIColorControls", parameters: [
-                    kCIInputContrastKey: contrast,
-                    kCIInputSaturationKey: 0,
-                    kCIInputBrightnessKey: brightness,
-                ])
-                let graded = contrasted.applyingFilter("CIColorMap", parameters: [
-                    "inputGradientImage": colorMap,
-                ])
-                request.finish(with: graded.cropped(to: request.sourceImage.extent), context: nil)
-            }) { [weak self] composition, _ in
-                DispatchQueue.main.async {
-                    guard let self, self.grade == mappedGrade else { return }
-                    let item = AVPlayerItem(asset: asset)
-                    if let composition {
-                        item.videoComposition = composition
-                    }
-                    if let player = self.player {
-                        player.replaceCurrentItem(with: item)
-                    } else {
-                        let player = AVPlayer(playerItem: item)
-                        player.isMuted = true
-                        player.actionAtItemEnd = .none
-                        player.preventsDisplaySleepDuringVideoPlayback = false
-                        self.player = player
-                        self.playerLayer.player = player
-                    }
-                    self.observe(item)
-                    self.applyPlaybackState()
+        AVVideoComposition.videoComposition(with: asset, applyingCIFiltersWithHandler: { request in
+            let source = request.sourceImage.clampedToExtent()
+            let contrasted = source.applyingFilter("CIColorControls", parameters: [
+                kCIInputContrastKey: contrast,
+                kCIInputSaturationKey: 0,
+                kCIInputBrightnessKey: brightness,
+            ])
+            let graded = contrasted.applyingFilter("CIColorMap", parameters: [
+                "inputGradientImage": colorMap,
+            ])
+            request.finish(with: graded.cropped(to: request.sourceImage.extent), context: nil)
+        }) { [weak self] composition, _ in
+            DispatchQueue.main.async {
+                guard let self, self.grade == mappedGrade else { return }
+                let item = AVPlayerItem(asset: asset)
+                if let composition {
+                    item.videoComposition = composition
                 }
+                if let player = self.player {
+                    player.replaceCurrentItem(with: item)
+                } else {
+                    let player = AVPlayer(playerItem: item)
+                    player.isMuted = true
+                    player.actionAtItemEnd = .none
+                    player.preventsDisplaySleepDuringVideoPlayback = false
+                    self.player = player
+                    self.playerLayer.player = player
+                }
+                self.observe(item)
+                self.applyPlaybackState()
             }
         }
     }

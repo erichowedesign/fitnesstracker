@@ -22,14 +22,34 @@ struct RootTabs: View {
             }
         }
         .tint(.blue)
+        .toolbarBackground(.visible, for: .tabBar)
+        .background(ClearTabChrome())
         .onAppear {
             wash.grade = .grayscale
         }
     }
 }
 
+private struct ClearTabChrome: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        DispatchQueue.main.async {
+            var node: UIView? = uiView.superview
+            while let view = node, !(view is UIWindow) {
+                view.backgroundColor = .clear
+                node = view.superview
+            }
+        }
+    }
+}
+
 private struct PlaceholderScreen: View {
-    @Environment(WashTheme.self) private var wash
     let title: String
 
     var body: some View {
@@ -38,9 +58,8 @@ private struct PlaceholderScreen: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .navigationTitle(title)
             .toolbarTitleDisplayMode(.inline)
-            .containerBackground(for: .navigation) {
-                WashBackground(grade: wash.grade)
-            }
+            .containerBackground(.clear, for: .navigation)
             .toolbarBackground(.hidden, for: .navigationBar)
+            .background { Color.black.ignoresSafeArea() }
     }
 }
