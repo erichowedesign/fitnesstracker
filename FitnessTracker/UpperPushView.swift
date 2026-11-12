@@ -32,9 +32,10 @@ struct RoutineView: View {
                         .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: false, enabled: heroMatchEnabled)
                         .padding(.top, 8)
 
-                    IllustrationView(slug: routine.heroSlug, label: routine.name)
+                    RoutineHeroCycle(exercises: routine.exercises)
                         .frame(maxWidth: .infinity)
                         .frame(height: 370)
+                        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
                         .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: false, enabled: heroMatchEnabled)
                         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
                         .padding(.top, 32)
@@ -539,6 +540,96 @@ struct DisableRoutineInteractivePop: UIViewControllerRepresentable {
             nav.interactiveContentPopGestureRecognizer?.isEnabled = enabled
         }
     }
+}
+
+/// Cycles the main-exercise thumbnails inside the routine hero.
+/// Each drawing is the same asset as that row, fitted to one centered square.
+private struct RoutineHeroCycle: View {
+    let exercises: [Exercise]
+    private let interval: TimeInterval = 0.8
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: interval)) { context in
+            if exercises.isEmpty {
+                Color.clear
+            } else {
+                let index = Int(context.date.timeIntervalSinceReferenceDate / interval) % exercises.count
+                let exercise = exercises[index]
+                FittedThumbnail(slug: exercise.slug, label: exercise.name)
+                    .id(index)
+                    .transition(.identity)
+                    .transaction { $0.disablesAnimations = true }
+            }
+        }
+    }
+}
+
+/// Places a thumbnail's ink in one shared square so the hero swap does not jump.
+private struct FittedThumbnail: View {
+    let slug: String
+    let label: String
+
+    var body: some View {
+        GeometryReader { geo in
+            let side = min(geo.size.width, geo.size.height)
+            let fit = ThumbnailFit.fit(for: slug)
+            IllustrationView(slug: slug, label: label)
+                .frame(width: side, height: side)
+                .scaleEffect(fit.scale, anchor: fit.anchor)
+                .offset(
+                    x: (0.5 - fit.anchor.x) * side,
+                    y: (0.5 - fit.anchor.y) * side
+                )
+                .frame(width: geo.size.width, height: geo.size.height)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct ThumbnailFit {
+    var width: CGFloat
+    var height: CGFloat
+    var centerX: CGFloat
+    var centerY: CGFloat
+
+    var anchor: UnitPoint {
+        UnitPoint(x: centerX / 512, y: centerY / 512)
+    }
+
+    /// Longest ink edge lands on the same inset, and the box center stays in the middle.
+    var scale: CGFloat {
+        let limit: CGFloat = 512 - 48
+        return min(limit / width, limit / height)
+    }
+
+    static func fit(for slug: String) -> ThumbnailFit {
+        table[slug] ?? ThumbnailFit(width: 512, height: 512, centerX: 256, centerY: 256)
+    }
+
+    /// Ink box of the still thumbnail already shown on the exercise row.
+    private static let table: [String: ThumbnailFit] = [
+        "dumbbell-bench-press": ThumbnailFit(width: 279, height: 417, centerX: 275, centerY: 260),
+        "cable-fly": ThumbnailFit(width: 313, height: 364, centerX: 240, centerY: 250),
+        "standing-dumbbell-press": ThumbnailFit(width: 182, height: 477, centerX: 252, centerY: 256),
+        "lateral-raise": ThumbnailFit(width: 299, height: 338, centerX: 247, centerY: 265),
+        "tricep-pushdown": ThumbnailFit(width: 146, height: 442, centerX: 240, centerY: 248),
+        "seated-leg-curl": ThumbnailFit(width: 213, height: 364, centerX: 254, centerY: 273),
+        "leg-extension": ThumbnailFit(width: 226, height: 364, centerX: 247, centerY: 273),
+        "hip-abduction-machine": ThumbnailFit(width: 342, height: 471, centerX: 235, centerY: 249),
+        "hip-adduction-machine": ThumbnailFit(width: 303, height: 472, centerX: 242, centerY: 254),
+        "standing-calf-raise": ThumbnailFit(width: 236, height: 437, centerX: 281, centerY: 269),
+        "pallof-press": ThumbnailFit(width: 375, height: 466, centerX: 275, centerY: 244),
+        "assisted-pull-up": ThumbnailFit(width: 247, height: 488, centerX: 244, centerY: 254),
+        "seated-row": ThumbnailFit(width: 408, height: 274, centerX: 284, centerY: 274),
+        "lat-pulldown": ThumbnailFit(width: 179, height: 433, centerX: 252, centerY: 240),
+        "cable-curl": ThumbnailFit(width: 163, height: 411, centerX: 263, centerY: 275),
+        "face-pull": ThumbnailFit(width: 404, height: 463, centerX: 258, centerY: 249),
+        "farmer-carry": ThumbnailFit(width: 224, height: 476, centerX: 255, centerY: 255),
+        "glute-bridge": ThumbnailFit(width: 391, height: 187, centerX: 240, centerY: 281),
+        "bodyweight-squat": ThumbnailFit(width: 272, height: 448, centerX: 264, centerY: 254),
+        "step-up": ThumbnailFit(width: 187, height: 301, centerX: 259, centerY: 276),
+        "bird-dog": ThumbnailFit(width: 496, height: 220, centerX: 254, centerY: 254),
+    ]
 }
 
 #Preview {
