@@ -10,6 +10,7 @@ struct HomeView: View {
     @Environment(WashTheme.self) private var wash
     @Namespace private var hero
     @State private var path: [Routine] = []
+    @State private var heroMatchEnabled = true
     private let routines = WorkoutPlan.all()
 
     private var upNext: Routine {
@@ -54,7 +55,8 @@ struct HomeView: View {
                 } label: {
                     UpNextCard(
                         routine: upNext,
-                        hero: hero
+                        hero: hero,
+                        matchEnabled: heroMatchEnabled
                     )
                 }
                 .buttonStyle(.plain)
@@ -73,7 +75,8 @@ struct HomeView: View {
                         } label: {
                             RoutineListCard(
                                 routine: routine,
-                                hero: hero
+                                hero: hero,
+                                matchEnabled: heroMatchEnabled
                             )
                         }
                         .buttonStyle(.plain)
@@ -109,8 +112,13 @@ struct HomeView: View {
             }
         }
         .navigationDestination(for: Routine.self) { routine in
-            RoutineView(routine: routine, hero: hero)
+            RoutineView(routine: routine, hero: hero, heroMatchEnabled: heroMatchEnabled)
                 .homeHeroZoom(id: routine.id, in: hero)
+        }
+        .onChange(of: path) { _, newPath in
+            if newPath.isEmpty {
+                heroMatchEnabled = true
+            }
         }
         .onAppear {
             wash.grade = .grayscale
@@ -133,8 +141,14 @@ struct HomeView: View {
     }
 
     private func openRoutine(_ routine: Routine) {
+        heroMatchEnabled = true
         withAnimation(HomeHeroMotion.animation) {
             path.append(routine)
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(HomeHeroMotion.duration))
+            guard path.last?.id == routine.id else { return }
+            heroMatchEnabled = false
         }
     }
 }
@@ -147,6 +161,7 @@ private func homeIllustrationThumb(gap: CGFloat) -> RoundedRectangle {
 private struct UpNextCard: View {
     let routine: Routine
     var hero: Namespace.ID
+    var matchEnabled: Bool
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -155,7 +170,7 @@ private struct UpNextCard: View {
                     .clipShape(homeIllustrationThumb(gap: 20))
                 IllustrationView(slug: routine.heroSlug, label: routine.name)
                     .frame(width: 210, height: 210)
-                    .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: true)
+                    .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                 Color.clear
                     .matchedTransitionSource(id: routine.id, in: hero)
             }
@@ -167,7 +182,7 @@ private struct UpNextCard: View {
 
             Text("Routine \(routine.rotationIndex)")
                 .font(.subheadline)
-                .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: true)
+                .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                 .padding(.top, 22)
                 .padding(.leading, 22)
 
@@ -175,10 +190,10 @@ private struct UpNextCard: View {
                 Text(routine.name)
                     .font(.title)
                     .fontWeight(.bold)
-                    .homeHeroMatch("title-\(routine.id)", in: hero, isSource: true)
+                    .homeHeroMatch("title-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                 Text(routine.focus)
                     .font(.body)
-                    .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: true)
+                    .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                 HStack(spacing: 8) {
                     Text("\(routine.workoutsLine) /")
                         .font(.subheadline)
@@ -203,6 +218,7 @@ private struct UpNextCard: View {
 private struct RoutineListCard: View {
     let routine: Routine
     var hero: Namespace.ID
+    var matchEnabled: Bool
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -212,7 +228,7 @@ private struct RoutineListCard: View {
                         .clipShape(homeIllustrationThumb(gap: 16))
                     IllustrationView(slug: routine.heroSlug, label: routine.name)
                         .frame(width: 120, height: 120)
-                        .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: true)
+                        .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                     Color.clear
                         .matchedTransitionSource(id: routine.id, in: hero)
                 }
@@ -223,18 +239,18 @@ private struct RoutineListCard: View {
                     Text("Routine \(routine.rotationIndex)")
                         .font(.system(size: 15))
                         .frame(height: 18, alignment: .leading)
-                        .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: true)
+                        .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                     VStack(alignment: .leading, spacing: 6) {
                         Text(routine.name)
                             .font(.system(size: 22, weight: .semibold))
                             .frame(height: 25, alignment: .leading)
                             .lineLimit(1)
-                            .homeHeroMatch("title-\(routine.id)", in: hero, isSource: true)
+                            .homeHeroMatch("title-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                         Text(routine.focus)
                             .font(.system(size: 16))
                             .multilineTextAlignment(.leading)
                             .lineLimit(2)
-                            .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: true)
+                            .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -252,8 +268,8 @@ private struct RoutineListCard: View {
 }
 
 extension View {
-    func homeHeroMatch(_ id: String, in ns: Namespace.ID?, isSource: Bool = true) -> some View {
-        modifier(HomeHeroMatchModifier(id: id, namespace: ns, isSource: isSource))
+    func homeHeroMatch(_ id: String, in ns: Namespace.ID?, isSource: Bool = true, enabled: Bool = true) -> some View {
+        modifier(HomeHeroMatchModifier(id: id, namespace: ns, isSource: isSource, enabled: enabled))
     }
 
     func homeHeroZoom(id: String, in ns: Namespace.ID?) -> some View {
@@ -265,10 +281,11 @@ private struct HomeHeroMatchModifier: ViewModifier {
     let id: String
     let namespace: Namespace.ID?
     let isSource: Bool
+    var enabled: Bool = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func body(content: Content) -> some View {
-        if let namespace, !reduceMotion {
+        if let namespace, enabled, !reduceMotion {
             content.matchedGeometryEffect(id: id, in: namespace, isSource: isSource)
         } else {
             content

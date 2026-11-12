@@ -10,6 +10,7 @@ struct RoutineView: View {
     @Environment(SessionStore.self) private var store
     let routine: Routine
     var hero: Namespace.ID? = nil
+    var heroMatchEnabled: Bool = false
     @State private var didSave = false
     @State private var showCompleteButton = false
     @State private var openWeightRowID: String?
@@ -23,16 +24,16 @@ struct RoutineView: View {
                     Text(routine.name)
                         .font(.largeTitle)
                         .fontWeight(.bold)
-                        .homeHeroMatch("title-\(routine.id)", in: hero, isSource: false)
+                        .homeHeroMatch("title-\(routine.id)", in: hero, isSource: false, enabled: heroMatchEnabled)
                     Text(routine.focus)
                         .font(.body)
-                        .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: false)
+                        .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: false, enabled: heroMatchEnabled)
                         .padding(.top, 8)
 
                     IllustrationView(slug: routine.heroSlug, label: routine.name)
                         .frame(maxWidth: .infinity)
                         .frame(height: 370)
-                        .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: false)
+                        .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: false, enabled: heroMatchEnabled)
                         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
                         .padding(.top, 32)
 
@@ -87,7 +88,7 @@ struct RoutineView: View {
                     Text("Routine \(routine.id)")
                         .font(.headline)
                         .fontWeight(.semibold)
-                        .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: false)
+                        .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: false, enabled: heroMatchEnabled)
                 }
             }
         }
