@@ -154,7 +154,18 @@ private struct RoutineListCard: View {
     let routine: Routine
 
     private var poseSlug: String {
-        routine.exercises.first?.slug ?? routine.heroSlug
+        switch routine.id {
+        case "C": return "seated-row"
+        case "D": return "step-up"
+        default: return routine.exercises.first?.slug ?? routine.heroSlug
+        }
+    }
+
+    private var poseSize: CGSize {
+        switch routine.id {
+        case "C": return CGSize(width: 96, height: 64)
+        default: return CGSize(width: 120, height: 120)
+        }
     }
 
     var body: some View {
@@ -162,6 +173,7 @@ private struct RoutineListCard: View {
             WashWindow(grade: WashGrade.forRoutine(routine.id))
             HStack(alignment: .center, spacing: 20) {
                 IllustrationView(slug: poseSlug, label: routine.name)
+                    .frame(width: poseSize.width, height: poseSize.height)
                     .frame(width: 120, height: 120)
                     .foregroundStyle(.white)
                 VStack(alignment: .leading, spacing: 6) {
