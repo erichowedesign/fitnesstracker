@@ -8,8 +8,8 @@ struct UpperPushView: View {
 
 struct RoutineView: View {
     @Environment(SessionStore.self) private var store
-    @Environment(WashTheme.self) private var wash
     let routine: Routine
+    var hero: Namespace.ID? = nil
     @State private var didSave = false
     @State private var showCompleteButton = false
     @State private var openWeightRowID: String?
@@ -23,8 +23,10 @@ struct RoutineView: View {
                     Text(routine.name)
                         .font(.largeTitle)
                         .fontWeight(.bold)
+                        .homeHeroMatch("title-\(routine.id)", in: hero, isSource: true)
                     Text(routine.focus)
                         .font(.body)
+                        .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: true)
                         .padding(.top, 8)
 
                     IllustrationView(slug: routine.heroSlug, label: routine.name)
@@ -59,7 +61,7 @@ struct RoutineView: View {
         .background {
             ZStack {
                 Color.black
-                WashBackground(grade: wash.grade)
+                WashBackground(grade: WashGrade.forRoutine(routine.id))
             }
             .ignoresSafeArea()
         }
@@ -78,16 +80,20 @@ struct RoutineView: View {
         }
         .navigationTitle("Routine \(routine.id)")
         .toolbarTitleDisplayMode(.inline)
+        .toolbar {
+            if hero != nil {
+                ToolbarItem(placement: .principal) {
+                    Text("Routine \(routine.id)")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: true)
+                }
+            }
+        }
         .alert("Workout saved", isPresented: $didSave) {
             Button("OK", role: .cancel) {}
         } message: {
             Text("\(routine.name) is stored on this iPhone.")
-        }
-        .onAppear {
-            wash.grade = WashGrade.forRoutine(routine.id)
-        }
-        .onDisappear {
-            wash.grade = .grayscale
         }
     }
 

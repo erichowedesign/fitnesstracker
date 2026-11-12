@@ -3,6 +3,8 @@ import SwiftUI
 struct HomeView: View {
     @Environment(SessionStore.self) private var store
     @Environment(WashTheme.self) private var wash
+    @Namespace private var hero
+    @State private var openedRoutineID: String?
     private let routines = WorkoutPlan.all()
 
     private var upNext: Routine {
@@ -37,7 +39,11 @@ struct HomeView: View {
                     .padding(.top, 48)
 
                 NavigationLink(value: upNext) {
-                    UpNextCard(routine: upNext)
+                    UpNextCard(
+                        routine: upNext,
+                        hero: hero,
+                        isHeroSource: openedRoutineID != upNext.id
+                    )
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 24)
@@ -51,7 +57,11 @@ struct HomeView: View {
                 VStack(spacing: 12) {
                     ForEach(myRoutines) { routine in
                         NavigationLink(value: routine) {
-                            RoutineListCard(routine: routine)
+                            RoutineListCard(
+                                routine: routine,
+                                hero: hero,
+                                isHeroSource: openedRoutineID != routine.id
+                            )
                         }
                         .buttonStyle(.plain)
                     }
@@ -86,7 +96,14 @@ struct HomeView: View {
             }
         }
         .navigationDestination(for: Routine.self) { routine in
-            RoutineView(routine: routine)
+            RoutineView(routine: routine, hero: hero)
+                .homeHeroZoom(id: routine.id, in: hero)
+                .onAppear { openedRoutineID = routine.id }
+                .onDisappear {
+                    if openedRoutineID == routine.id {
+                        openedRoutineID = nil
+                    }
+                }
         }
         .onAppear {
             wash.grade = .grayscale
@@ -116,11 +133,15 @@ private func homeIllustrationThumb(gap: CGFloat) -> RoundedRectangle {
 
 private struct UpNextCard: View {
     let routine: Routine
+    var hero: Namespace.ID
+    var isHeroSource: Bool
 
     var body: some View {
         ZStack(alignment: .topLeading) {
             ZStack {
                 WashWindow(grade: WashGrade.forRoutine(routine.id))
+                    .clipShape(homeIllustrationThumb(gap: 20))
+                    .matchedTransitionSource(id: routine.id, in: hero)
                 IllustrationView(slug: routine.heroSlug, label: routine.name)
                     .frame(width: 210, height: 210)
             }
@@ -132,6 +153,7 @@ private struct UpNextCard: View {
 
             Text("Routine \(routine.rotationIndex)")
                 .font(.subheadline)
+                .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: isHeroSource)
                 .padding(.top, 22)
                 .padding(.leading, 22)
 
@@ -139,8 +161,10 @@ private struct UpNextCard: View {
                 Text(routine.name)
                     .font(.title)
                     .fontWeight(.bold)
+                    .homeHeroMatch("title-\(routine.id)", in: hero, isSource: isHeroSource)
                 Text(routine.focus)
                     .font(.body)
+                    .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: isHeroSource)
                 HStack(spacing: 8) {
                     Text("\(routine.workoutsLine) /")
                         .font(.subheadline)
@@ -164,6 +188,8 @@ private struct UpNextCard: View {
 
 private struct RoutineListCard: View {
     let routine: Routine
+    var hero: Namespace.ID
+    var isHeroSource: Bool
 
     private var poseSlug: String {
         switch routine.id {
@@ -179,6 +205,8 @@ private struct RoutineListCard: View {
             HStack(alignment: .top, spacing: 20) {
                 ZStack {
                     WashWindow(grade: WashGrade.forRoutine(routine.id))
+                        .clipShape(homeIllustrationThumb(gap: 16))
+                        .matchedTransitionSource(id: routine.id, in: hero)
                     IllustrationView(slug: poseSlug, label: routine.name)
                         .frame(width: 120, height: 120)
                 }
@@ -189,15 +217,18 @@ private struct RoutineListCard: View {
                     Text("Routine \(routine.rotationIndex)")
                         .font(.system(size: 15))
                         .frame(height: 18, alignment: .leading)
+                        .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: isHeroSource)
                     VStack(alignment: .leading, spacing: 6) {
                         Text(routine.name)
                             .font(.system(size: 22, weight: .semibold))
                             .frame(height: 25, alignment: .leading)
                             .lineLimit(1)
+                            .homeHeroMatch("title-\(routine.id)", in: hero, isSource: isHeroSource)
                         Text(routine.focus)
                             .font(.system(size: 16))
                             .multilineTextAlignment(.leading)
                             .lineLimit(2)
+                            .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: isHeroSource)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -211,6 +242,45 @@ private struct RoutineListCard: View {
         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Routine \(routine.rotationIndex), \(routine.name), \(routine.focus)")
+    }
+}
+
+extension View {
+    func homeHeroMatch(_ id: String, in ns: Namespace.ID?, isSource: Bool = true) -> some View {
+        modifier(HomeHeroMatchModifier(id: id, namespace: ns, isSource: isSource))
+    }
+
+    func homeHeroZoom(id: String, in ns: Namespace.ID?) -> some View {
+        modifier(HomeHeroZoomModifier(id: id, namespace: ns))
+    }
+}
+
+private struct HomeHeroMatchModifier: ViewModifier {
+    let id: String
+    let namespace: Namespace.ID?
+    let isSource: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        if let namespace, !reduceMotion {
+            content.matchedGeometryEffect(id: id, in: namespace, isSource: isSource)
+        } else {
+            content
+        }
+    }
+}
+
+private struct HomeHeroZoomModifier: ViewModifier {
+    let id: String
+    let namespace: Namespace.ID?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        if let namespace, !reduceMotion {
+            content.navigationTransition(.zoom(sourceID: id, in: namespace))
+        } else {
+            content
+        }
     }
 }
 
