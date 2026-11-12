@@ -71,44 +71,50 @@ struct UpperPushView: View {
     }
 
     private var glanceCard: some View {
-        HStack(alignment: .center, spacing: 0) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("exercises")
-                    .font(.subheadline)
-                Text("05")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .monospacedDigit()
-            }
-            Spacer(minLength: 0)
-            VStack(alignment: .center, spacing: 3) {
-                Text("minutes")
-                    .font(.subheadline)
-                Text("45–60")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .monospacedDigit()
-            }
-            Spacer(minLength: 0)
-            VStack(alignment: .trailing, spacing: 3) {
-                Text("difficulty")
-                    .font(.subheadline)
-                HStack(alignment: .bottom, spacing: 4) {
-                    ForEach(0..<5, id: \.self) { index in
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .fill(.white.opacity(index < 3 ? 1 : 0.35))
-                            .frame(width: 8, height: 31)
-                    }
+        VStack(spacing: 0) {
+            Color.clear.frame(height: 16)
+            HStack(alignment: .top, spacing: 56) {
+                VStack(spacing: 3) {
+                    glanceLabel("exercises")
+                    Text("05")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .monospacedDigit()
                 }
-                .accessibilityHidden(true)
+                VStack(spacing: 3) {
+                    glanceLabel("minutes")
+                    Text("45–60")
+                        .font(.title)
+                        .fontWeight(.bold)
+                        .monospacedDigit()
+                }
+                VStack(spacing: 6) {
+                    glanceLabel("difficulty")
+                    HStack(alignment: .bottom, spacing: 4) {
+                        ForEach(0..<5, id: \.self) { index in
+                            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                .fill(.white.opacity(index < 3 ? 1 : 0.35))
+                                .frame(width: 8, height: 31)
+                        }
+                    }
+                    .accessibilityHidden(true)
+                }
             }
+            Spacer(minLength: 0)
         }
-        .padding(16)
+        .padding(.vertical, 14)
+        .padding(.horizontal, 52)
         .frame(maxWidth: .infinity)
         .frame(height: 120)
         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("5 exercises, 45 to 60 minutes, difficulty three of five")
+    }
+
+    private func glanceLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.subheadline)
+            .frame(height: 16)
     }
 
     private var topStatusScrim: some View {
