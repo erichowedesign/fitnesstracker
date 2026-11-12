@@ -156,20 +156,27 @@ private struct RoutineListCard: View {
     var body: some View {
         ZStack(alignment: .leading) {
             WashWindow(grade: WashGrade.forRoutine(routine.id))
-            HStack(spacing: 20) {
+            HStack(alignment: .center, spacing: 20) {
                 IllustrationView(slug: routine.heroSlug, label: routine.name)
                     .frame(width: 120, height: 120)
-                VStack(alignment: .leading, spacing: 4) {
+                    .foregroundStyle(.white)
+                VStack(alignment: .leading, spacing: 23) {
                     Text(routine.focus)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                    Text(routine.name)
-                        .font(.headline)
-                    Text("\(routine.exerciseCountLabel) workouts")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 15))
+                        .frame(height: 18, alignment: .leading)
+                        .lineLimit(1)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(routine.name)
+                            .font(.system(size: 22, weight: .semibold))
+                            .frame(height: 25, alignment: .leading)
+                            .lineLimit(1)
+                        Text("\(routine.exerciseCountLabel) workouts")
+                            .font(.system(size: 16))
+                            .frame(height: 20, alignment: .leading)
+                            .lineLimit(1)
+                    }
                 }
+                .foregroundStyle(.white)
                 Spacer(minLength: 0)
             }
             .padding(16)
