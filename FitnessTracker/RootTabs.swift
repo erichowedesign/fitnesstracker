@@ -41,37 +41,75 @@ struct RootTabs: View {
         }
     }
 
-    private var tabBar: some View {
-        HStack(spacing: 8) {
-            tabButton(.home, title: "Home", systemImage: "house.fill")
-            tabButton(.history, title: "History", systemImage: "arrow.triangle.2.circlepath")
-            tabButton(.library, title: "Library", systemImage: "book")
+    private var selectedPillX: CGFloat {
+        switch tab {
+        case .home: return 0
+        case .history: return 94
+        case .library: return 188
         }
-        .padding(6)
-        .glassEffect(.regular.interactive(), in: Capsule())
-        .padding(.horizontal, 24)
-        .padding(.bottom, 8)
     }
 
-    private func tabButton(_ value: AppTab, title: String, systemImage: String) -> some View {
-        Button {
+    private var tabBar: some View {
+        ZStack {
+            Capsule()
+                .fill(Color.black.opacity(0.6))
+            Capsule()
+                .fill(Color.white.opacity(0.06))
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color(red: 18 / 255, green: 18 / 255, blue: 18 / 255))
+                    .blendMode(.plusLighter)
+                    .frame(width: 106, height: 54)
+                    .offset(x: selectedPillX)
+
+                HStack(spacing: -8) {
+                    tabButton(.home, title: "Home", systemImage: "house.fill", unselectedImage: "house")
+                    tabButton(.history, title: "History", systemImage: "arrow.triangle.2.circlepath")
+                    tabButton(.library, title: "Library", systemImage: "book")
+                }
+                .padding(.horizontal, 2)
+            }
+            .frame(width: 294, height: 54)
+        }
+        .frame(width: 302, height: 62)
+        .glassEffect(.regular.interactive(), in: Capsule())
+        .padding(.bottom, 8)
+        .animation(.snappy(duration: 0.25), value: tab)
+    }
+
+    private func tabButton(
+        _ value: AppTab,
+        title: String,
+        systemImage: String,
+        unselectedImage: String? = nil
+    ) -> some View {
+        let selected = tab == value
+        return Button {
             tab = value
         } label: {
-            Label(title, systemImage: systemImage)
-                .labelStyle(.titleAndIcon)
-                .font(.caption)
-                .foregroundStyle(tab == value ? Color.blue : Color.white.opacity(0.72))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background {
-                    if tab == value {
-                        Capsule()
-                            .fill(.white.opacity(0.16))
-                    }
-                }
+            VStack(spacing: 1) {
+                Image(systemName: selected ? systemImage : (unselectedImage ?? systemImage))
+                    .font(.system(size: 20, weight: .medium))
+                    .frame(height: 28)
+                Text(title)
+                    .font(.system(size: 10, weight: .medium))
+                    .frame(height: 12)
+            }
+            .foregroundStyle(
+                selected
+                    ? Color(red: 0, green: 0.569, blue: 1)
+                    : Color(red: 0.961, green: 0.961, blue: 0.961)
+            )
+            .blendMode(selected ? .normal : .plusLighter)
+            .padding(.horizontal, 8)
+            .padding(.top, 6)
+            .frame(width: 102, height: 54, alignment: .top)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityAddTraits(tab == value ? .isSelected : [])
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
