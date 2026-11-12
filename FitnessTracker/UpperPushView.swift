@@ -4,6 +4,10 @@ struct UpperPushView: View {
     @Environment(SessionStore.self) private var store
     @State private var didSave = false
     @State private var showCompleteButton = false
+    @State private var openWeightRowID: String?
+    @State private var editingWeightRowID: String?
+    @State private var weightDraft = ""
+    @State private var weights: [String: String] = [:]
 
     private let routine = WorkoutPlan.upperPush()
 
@@ -44,6 +48,7 @@ struct UpperPushView: View {
                 .padding(.top, 34)
                 .padding(.bottom, 88)
             }
+            .scrollDismissesKeyboard(.immediately)
             .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
             .background { ThermalWashBackground() }
             .overlay(alignment: .top) {
@@ -179,17 +184,69 @@ struct UpperPushView: View {
             GlassEffectContainer(spacing: 12) {
                 VStack(spacing: 12) {
                     ForEach(routine.exercises) { exercise in
-                        GuideRow(
-                            title: exercise.name,
-                            metaParts: exercise.metaParts,
-                            slug: exercise.slug,
-                            weight: exercise.displayWeight
+                        MainWorkoutRow(
+                            exercise: exercise,
+                            weight: weights[exercise.id] ?? exercise.displayWeight ?? "—",
+                            isOpen: openWeightRowID == exercise.id,
+                            isEditing: editingWeightRowID == exercise.id,
+                            weightDraft: $weightDraft,
+                            onOpen: { openWeightRow(exercise.id) },
+                            onClose: { closeWeightRow(exercise.id) },
+                            onEdit: { beginWeightEdit(exercise) },
+                            onCommit: commitWeightEdit
                         )
                     }
                 }
             }
         }
         .padding(.top, 48)
+    }
+
+    private func openWeightRow(_ id: String) {
+        if openWeightRowID != id {
+            commitWeightEdit()
+        }
+        withAnimation(.smooth(duration: 0.32)) {
+            openWeightRowID = id
+        }
+    }
+
+    private func closeWeightRow(_ id: String) {
+        guard openWeightRowID == id else { return }
+        commitWeightEdit()
+        withAnimation(.smooth(duration: 0.32)) {
+            openWeightRowID = nil
+        }
+    }
+
+    private func beginWeightEdit(_ exercise: Exercise) {
+        let display = weights[exercise.id] ?? exercise.displayWeight ?? ""
+        weightDraft = Self.poundsText(from: display)
+        editingWeightRowID = exercise.id
+        openWeightRow(exercise.id)
+    }
+
+    private func commitWeightEdit() {
+        guard let id = editingWeightRowID else { return }
+        if let formatted = Self.formattedWeight(from: weightDraft) {
+            weights[id] = formatted
+        }
+        editingWeightRowID = nil
+        weightDraft = ""
+    }
+
+    private static func poundsText(from display: String) -> String {
+        display.replacingOccurrences(of: "lbs", with: "", options: .caseInsensitive)
+            .trimmingCharacters(in: .whitespaces)
+    }
+
+    private static func formattedWeight(from draft: String) -> String? {
+        let cleaned = draft.trimmingCharacters(in: .whitespaces)
+        guard let value = Double(cleaned) else { return nil }
+        if value.rounded() == value {
+            return "\(Int(value)) lbs"
+        }
+        return String(format: "%.1f lbs", value)
     }
 
     private var credit: some View {
@@ -202,11 +259,94 @@ struct UpperPushView: View {
     }
 }
 
+private struct MainWorkoutRow: View {
+    let exercise: Exercise
+    let weight: String
+    let isOpen: Bool
+    let isEditing: Bool
+    @Binding var weightDraft: String
+    let onOpen: () -> Void
+    let onClose: () -> Void
+    let onEdit: () -> Void
+    let onCommit: () -> Void
+
+    @State private var dragTranslation: CGFloat = 0
+
+    private let buttonWidth: CGFloat = 141
+    private let gap: CGFloat = 12
+    private var revealWidth: CGFloat { buttonWidth + gap }
+
+    private var offsetX: CGFloat {
+        let base = isOpen ? -revealWidth : 0
+        return min(0, max(-revealWidth, base + dragTranslation))
+    }
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            if offsetX < -4 {
+                Button(action: onEdit) {
+                    Text("Edit")
+                        .font(.title3)
+                        .foregroundStyle(Color(red: 0.90, green: 0.90, blue: 0.92))
+                        .frame(width: buttonWidth, height: 152)
+                }
+                .buttonStyle(.plain)
+                .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+                .allowsHitTesting(isOpen)
+            }
+
+            GuideRow(
+                title: exercise.name,
+                metaParts: exercise.metaParts,
+                slug: exercise.slug,
+                weight: weight,
+                isEditingWeight: isEditing,
+                weightDraft: $weightDraft,
+                onCommit: onCommit
+            )
+            .offset(x: offsetX)
+        }
+        .frame(height: 152)
+        .clipped()
+        .contentShape(Rectangle())
+        .simultaneousGesture(swipeGesture)
+        .onChange(of: isOpen) { _, open in
+            if !open {
+                dragTranslation = 0
+            }
+        }
+    }
+
+    private var swipeGesture: some Gesture {
+        DragGesture(minimumDistance: 16, coordinateSpace: .local)
+            .onChanged { value in
+                let translation = value.translation
+                guard abs(translation.width) > abs(translation.height) * 0.65 else { return }
+                dragTranslation = translation.width
+            }
+            .onEnded { value in
+                let width = value.translation.width
+                let predicted = value.predictedEndTranslation.width
+                dragTranslation = 0
+                if isOpen {
+                    if width > 36 || predicted > 80 {
+                        onClose()
+                    }
+                } else if width < -36 || predicted < -80 {
+                    onOpen()
+                }
+            }
+    }
+}
+
 private struct GuideRow: View {
     let title: String
     let metaParts: [String]
     let slug: String
     var weight: String? = nil
+    var isEditingWeight: Bool = false
+    var weightDraft: Binding<String>? = nil
+    var onCommit: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 20) {
@@ -217,11 +357,11 @@ private struct GuideRow: View {
                     .font(.headline)
                 MetaLine(parts: metaParts)
                     .padding(.top, 4)
-                if let weight {
+                if weight != nil {
                     Text("Weight")
                         .font(.headline)
                         .padding(.top, 20)
-                    Text(weight)
+                    weightValue
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .padding(.top, 4)
@@ -233,6 +373,63 @@ private struct GuideRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 152)
         .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var weightValue: some View {
+        if isEditingWeight, let weightDraft {
+            WeightField(draft: weightDraft, onCommit: { onCommit?() })
+        } else if let weight {
+            Text(weight)
+        }
+    }
+}
+
+private struct WeightField: View {
+    @Binding var draft: String
+    let onCommit: () -> Void
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField("lbs", text: $draft)
+            .keyboardType(.decimalPad)
+            .textFieldStyle(.plain)
+            .focused($focused)
+            .labelsHidden()
+            .onAppear { focused = true }
+            .onChange(of: focused) { _, isFocused in
+                if !isFocused {
+                    onCommit()
+                }
+            }
+            .onChange(of: draft) { _, newValue in
+                let filtered = Self.filterPounds(newValue)
+                if filtered != newValue {
+                    draft = filtered
+                }
+            }
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") {
+                        focused = false
+                    }
+                }
+            }
+    }
+
+    private static func filterPounds(_ raw: String) -> String {
+        var result = ""
+        var sawDecimal = false
+        for character in raw {
+            if character.isNumber {
+                result.append(character)
+            } else if character == ".", !sawDecimal {
+                result.append(character)
+                sawDecimal = true
+            }
+        }
+        return result
     }
 }
 
