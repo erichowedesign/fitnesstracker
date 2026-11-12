@@ -65,7 +65,7 @@ struct RootTabs: View {
 
                 HStack(spacing: -8) {
                     tabButton(.home, title: "Home", systemImage: "house.fill", unselectedImage: "house")
-                    tabButton(.history, title: "History", systemImage: "arrow.triangle.2.circlepath")
+                    tabButton(.history, title: "History", systemImage: "clock.arrow.circlepath")
                     tabButton(.library, title: "Library", systemImage: "book")
                 }
                 .padding(.horizontal, 2)
