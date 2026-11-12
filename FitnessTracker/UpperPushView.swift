@@ -44,6 +44,9 @@ struct UpperPushView: View {
             }
             .scrollEdgeEffectStyle(.soft, for: [.top, .bottom])
             .background { ThermalWashBackground() }
+            .overlay(alignment: .top) {
+                topStatusScrim
+            }
             .overlay(alignment: .bottom) {
                 ZStack {
                     if showCompleteButton {
@@ -103,6 +106,22 @@ struct UpperPushView: View {
         .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("5 exercises, 60 minutes, difficulty three of five")
+    }
+
+    private var topStatusScrim: some View {
+        LinearGradient(
+            stops: [
+                .init(color: .black.opacity(0.28), location: 0),
+                .init(color: .black.opacity(0.12), location: 0.45),
+                .init(color: .clear, location: 1),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 120)
+        .ignoresSafeArea(edges: .top)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     private var completeWorkoutButton: some View {
