@@ -92,12 +92,14 @@ struct ExerciseTutorialView: View {
     }
 
     private var cyclingHero: some View {
-        TimelineView(.periodic(from: .now, by: 0.45)) { context in
-            let index = frames.isEmpty
-                ? 0
-                : Int(context.date.timeIntervalSinceReferenceDate / 0.45) % frames.count
-            IllustrationView(slug: frames[index], label: exerciseName)
-                .padding(28)
+        Group {
+            if frames.count == 3 {
+                BenchPressMorphView(slugs: frames, label: exerciseName)
+                    .padding(28)
+            } else {
+                IllustrationView(slug: frames.first ?? "", label: exerciseName)
+                    .padding(28)
+            }
         }
         .frame(maxWidth: .infinity)
         .frame(height: 370)
