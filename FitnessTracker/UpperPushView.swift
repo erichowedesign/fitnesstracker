@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct UpperPushView: View {
     var body: some View {
@@ -97,6 +98,9 @@ struct RoutineView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text("\(routine.name) is stored on this iPhone.")
+        }
+        .background {
+            DisableRoutineInteractivePop()
         }
     }
 
@@ -479,6 +483,33 @@ private struct MetaLine: View {
         .font(.subheadline)
         .foregroundStyle(.secondary)
         .lineLimit(1)
+    }
+}
+
+/// iOS 26 treats overscroll-at-top as a content pop during zoom navigation.
+private struct DisableRoutineInteractivePop: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> Controller {
+        Controller()
+    }
+
+    func updateUIViewController(_ uiViewController: Controller, context: Context) {}
+
+    final class Controller: UIViewController {
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            apply(enabled: false)
+        }
+
+        override func viewWillDisappear(_ animated: Bool) {
+            super.viewWillDisappear(animated)
+            apply(enabled: true)
+        }
+
+        private func apply(enabled: Bool) {
+            guard let nav = navigationController else { return }
+            nav.interactivePopGestureRecognizer?.isEnabled = enabled
+            nav.interactiveContentPopGestureRecognizer?.isEnabled = enabled
+        }
     }
 }
 
