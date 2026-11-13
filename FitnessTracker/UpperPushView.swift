@@ -84,12 +84,12 @@ struct RoutineView: View {
             }
             .animation(.smooth(duration: 0.4), value: showCompleteButton)
         }
-        .navigationTitle("Routine \(routine.id)")
+        .navigationTitle("Routine \(routine.rotationIndex)")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
             if hero != nil, heroMatchEnabled {
                 ToolbarItem(placement: .principal) {
-                    Text("Routine \(routine.id)")
+                    Text("Routine \(routine.rotationIndex)")
                         .font(.headline)
                         .fontWeight(.semibold)
                         .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: false, enabled: heroMatchEnabled)
