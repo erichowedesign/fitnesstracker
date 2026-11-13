@@ -539,23 +539,26 @@ private struct MetaLine: View {
     }
 }
 
-/// Pull-down at the top of a routine must not pop back to Home.
-/// The screen-edge swipe stays on.
+/// Pull-down at the top must not pop. Screen-edge back swipe stays on and wins
+/// over row/tile presses the same way tab pans beat Home tile holds.
 struct DisableRoutineInteractivePop: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> Controller {
         Controller()
     }
 
-    func updateUIViewController(_ uiViewController: Controller, context: Context) {}
+    func updateUIViewController(_ controller: Controller, context: Context) {
+        controller.apply()
+    }
 
     final class Controller: UIViewController, UIGestureRecognizerDelegate {
         override func viewDidAppear(_ animated: Bool) {
             super.viewDidAppear(animated)
-            if let pop = navigationController?.interactivePopGestureRecognizer {
-                pop.isEnabled = true
-                pop.delegate = self
-            }
-            navigationController?.interactiveContentPopGestureRecognizer?.isEnabled = false
+            apply()
+        }
+
+        override func viewDidLayoutSubviews() {
+            super.viewDidLayoutSubviews()
+            apply()
         }
 
         override func viewWillDisappear(_ animated: Bool) {
@@ -563,9 +566,50 @@ struct DisableRoutineInteractivePop: UIViewControllerRepresentable {
             navigationController?.interactiveContentPopGestureRecognizer?.isEnabled = true
         }
 
+        func apply() {
+            guard let nav = navigationController,
+                  let pop = nav.interactivePopGestureRecognizer
+            else { return }
+
+            pop.isEnabled = true
+            pop.delegate = self
+            // Presses must not see the touch until the edge back pan fails. If
+            // that pan begins, cancel the press so a sideways edge drag is not a hold.
+            pop.delaysTouchesBegan = true
+            pop.cancelsTouchesInView = true
+            nav.interactiveContentPopGestureRecognizer?.isEnabled = false
+
+            linkGestures(in: view, pop: pop)
+            if let navView = nav.view {
+                linkGestures(in: navView, pop: pop)
+            }
+        }
+
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
             guard let nav = navigationController else { return false }
             return nav.viewControllers.count > 1
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            guard let pop = navigationController?.interactivePopGestureRecognizer,
+                  gestureRecognizer === pop
+            else { return false }
+            // Row taps and most pans wait. The edge back pan is screen-edge only,
+            // so mid-screen weight-row swipes still begin as soon as it fails.
+            return otherGestureRecognizer !== pop
+        }
+
+        private func linkGestures(in root: UIView, pop: UIGestureRecognizer) {
+            var stack: [UIView] = [root]
+            while let view = stack.popLast() {
+                for recognizer in view.gestureRecognizers ?? [] where recognizer !== pop {
+                    recognizer.require(toFail: pop)
+                }
+                stack.append(contentsOf: view.subviews)
+            }
         }
     }
 }
