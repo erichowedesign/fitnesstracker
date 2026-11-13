@@ -89,6 +89,22 @@ struct LibraryView: View {
 
     private var filterRow: some View {
         HStack(spacing: 12) {
+            Menu {
+                Picker("Equipment", selection: $equipment) {
+                    Text("All").tag(nil as String?)
+                    ForEach(LibraryCatalog.equipment, id: \.self) { item in
+                        Text(item).tag(item as String?)
+                    }
+                }
+            } label: {
+                Image(systemName: "line.3.horizontal.decrease")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 48, height: 48)
+                    .glassEffect(.regular.interactive(), in: Circle())
+            }
+            .accessibilityLabel(equipment.map { "Filter by equipment, \($0)" } ?? "Filter by equipment")
+
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 16, weight: .semibold))
@@ -103,29 +119,6 @@ struct LibraryView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 48)
             .glassEffect(.regular.interactive(), in: Capsule())
-
-            Menu {
-                Picker("Equipment", selection: $equipment) {
-                    Text("All").tag(nil as String?)
-                    ForEach(LibraryCatalog.equipment, id: \.self) { item in
-                        Text(item).tag(item as String?)
-                    }
-                }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "line.3.horizontal.decrease")
-                        .font(.system(size: 15, weight: .semibold))
-                    Text(equipment ?? "All")
-                        .font(.subheadline)
-                        .lineLimit(1)
-                        .frame(maxWidth: 96)
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .frame(height: 48)
-                .glassEffect(.regular.interactive(), in: Capsule())
-            }
-            .accessibilityLabel("Filter by equipment")
         }
     }
 }
