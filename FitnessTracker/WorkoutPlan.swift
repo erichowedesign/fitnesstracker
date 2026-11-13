@@ -107,6 +107,28 @@ struct Exercise: Identifiable {
                 "Avoid locking out your elbows at the top",
                 "Your arms should stay at roughly 90-degree angles at the bottom",
             ]
+        case "Cable Bench Press":
+            return [
+                "Keep your core engaged and your upper body in a straight line.",
+                "Avoid locking out your elbows when extending your arms.",
+                "Your arms should stay at roughly 90-degree angles at the beginning of each repetition.",
+            ]
+        case "Dumbbell Shoulder Press":
+            return [
+                "Keep your core engaged throughout the movement.",
+                "Avoid locking out your elbows at the top. Your arms should stay at roughly 90-degree angles at the bottom.",
+            ]
+        case "Cable Triceps Pushdown":
+            return [
+                "Keep your core engaged and your elbows tucked into your sides.",
+                "Maintain a consistent elbow position throughout the movement.",
+            ]
+        case "Dumbbell Lateral Raise":
+            return [
+                "Bend your elbows and knees slightly and keep your core engaged throughout the movement.",
+                "Raise your arms until they are parallel to the floor.",
+                "Avoid using momentum; let your muscles do the work.",
+            ]
         case "Seated Leg Curl":
             return [
                 "Keep your core engaged and your back and butt firmly against the pads.",
