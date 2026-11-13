@@ -5,6 +5,7 @@ struct ExerciseTutorial: Hashable {
     let muscles: String
     let frames: [String]
     let hints: [String]
+    let hintSource: String?
 }
 
 struct ExerciseTutorialView: View {
@@ -14,6 +15,7 @@ struct ExerciseTutorialView: View {
     let grade: WashGrade
     let frames: [String]
     let hints: [String]
+    let hintSource: String?
 
     var body: some View {
         ScrollView {
@@ -36,6 +38,13 @@ struct ExerciseTutorialView: View {
                     .fontWeight(.bold)
                     .foregroundStyle(.white)
                     .padding(.top, 48)
+
+                if let hintSource, !hints.isEmpty {
+                    Text("Source: \(hintSource)")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.72))
+                        .padding(.top, 8)
+                }
 
                 VStack(spacing: 12) {
                     ForEach(Array(hints.enumerated()), id: \.offset) { _, hint in

@@ -106,7 +106,8 @@ struct RoutineView: View {
                 muscles: item.muscles,
                 grade: WashGrade.forRoutine(routine.id),
                 frames: item.frames,
-                hints: item.hints
+                hints: item.hints,
+                hintSource: item.hintSource
             )
         }
     }
@@ -231,20 +232,29 @@ struct RoutineView: View {
             name: exercise.name,
             muscles: exercise.tutorialMuscles,
             slug: exercise.slug,
-            hints: exercise.tutorialHints
+            hints: exercise.tutorialHints,
+            hintSource: exercise.tutorialHintSource
         )
     }
 
     private func openTutorial(_ step: GuideStep) {
+        let tips = ExerciseTips.set(for: step.title, slug: step.slug)
         presentTutorial(
             name: step.title,
             muscles: LibraryCatalog.workout(slug: step.slug)?.muscle ?? "",
             slug: step.slug,
-            hints: []
+            hints: tips.tips,
+            hintSource: tips.source
         )
     }
 
-    private func presentTutorial(name: String, muscles: String, slug: String, hints: [String]) {
+    private func presentTutorial(
+        name: String,
+        muscles: String,
+        slug: String,
+        hints: [String],
+        hintSource: String?
+    ) {
         if let id = openWeightRowID {
             closeWeightRow(id)
         }
@@ -252,7 +262,8 @@ struct RoutineView: View {
             name: name,
             muscles: muscles,
             frames: Exercise.tutorialFrames(for: slug),
-            hints: hints
+            hints: hints,
+            hintSource: hintSource
         )
     }
 

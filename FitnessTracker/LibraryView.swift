@@ -77,7 +77,8 @@ struct LibraryView: View {
                     muscles: workout.muscle,
                     grade: workout.grade,
                     frames: workout.frames,
-                    hints: workout.hints
+                    hints: workout.hints,
+                    hintSource: workout.hintSource
                 )
             }
         }

@@ -19,12 +19,11 @@ struct LibraryWorkout: Identifiable, Hashable {
     }
 
     var hints: [String] {
-        guard name == "Dumbbell Bench Press" else { return [] }
-        return [
-            "Keep your core engaged and your head, shoulders, and back flat against the pad",
-            "Avoid locking out your elbows at the top",
-            "Your arms should stay at roughly 90-degree angles at the bottom",
-        ]
+        ExerciseTips.set(for: name).tips
+    }
+
+    var hintSource: String? {
+        ExerciseTips.set(for: name).source
     }
 }
 

@@ -100,61 +100,11 @@ struct Exercise: Identifiable {
     }
 
     var tutorialHints: [String] {
-        switch name {
-        case "Dumbbell Bench Press":
-            return [
-                "Keep your core engaged and your head, shoulders, and back flat against the pad",
-                "Avoid locking out your elbows at the top",
-                "Your arms should stay at roughly 90-degree angles at the bottom",
-            ]
-        case "Cable Bench Press":
-            return [
-                "Keep your core engaged and your upper body in a straight line.",
-                "Avoid locking out your elbows when extending your arms.",
-                "Your arms should stay at roughly 90-degree angles at the beginning of each repetition.",
-            ]
-        case "Dumbbell Shoulder Press":
-            return [
-                "Keep your core engaged throughout the movement.",
-                "Avoid locking out your elbows at the top. Your arms should stay at roughly 90-degree angles at the bottom.",
-            ]
-        case "Cable Triceps Pushdown":
-            return [
-                "Keep your core engaged and your elbows tucked into your sides.",
-                "Maintain a consistent elbow position throughout the movement.",
-            ]
-        case "Dumbbell Lateral Raise":
-            return [
-                "Bend your elbows and knees slightly and keep your core engaged throughout the movement.",
-                "Raise your arms until they are parallel to the floor.",
-                "Avoid using momentum; let your muscles do the work.",
-            ]
-        case "Seated Leg Curl":
-            return [
-                "Keep your core engaged and your back and butt firmly against the pads.",
-                "Make sure to align your knees with the pivot point of the machine.",
-                "The top pad should rest on your thighs and the bottom pad should rest just below your calves.",
-            ]
-        case "Leg Extension":
-            return [
-                "Keep your core engaged and your back and butt firmly against the pads.",
-                "Make sure to align your knees with the pivot point of the machine.",
-                "The pad should rest just below your shins.",
-            ]
-        case "Hip Abduction", "Hip Adduction":
-            return [
-                "Keep your core engaged throughout and use slow and controlled movements.",
-            ]
-        case "Standing Calf Raise":
-            return [
-                "Add the desired weight to each weight horn.",
-                "Adjust by standing with the ball of your feet on the foot pad while standing in a slightly squatted position, the shoulder pads should be resting on your shoulders. Pull the adjustment knob out to adjust the position.",
-                "Grab onto the handlebars and perform the movement by contracting your calves and raising your heels up and lowering back to the starting position (or your heels may go below the foot pad). Repeat for desired repetitions.",
-                "When finished, exit the machine, and remove the weights from the weight horns.",
-            ]
-        default:
-            return []
-        }
+        ExerciseTips.set(for: name).tips
+    }
+
+    var tutorialHintSource: String? {
+        ExerciseTips.set(for: name).source
     }
 
     var metaParts: [String] {
