@@ -27,6 +27,10 @@ struct RoutineView: View {
     @State private var pendingLibraryWorkout: LibraryWorkout?
     @State private var addTarget: RoutineEditSection = .main
     @State private var editMode: EditMode = .inactive
+    @State private var editSnapshotWarmup: [GuideStep] = []
+    @State private var editSnapshotExercises: [Exercise] = []
+    @State private var editSnapshotCooldown: [GuideStep] = []
+    @State private var editSnapshotWeights: [String: String] = [:]
 
     private var activeRoutine: Routine {
         routine.withSections(
@@ -48,6 +52,7 @@ struct RoutineView: View {
             .safeAreaInset(edge: .bottom) { completeInset }
             .navigationTitle("Routine \(routine.rotationIndex)")
             .toolbarTitleDisplayMode(.inline)
+            .navigationBarBackButtonHidden(isEditingRoutine)
             .toolbar { editToolbar }
             .environment(\.editMode, $editMode)
             .alert("Workout saved", isPresented: $didSave) {
@@ -55,7 +60,7 @@ struct RoutineView: View {
             } message: {
                 Text("\(routine.name) is stored on this iPhone.")
             }
-            .background { DisableRoutineInteractivePop() }
+            .background { DisableRoutineInteractivePop(allowsEdgeBack: !isEditingRoutine) }
             .navigationDestination(item: $tutorial) { item in
                 ExerciseTutorialView(
                     exerciseName: item.name,
@@ -151,11 +156,40 @@ struct RoutineView: View {
 
     @ToolbarContentBuilder
     private var editToolbar: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            Button(isEditingRoutine ? "Done" : "Edit") {
-                toggleRoutineEditing()
+        if isEditingRoutine {
+            ToolbarItem(placement: .topBarLeading) {
+                Button {
+                    cancelRoutineEditing()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .glassEffect(.clear.interactive(), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Cancel editing")
             }
-            .fontWeight(.semibold)
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    commitRoutineEditing()
+                } label: {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .glassEffect(.clear.interactive(), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Save edits")
+            }
+        } else {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("Edit") {
+                    beginRoutineEditing()
+                }
+                .fontWeight(.semibold)
+            }
         }
     }
 
@@ -182,7 +216,6 @@ struct RoutineView: View {
         case .cooldown:
             draftCooldown.append(GuideStep.fromLibrary(workout, sets: sets, reps: reps, weight: weight))
         }
-        persistDraft()
         pendingLibraryWorkout = nil
     }
 
@@ -335,11 +368,9 @@ struct RoutineView: View {
                 }
                 .onMove { source, destination in
                     steps.wrappedValue.move(fromOffsets: source, toOffset: destination)
-                    persistDraft()
                 }
                 .onDelete { offsets in
                     steps.wrappedValue.remove(atOffsets: offsets)
-                    persistDraft()
                 }
             }
         }
@@ -409,24 +440,44 @@ struct RoutineView: View {
         .listRowSeparator(.hidden)
     }
 
-    private func toggleRoutineEditing() {
-        if isEditingRoutine {
-            persistDraft()
-            openWeightRowID = nil
-            editingWeightRowID = nil
-            withAnimation(.smooth(duration: 0.28)) {
-                isEditingRoutine = false
-                editMode = .inactive
-            }
-        } else {
-            if let id = openWeightRowID {
-                closeWeightRow(id)
-            }
-            withAnimation(.smooth(duration: 0.28)) {
-                isEditingRoutine = true
-                editMode = .active
-                showCompleteButton = false
-            }
+    private func beginRoutineEditing() {
+        if let id = openWeightRowID {
+            closeWeightRow(id)
+        }
+        editSnapshotWarmup = draftWarmup
+        editSnapshotExercises = draftExercises
+        editSnapshotCooldown = draftCooldown
+        editSnapshotWeights = weights
+        withAnimation(.smooth(duration: 0.28)) {
+            isEditingRoutine = true
+            editMode = .active
+            showCompleteButton = false
+        }
+    }
+
+    private func commitRoutineEditing() {
+        persistDraft()
+        openWeightRowID = nil
+        editingWeightRowID = nil
+        withAnimation(.smooth(duration: 0.28)) {
+            isEditingRoutine = false
+            editMode = .inactive
+        }
+    }
+
+    private func cancelRoutineEditing() {
+        draftWarmup = editSnapshotWarmup
+        draftExercises = editSnapshotExercises
+        draftCooldown = editSnapshotCooldown
+        weights = editSnapshotWeights
+        openWeightRowID = nil
+        editingWeightRowID = nil
+        showLibraryPicker = false
+        stagedLibraryWorkout = nil
+        pendingLibraryWorkout = nil
+        withAnimation(.smooth(duration: 0.28)) {
+            isEditingRoutine = false
+            editMode = .inactive
         }
     }
 
@@ -441,7 +492,6 @@ struct RoutineView: View {
 
     private func moveExercises(from source: IndexSet, to destination: Int) {
         draftExercises.move(fromOffsets: source, toOffset: destination)
-        persistDraft()
     }
 
     private func deleteExercises(at offsets: IndexSet) {
@@ -450,7 +500,6 @@ struct RoutineView: View {
         for id in removed {
             weights.removeValue(forKey: id)
         }
-        persistDraft()
     }
 
     private func editThumbSlug(_ slug: String) -> String {
@@ -909,16 +958,22 @@ private struct MetaLine: View {
 
 /// Pull-down at the top must not pop. Screen-edge back swipe stays on and wins
 /// over row/tile presses the same way tab pans beat Home tile holds.
+/// Pass `allowsEdgeBack: false` while editing so X/checkmark own exit (no discard via swipe).
 struct DisableRoutineInteractivePop: UIViewControllerRepresentable {
+    var allowsEdgeBack: Bool = true
+
     func makeUIViewController(context: Context) -> Controller {
         Controller()
     }
 
     func updateUIViewController(_ controller: Controller, context: Context) {
+        controller.allowsEdgeBack = allowsEdgeBack
         controller.apply()
     }
 
     final class Controller: UIViewController, UIGestureRecognizerDelegate {
+        var allowsEdgeBack = true
+
         override func viewDidAppear(_ animated: Bool) {
             super.viewDidAppear(animated)
             apply()
@@ -931,6 +986,7 @@ struct DisableRoutineInteractivePop: UIViewControllerRepresentable {
 
         override func viewWillDisappear(_ animated: Bool) {
             super.viewWillDisappear(animated)
+            navigationController?.interactivePopGestureRecognizer?.isEnabled = true
             navigationController?.interactiveContentPopGestureRecognizer?.isEnabled = true
         }
 
@@ -939,13 +995,19 @@ struct DisableRoutineInteractivePop: UIViewControllerRepresentable {
                   let pop = nav.interactivePopGestureRecognizer
             else { return }
 
+            nav.interactiveContentPopGestureRecognizer?.isEnabled = false
+
+            guard allowsEdgeBack else {
+                pop.isEnabled = false
+                return
+            }
+
             pop.isEnabled = true
             pop.delegate = self
             // Presses must not see the touch until the edge back pan fails. If
             // that pan begins, cancel the press so a sideways edge drag is not a hold.
             pop.delaysTouchesBegan = true
             pop.cancelsTouchesInView = true
-            nav.interactiveContentPopGestureRecognizer?.isEnabled = false
 
             linkGestures(in: view, pop: pop)
             if let navView = nav.view {
@@ -954,7 +1016,7 @@ struct DisableRoutineInteractivePop: UIViewControllerRepresentable {
         }
 
         func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-            guard let nav = navigationController else { return false }
+            guard allowsEdgeBack, let nav = navigationController else { return false }
             return nav.viewControllers.count > 1
         }
 
