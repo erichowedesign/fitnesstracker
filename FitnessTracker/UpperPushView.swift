@@ -277,13 +277,17 @@ struct RoutineView: View {
             didSave = true
         } label: {
             Text("Complete Workout")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.white)
                 .frame(maxWidth: .infinity)
+                .frame(height: 64)
         }
-        .buttonStyle(.glass)
-        .controlSize(.extraLarge)
-        .buttonBorderShape(.capsule)
+        .buttonStyle(.plain)
+        // Same glass family as the Home floating tab bar.
+        .glassEffect(.regular.interactive(), in: Capsule())
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
+        .accessibilityAddTraits(.isButton)
     }
 
     private func section(_ title: String, steps: [GuideStep], revealsCompleteButton: Bool = false) -> some View {
