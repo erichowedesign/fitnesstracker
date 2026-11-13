@@ -107,6 +107,29 @@ struct Exercise: Identifiable {
                 "Avoid locking out your elbows at the top",
                 "Your arms should stay at roughly 90-degree angles at the bottom",
             ]
+        case "Seated Leg Curl":
+            return [
+                "Keep your core engaged and your back and butt firmly against the pads.",
+                "Make sure to align your knees with the pivot point of the machine.",
+                "The top pad should rest on your thighs and the bottom pad should rest just below your calves.",
+            ]
+        case "Leg Extension":
+            return [
+                "Keep your core engaged and your back and butt firmly against the pads.",
+                "Make sure to align your knees with the pivot point of the machine.",
+                "The pad should rest just below your shins.",
+            ]
+        case "Hip Abduction", "Hip Adduction":
+            return [
+                "Keep your core engaged throughout and use slow and controlled movements.",
+            ]
+        case "Standing Calf Raise":
+            return [
+                "Add the desired weight to each weight horn.",
+                "Adjust by standing with the ball of your feet on the foot pad while standing in a slightly squatted position, the shoulder pads should be resting on your shoulders. Pull the adjustment knob out to adjust the position.",
+                "Grab onto the handlebars and perform the movement by contracting your calves and raising your heels up and lowering back to the starting position (or your heels may go below the foot pad). Repeat for desired repetitions.",
+                "When finished, exit the machine, and remove the weights from the weight horns.",
+            ]
         default:
             return []
         }
