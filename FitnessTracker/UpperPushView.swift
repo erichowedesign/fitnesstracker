@@ -57,6 +57,7 @@ struct RoutineView: View {
             }
         .scrollDismissesKeyboard(.immediately)
         .scrollContentBackground(.hidden)
+        .scrollEdgeEffectHidden(true, for: .vertical)
         .foregroundStyle(.white)
         .background {
             ZStack {
@@ -65,7 +66,8 @@ struct RoutineView: View {
             }
             .ignoresSafeArea()
         }
-        .toolbarBackgroundVisibility(.visible, for: .navigationBar)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .safeAreaInset(edge: .bottom) {
             ZStack {
                 if showCompleteButton {
