@@ -103,12 +103,10 @@ struct HomeView: View {
         .navigationTitle("Foundation")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                } label: {
-                    Image(systemName: "ellipsis")
-                }
-                .accessibilityLabel("More")
+            ToolbarItem(placement: .principal) {
+                Text("Foundation")
+                    .opacity(0)
+                    .accessibilityHidden(true)
             }
         }
         .navigationDestination(for: Routine.self) { routine in

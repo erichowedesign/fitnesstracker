@@ -44,6 +44,8 @@ struct RootTabs: View {
             }
             .ignoresSafeArea()
 
+            tabHeader
+
             tabBar
                 .opacity(hidesFloatingTabBar ? 0 : 1)
                 .allowsHitTesting(!hidesFloatingTabBar)
@@ -82,6 +84,46 @@ struct RootTabs: View {
             previousTab = tab
             tab = newTab
         }
+    }
+
+    /// Title and menu stay fixed while the pages slide. Only the title fades.
+    private var tabHeader: some View {
+        NavigationStack {
+            Color.clear
+                .containerBackground(.clear, for: .navigation)
+                .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+                .toolbarTitleDisplayMode(.inline)
+                .scrollEdgeEffectHidden(true, for: .vertical)
+                .toolbar {
+                    ToolbarItem(placement: .principal) {
+                        ZStack {
+                            tabTitle("Foundation", page: .home)
+                            tabTitle("History", page: .history)
+                            tabTitle("Library", page: .library)
+                        }
+                    }
+                    ToolbarItem(id: "tab-menu", placement: .topBarTrailing) {
+                        Button {
+                        } label: {
+                            Image(systemName: "ellipsis")
+                        }
+                        .accessibilityLabel("More")
+                    }
+                }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .opacity(hidesFloatingTabBar ? 0 : 1)
+        .animation(HomeHeroMotion.animation, value: hidesFloatingTabBar)
+        .accessibilityHidden(hidesFloatingTabBar)
+    }
+
+    private func tabTitle(_ title: String, page: AppTab) -> some View {
+        Text(title)
+            .font(.headline)
+            .fontWeight(.semibold)
+            .opacity(tab == page ? 1 : 0)
+            .accessibilityHidden(tab != page)
     }
 
     private var selectedPillX: CGFloat {
@@ -172,12 +214,10 @@ private struct PlaceholderScreen: View {
             .toolbarTitleDisplayMode(.inline)
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                    } label: {
-                        Image(systemName: "ellipsis")
-                    }
-                    .accessibilityLabel("More")
+                ToolbarItem(placement: .principal) {
+                    Text(title)
+                        .opacity(0)
+                        .accessibilityHidden(true)
                 }
             }
     }

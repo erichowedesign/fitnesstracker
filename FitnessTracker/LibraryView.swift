@@ -64,12 +64,10 @@ struct LibraryView: View {
             .navigationTitle("Library")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                    } label: {
-                        Image(systemName: "ellipsis")
-                    }
-                    .accessibilityLabel("More")
+                ToolbarItem(placement: .principal) {
+                    Text("Library")
+                        .opacity(0)
+                        .accessibilityHidden(true)
                 }
             }
             .navigationDestination(for: LibraryWorkout.self) { workout in
