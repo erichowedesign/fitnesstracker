@@ -69,8 +69,6 @@ struct LibraryBrowser: View {
     var onCancel: (() -> Void)? = nil
     var onSelect: (LibraryWorkout) -> Void
 
-    /// Matches the floating bottom tab bar width (`RootTabs.tabBar`).
-    private var chromeWidth: CGFloat { 302 }
     private var chromeHeight: CGFloat { 48 }
     private var chromeTopPadding: CGFloat { 8 }
     private var chromeBottomGap: CGFloat { 16 }
@@ -146,9 +144,8 @@ struct LibraryBrowser: View {
         }
         .overlay(alignment: .top) {
             LibraryFilterSearchChrome(query: $query, filter: $filter)
-                .frame(width: chromeWidth)
+                .padding(.horizontal, 16)
                 .padding(.top, chromeTopPadding)
-                .frame(maxWidth: .infinity)
         }
         .navigationTitle(title)
         .toolbarTitleDisplayMode(.inline)
@@ -178,16 +175,22 @@ struct LibraryBrowser: View {
     }
 }
 
-/// Filter (left) + search (right). Combined width matches the bottom tab bar (302).
+/// Filter (left) + full-width search (right). On focus, search shrinks and a clear X appears.
 struct LibraryFilterSearchChrome: View {
     @Binding var query: String
     @Binding var filter: LibraryListFilter
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
         HStack(spacing: 12) {
             filterMenu
             searchField
+            if searchFocused {
+                clearButton
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
         }
+        .animation(.smooth(duration: 0.25), value: searchFocused)
     }
 
     private var filterMenu: some View {
@@ -219,11 +222,29 @@ struct LibraryFilterSearchChrome: View {
                 .font(.body)
                 .foregroundStyle(.white)
                 .autocorrectionDisabled()
+                .focused($searchFocused)
+                .submitLabel(.search)
         }
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
         .frame(height: 48)
         .glassEffect(.regular.interactive(), in: Capsule())
+    }
+
+    private var clearButton: some View {
+        Button {
+            query = ""
+            searchFocused = false
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 48, height: 48)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: Circle())
+        .accessibilityLabel("Clear search")
     }
 
     private var filterAccessibilityLabel: String {
