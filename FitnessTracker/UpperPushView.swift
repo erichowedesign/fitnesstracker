@@ -216,7 +216,7 @@ struct RoutineView: View {
                             onOpen: { openWeightRow(exercise.id) },
                             onClose: { closeWeightRow(exercise.id) },
                             onEdit: { beginWeightEdit(exercise) },
-                            onCommit: commitWeightEdit,
+                            onCancel: { cancelWeightRow(exercise.id) },
                             onSelect: { openTutorial(exercise) }
                         )
                     }
@@ -273,6 +273,16 @@ struct RoutineView: View {
         }
     }
 
+    /// Slide the open row shut without writing the draft.
+    private func cancelWeightRow(_ id: String) {
+        guard openWeightRowID == id else { return }
+        editingWeightRowID = nil
+        weightDraft = ""
+        withAnimation(.smooth(duration: 0.32)) {
+            openWeightRowID = nil
+        }
+    }
+
     private func beginWeightEdit(_ exercise: Exercise) {
         let display = weights[exercise.id] ?? exercise.displayWeight ?? ""
         weightDraft = Self.poundsText(from: display)
@@ -322,7 +332,7 @@ private struct MainWorkoutRow: View {
     let onOpen: () -> Void
     let onClose: () -> Void
     let onEdit: () -> Void
-    let onCommit: () -> Void
+    let onCancel: () -> Void
     var onSelect: (() -> Void)? = nil
 
     @State private var dragTranslation: CGFloat = 0
@@ -357,7 +367,6 @@ private struct MainWorkoutRow: View {
                 weight: weight,
                 isEditingWeight: isEditing,
                 weightDraft: $weightDraft,
-                onCommit: onCommit,
                 onKeyboardDone: onClose
             )
             .offset(x: offsetX)
@@ -387,13 +396,15 @@ private struct MainWorkoutRow: View {
             .onEnded { value in
                 let width = value.translation.width
                 let predicted = value.predictedEndTranslation.width
-                dragTranslation = 0
-                if isOpen {
-                    if width > 36 || predicted > 80 {
-                        onClose()
-                    }
-                } else if width < -36 || predicted < -80 {
+                if isOpen && (width > 36 || predicted > 80) {
+                    onCancel()
+                } else if !isOpen && (width < -36 || predicted < -80) {
+                    dragTranslation = 0
                     onOpen()
+                } else {
+                    withAnimation(.smooth(duration: 0.32)) {
+                        dragTranslation = 0
+                    }
                 }
             }
     }
@@ -406,7 +417,6 @@ private struct GuideRow: View {
     var weight: String? = nil
     var isEditingWeight: Bool = false
     var weightDraft: Binding<String>? = nil
-    var onCommit: (() -> Void)? = nil
     var onKeyboardDone: (() -> Void)? = nil
 
     /// Rows keep their existing still. Workouts that only live in the library use that workout's first frame.
@@ -449,7 +459,6 @@ private struct GuideRow: View {
         if isEditingWeight, let weightDraft {
             WeightField(
                 draft: weightDraft,
-                onCommit: { onCommit?() },
                 onDone: { onKeyboardDone?() }
             )
         } else if let weight {
@@ -460,7 +469,6 @@ private struct GuideRow: View {
 
 private struct WeightField: View {
     @Binding var draft: String
-    let onCommit: () -> Void
     let onDone: () -> Void
     @FocusState private var focused: Bool
 
@@ -471,11 +479,6 @@ private struct WeightField: View {
             .focused($focused)
             .labelsHidden()
             .onAppear { focused = true }
-            .onChange(of: focused) { _, isFocused in
-                if !isFocused {
-                    onCommit()
-                }
-            }
             .onChange(of: draft) { _, newValue in
                 let filtered = Self.filterPounds(newValue)
                 if filtered != newValue {
@@ -525,7 +528,8 @@ private struct MetaLine: View {
     }
 }
 
-/// iOS 26 treats overscroll-at-top as a content pop during zoom navigation.
+/// Pull-down at the top of a routine must not pop back to Home.
+/// The screen-edge swipe stays on.
 struct DisableRoutineInteractivePop: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> Controller {
         Controller()
@@ -533,21 +537,24 @@ struct DisableRoutineInteractivePop: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: Controller, context: Context) {}
 
-    final class Controller: UIViewController {
+    final class Controller: UIViewController, UIGestureRecognizerDelegate {
         override func viewDidAppear(_ animated: Bool) {
             super.viewDidAppear(animated)
-            apply(enabled: false)
+            if let pop = navigationController?.interactivePopGestureRecognizer {
+                pop.isEnabled = true
+                pop.delegate = self
+            }
+            navigationController?.interactiveContentPopGestureRecognizer?.isEnabled = false
         }
 
         override func viewWillDisappear(_ animated: Bool) {
             super.viewWillDisappear(animated)
-            apply(enabled: true)
+            navigationController?.interactiveContentPopGestureRecognizer?.isEnabled = true
         }
 
-        private func apply(enabled: Bool) {
-            guard let nav = navigationController else { return }
-            nav.interactivePopGestureRecognizer?.isEnabled = enabled
-            nav.interactiveContentPopGestureRecognizer?.isEnabled = enabled
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard let nav = navigationController else { return false }
+            return nav.viewControllers.count > 1
         }
     }
 }
