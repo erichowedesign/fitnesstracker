@@ -1,10 +1,10 @@
 import Foundation
 import Observation
 
-/// Local main-workout overrides keyed by routine id. Survives leaving the screen.
+/// Local routine section overrides keyed by routine id. Survives leaving the screen.
 @Observable
 final class RoutineOverridesStore {
-    private var overrides: [String: [PersistedExercise]] = [:]
+    private var overrides: [String: PersistedRoutineOverride] = [:]
     private let url: URL
 
     init(fileManager: FileManager = .default) {
@@ -16,19 +16,54 @@ final class RoutineOverridesStore {
     }
 
     func resolved(_ routine: Routine) -> Routine {
-        guard let saved = overrides[routine.id], !saved.isEmpty else { return routine }
-        return routine.withExercises(saved.map(\.asExercise))
+        guard let saved = overrides[routine.id] else { return routine }
+        return routine.withSections(
+            warmup: saved.warmup?.map(\.asGuideStep),
+            exercises: saved.exercises?.map(\.asExercise),
+            cooldown: saved.cooldown?.map(\.asGuideStep)
+        )
     }
 
     func exercises(for routineID: String, fallback: [Exercise]) -> [Exercise] {
-        if let saved = overrides[routineID], !saved.isEmpty {
+        if let saved = overrides[routineID]?.exercises {
             return saved.map(\.asExercise)
         }
         return fallback
     }
 
+    func warmup(for routineID: String, fallback: [GuideStep]) -> [GuideStep] {
+        if let saved = overrides[routineID]?.warmup {
+            return saved.map(\.asGuideStep)
+        }
+        return fallback
+    }
+
+    func cooldown(for routineID: String, fallback: [GuideStep]) -> [GuideStep] {
+        if let saved = overrides[routineID]?.cooldown {
+            return saved.map(\.asGuideStep)
+        }
+        return fallback
+    }
+
+    func save(
+        warmup: [GuideStep],
+        exercises: [Exercise],
+        cooldown: [GuideStep],
+        for routineID: String
+    ) {
+        overrides[routineID] = PersistedRoutineOverride(
+            warmup: warmup.map(PersistedGuideStep.init),
+            exercises: exercises.map(PersistedExercise.init),
+            cooldown: cooldown.map(PersistedGuideStep.init)
+        )
+        persist()
+    }
+
+    /// Legacy entry point — preserves existing guide sections when only main changes.
     func save(exercises: [Exercise], for routineID: String) {
-        overrides[routineID] = exercises.map(PersistedExercise.init)
+        var current = overrides[routineID] ?? PersistedRoutineOverride()
+        current.exercises = exercises.map(PersistedExercise.init)
+        overrides[routineID] = current
         persist()
     }
 
@@ -41,16 +76,47 @@ final class RoutineOverridesStore {
         Self.write(overrides, to: url)
     }
 
-    private static func read(from url: URL) -> [String: [PersistedExercise]] {
+    private static func read(from url: URL) -> [String: PersistedRoutineOverride] {
         guard let data = try? Data(contentsOf: url) else { return [:] }
-        return (try? JSONDecoder().decode([String: [PersistedExercise]].self, from: data)) ?? [:]
+        if let modern = try? JSONDecoder().decode([String: PersistedRoutineOverride].self, from: data) {
+            return modern
+        }
+        // Older builds stored only main-workout arrays.
+        if let legacy = try? JSONDecoder().decode([String: [PersistedExercise]].self, from: data) {
+            return legacy.mapValues { PersistedRoutineOverride(exercises: $0) }
+        }
+        return [:]
     }
 
-    private static func write(_ value: [String: [PersistedExercise]], to url: URL) {
+    private static func write(_ value: [String: PersistedRoutineOverride], to url: URL) {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         guard let data = try? encoder.encode(value) else { return }
         try? data.write(to: url, options: .atomic)
+    }
+}
+
+struct PersistedRoutineOverride: Codable, Equatable {
+    var warmup: [PersistedGuideStep]?
+    var exercises: [PersistedExercise]?
+    var cooldown: [PersistedGuideStep]?
+}
+
+struct PersistedGuideStep: Codable, Equatable {
+    var id: String
+    var title: String
+    var metaParts: [String]
+    var slug: String
+
+    init(_ step: GuideStep) {
+        id = step.id
+        title = step.title
+        metaParts = step.metaParts
+        slug = step.slug
+    }
+
+    var asGuideStep: GuideStep {
+        GuideStep(id: id, title: title, metaParts: metaParts, slug: slug)
     }
 }
 

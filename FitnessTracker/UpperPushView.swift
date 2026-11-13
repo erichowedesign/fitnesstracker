@@ -19,14 +19,21 @@ struct RoutineView: View {
     @State private var weights: [String: String] = [:]
     @State private var tutorial: ExerciseTutorial?
     @State private var isEditingRoutine = false
+    @State private var draftWarmup: [GuideStep] = []
     @State private var draftExercises: [Exercise] = []
+    @State private var draftCooldown: [GuideStep] = []
     @State private var showLibraryPicker = false
     @State private var stagedLibraryWorkout: LibraryWorkout?
     @State private var pendingLibraryWorkout: LibraryWorkout?
+    @State private var addTarget: RoutineEditSection = .main
     @State private var editMode: EditMode = .inactive
 
     private var activeRoutine: Routine {
-        routine.withExercises(draftExercises)
+        routine.withSections(
+            warmup: draftWarmup,
+            exercises: draftExercises,
+            cooldown: draftCooldown
+        )
     }
 
     var body: some View {
@@ -78,27 +85,39 @@ struct RoutineView: View {
                     .font(.body)
                     .padding(.top, 8)
 
-                RoutineHeroCycle(exercises: draftExercises)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 370)
-                    .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-                    .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
-                    .padding(.top, 32)
-
-                glanceCard
-                    .padding(.top, 16)
-
-                Text(routine.summary)
-                    .font(.body)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 48)
-
                 if !isEditingRoutine {
-                    section("Warm-up", steps: routine.warmup, revealsCompleteButton: true)
+                    RoutineHeroCycle(exercises: draftExercises)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 370)
+                        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+                        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+                        .padding(.top, 32)
+
+                    glanceCard
+                        .padding(.top, 16)
+
+                    Text(routine.summary)
+                        .font(.body)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 48)
                 }
-                mainWorkoutSection
-                if !isEditingRoutine {
-                    section("Cool Down", steps: routine.cooldown)
+
+                if isEditingRoutine {
+                    editableGuideSection(
+                        title: "Warm-up",
+                        steps: $draftWarmup,
+                        section: .warmup
+                    )
+                    editableMainSection
+                    editableGuideSection(
+                        title: "Cool Down",
+                        steps: $draftCooldown,
+                        section: .cooldown
+                    )
+                } else {
+                    section("Warm-up", steps: draftWarmup, revealsCompleteButton: true)
+                    mainWorkoutSection
+                    section("Cool Down", steps: draftCooldown)
                 }
 
                 credit
@@ -141,7 +160,9 @@ struct RoutineView: View {
     }
 
     private func loadDraft() {
+        draftWarmup = routineOverrides.warmup(for: routine.id, fallback: routine.warmup)
         draftExercises = routineOverrides.exercises(for: routine.id, fallback: routine.exercises)
+        draftCooldown = routineOverrides.cooldown(for: routine.id, fallback: routine.cooldown)
         for exercise in draftExercises {
             guard weights[exercise.id] == nil, let seed = exercise.displayWeight else { continue }
             weights[exercise.id] = seed
@@ -149,13 +170,25 @@ struct RoutineView: View {
     }
 
     private func addLibraryExercise(_ workout: LibraryWorkout, sets: Int, reps: Int, weight: String?) {
-        let exercise = Exercise.fromLibrary(workout, sets: sets, reps: reps, weight: weight)
-        draftExercises.append(exercise)
-        if let weight, !weight.trimmingCharacters(in: .whitespaces).isEmpty {
-            weights[exercise.id] = exercise.displayWeight ?? weight
+        switch addTarget {
+        case .warmup:
+            draftWarmup.append(GuideStep.fromLibrary(workout, sets: sets, reps: reps, weight: weight))
+        case .main:
+            let exercise = Exercise.fromLibrary(workout, sets: sets, reps: reps, weight: weight)
+            draftExercises.append(exercise)
+            if let weight, !weight.trimmingCharacters(in: .whitespaces).isEmpty {
+                weights[exercise.id] = exercise.displayWeight ?? weight
+            }
+        case .cooldown:
+            draftCooldown.append(GuideStep.fromLibrary(workout, sets: sets, reps: reps, weight: weight))
         }
         persistDraft()
         pendingLibraryWorkout = nil
+    }
+
+    private func beginAdding(to section: RoutineEditSection) {
+        addTarget = section
+        showLibraryPicker = true
     }
 
     private static var screenMidY: CGFloat {
@@ -248,83 +281,132 @@ struct RoutineView: View {
 
     private var mainWorkoutSection: some View {
         VStack(alignment: .leading, spacing: 24) {
-            HStack {
-                Text("Main Workout")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                Spacer(minLength: 0)
-                if isEditingRoutine {
-                    Button {
-                        showLibraryPicker = true
-                    } label: {
-                        Label("Add", systemImage: "plus")
-                            .font(.body.weight(.semibold))
-                    }
-                    .buttonStyle(.glass)
-                    .buttonBorderShape(.capsule)
-                    .controlSize(.regular)
-                }
-            }
+            Text("Main Workout")
+                .font(.title2)
+                .fontWeight(.bold)
 
-            if isEditingRoutine {
-                editableExerciseList
-            } else {
-                GlassEffectContainer(spacing: 12) {
-                    VStack(spacing: 12) {
-                        ForEach(draftExercises) { exercise in
-                            MainWorkoutRow(
-                                exercise: exercise,
-                                weight: weights[exercise.id] ?? exercise.displayWeight ?? "—",
-                                isOpen: openWeightRowID == exercise.id,
-                                isEditing: editingWeightRowID == exercise.id,
-                                weightDraft: $weightDraft,
-                                onOpen: { openWeightRow(exercise.id) },
-                                onClose: { closeWeightRow(exercise.id) },
-                                onEdit: { beginWeightEdit(exercise) },
-                                onCancel: { cancelWeightRow(exercise.id) },
-                                onSelect: { openTutorial(exercise) }
-                            )
-                        }
+            GlassEffectContainer(spacing: 12) {
+                VStack(spacing: 12) {
+                    ForEach(draftExercises) { exercise in
+                        MainWorkoutRow(
+                            exercise: exercise,
+                            weight: weights[exercise.id] ?? exercise.displayWeight ?? "—",
+                            isOpen: openWeightRowID == exercise.id,
+                            isEditing: editingWeightRowID == exercise.id,
+                            weightDraft: $weightDraft,
+                            onOpen: { openWeightRow(exercise.id) },
+                            onClose: { closeWeightRow(exercise.id) },
+                            onEdit: { beginWeightEdit(exercise) },
+                            onCancel: { cancelWeightRow(exercise.id) },
+                            onSelect: { openTutorial(exercise) }
+                        )
                     }
                 }
             }
         }
-        .padding(.top, isEditingRoutine ? 24 : 48)
+        .padding(.top, 48)
     }
 
-    private var editableExerciseList: some View {
-        List {
-            ForEach(draftExercises) { exercise in
-                HStack(spacing: 16) {
-                    IllustrationView(slug: editThumbSlug(exercise.slug), label: exercise.name)
-                        .frame(width: 72, height: 72)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(exercise.name)
-                            .font(.headline)
-                            .foregroundStyle(.white)
-                        MetaLine(parts: exercise.metaParts)
-                    }
-                    Spacer(minLength: 0)
+    private var editableMainSection: some View {
+        editableSectionChrome(title: "Main Workout", section: .main) {
+            editableList(count: draftExercises.count) {
+                ForEach(draftExercises) { exercise in
+                    editableRow(
+                        title: exercise.name,
+                        metaParts: exercise.metaParts,
+                        slug: exercise.slug
+                    )
                 }
-                .padding(.vertical, 8)
-                .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
-                .listRowBackground(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .fill(.white.opacity(0.08))
-                        .padding(.vertical, 4)
-                )
-                .listRowSeparator(.hidden)
+                .onMove(perform: moveExercises)
+                .onDelete(perform: deleteExercises)
             }
-            .onMove(perform: moveExercises)
-            .onDelete(perform: deleteExercises)
+        }
+    }
+
+    private func editableGuideSection(
+        title: String,
+        steps: Binding<[GuideStep]>,
+        section: RoutineEditSection
+    ) -> some View {
+        editableSectionChrome(title: title, section: section) {
+            editableList(count: steps.wrappedValue.count) {
+                ForEach(steps.wrappedValue) { step in
+                    editableRow(title: step.title, metaParts: step.metaParts, slug: step.slug)
+                }
+                .onMove { source, destination in
+                    steps.wrappedValue.move(fromOffsets: source, toOffset: destination)
+                    persistDraft()
+                }
+                .onDelete { offsets in
+                    steps.wrappedValue.remove(atOffsets: offsets)
+                    persistDraft()
+                }
+            }
+        }
+    }
+
+    private func editableSectionChrome<Content: View>(
+        title: String,
+        section: RoutineEditSection,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 24) {
+            HStack {
+                Text(title)
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Spacer(minLength: 0)
+                Button {
+                    beginAdding(to: section)
+                } label: {
+                    Label("Add", systemImage: "plus")
+                        .font(.body.weight(.semibold))
+                }
+                .buttonStyle(.glass)
+                .buttonBorderShape(.capsule)
+                .controlSize(.regular)
+            }
+            content()
+        }
+        .padding(.top, 24)
+    }
+
+    private func editableList<Content: View>(
+        count: Int,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        List {
+            content()
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
         .scrollDisabled(true)
         .environment(\.editMode, .constant(.active))
-        .frame(height: max(CGFloat(draftExercises.count) * 104, 120))
+        .frame(height: max(CGFloat(count) * 104, 120))
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func editableRow(title: String, metaParts: [String], slug: String) -> some View {
+        HStack(spacing: 16) {
+            IllustrationView(slug: editThumbSlug(slug), label: title)
+                .frame(width: 72, height: 72)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                MetaLine(parts: metaParts)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 8)
+        .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(.white.opacity(0.08))
+                .padding(.vertical, 4)
+        )
+        .listRowSeparator(.hidden)
     }
 
     private func toggleRoutineEditing() {
@@ -349,7 +431,12 @@ struct RoutineView: View {
     }
 
     private func persistDraft() {
-        routineOverrides.save(exercises: draftExercises, for: routine.id)
+        routineOverrides.save(
+            warmup: draftWarmup,
+            exercises: draftExercises,
+            cooldown: draftCooldown,
+            for: routine.id
+        )
     }
 
     private func moveExercises(from source: IndexSet, to destination: Int) {
@@ -478,6 +565,10 @@ struct RoutineView: View {
     }
 }
 
+private enum RoutineEditSection {
+    case warmup, main, cooldown
+}
+
 private struct RoutineEditSheets: ViewModifier {
     @Binding var showLibraryPicker: Bool
     @Binding var stagedLibraryWorkout: LibraryWorkout?
@@ -508,51 +599,33 @@ private struct RoutineEditSheets: ViewModifier {
 
 private struct LibraryExercisePicker: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var query = ""
     var onPick: (LibraryWorkout) -> Void
-
-    private var results: [LibraryWorkout] {
-        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return LibraryCatalog.workouts }
-        return LibraryCatalog.workouts.filter {
-            $0.name.localizedStandardContains(trimmed)
-                || $0.equipment.localizedStandardContains(trimmed)
-                || $0.muscle.localizedStandardContains(trimmed)
-        }
-    }
 
     var body: some View {
         NavigationStack {
-            List(results) { workout in
-                Button {
-                    onPick(workout)
-                } label: {
-                    HStack(spacing: 14) {
-                        IllustrationView(slug: workout.frames[0], label: workout.name)
-                            .frame(width: 56, height: 56)
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(workout.name)
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                            Text("\(workout.equipment) · \(workout.muscle)")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 4)
-                }
-            }
-            .searchable(text: $query, prompt: "Search library")
-            .navigationTitle("Add Workout")
-            .navigationBarTitleDisplayMode(.inline)
+            LibraryBrowser(
+                title: "Library",
+                showsCancel: true,
+                bottomInset: 24,
+                onCancel: { dismiss() },
+                onSelect: onPick
+            )
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                ToolbarItem(placement: .principal) {
+                    Text("Library")
+                        .opacity(0)
+                        .accessibilityHidden(true)
                 }
             }
         }
         .preferredColorScheme(.dark)
+        .presentationBackground {
+            ZStack {
+                Color.black
+                WashBackground(grade: .grayscale)
+            }
+            .ignoresSafeArea()
+        }
     }
 }
 

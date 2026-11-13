@@ -3,69 +3,18 @@ import SwiftUI
 struct LibraryView: View {
     @Binding var hidesFloatingTabBar: Bool
     @State private var path: [LibraryWorkout] = []
-    @State private var query = ""
-    @State private var equipment: String?
 
     init(hidesFloatingTabBar: Binding<Bool> = .constant(false)) {
         _hidesFloatingTabBar = hidesFloatingTabBar
     }
 
-    private var results: [LibraryWorkout] {
-        LibraryCatalog.workouts.filter { workout in
-            if let equipment, workout.equipment != equipment {
-                return false
-            }
-            let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else { return true }
-            return workout.name.localizedStandardContains(trimmed)
-                || workout.muscle.localizedStandardContains(trimmed)
-                || workout.equipment.localizedStandardContains(trimmed)
-        }
-    }
-
-    /// Match Home: last tiles can scroll clear of the pinned tab bar.
-    private var libraryScrollBottomInset: CGFloat {
-        max(WashPlayback.screenSize.height * 0.5, 400)
-    }
-
-    private var chromeHeight: CGFloat { 48 }
-    private var chromeTopPadding: CGFloat { 8 }
-    private var chromeBottomGap: CGFloat { 16 }
-
     var body: some View {
         NavigationStack(path: $path) {
-            ScrollView {
-                Group {
-                    if results.isEmpty {
-                        Text("No workouts match that search.")
-                            .font(.body)
-                            .foregroundStyle(.white.opacity(0.8))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    } else {
-                        LazyVStack(spacing: 12) {
-                            ForEach(results) { workout in
-                                Button {
-                                    path.append(workout)
-                                } label: {
-                                    LibraryTile(workout: workout)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, chromeTopPadding + chromeHeight + chromeBottomGap)
-                .padding(.bottom, 24)
+            LibraryBrowser(
+                bottomInset: max(WashPlayback.screenSize.height * 0.5, 400)
+            ) { workout in
+                path.append(workout)
             }
-            .scrollDismissesKeyboard(.immediately)
-            .scrollContentBackground(.hidden)
-            .scrollEdgeEffectHidden(true, for: .vertical)
-            .contentMargins(.bottom, libraryScrollBottomInset, for: .scrollContent)
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .containerBackground(.clear, for: .navigation)
-            .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .background { LockRootPopGesture() }
             .navigationTitle("Library")
             .toolbarTitleDisplayMode(.inline)
@@ -75,26 +24,6 @@ struct LibraryView: View {
                         .opacity(0)
                         .accessibilityHidden(true)
                 }
-            }
-            .overlay(alignment: .top) {
-                LinearGradient(
-                    stops: [
-                        .init(color: .black.opacity(0.28), location: 0),
-                        .init(color: .black.opacity(0.12), location: 0.45),
-                        .init(color: .clear, location: 1),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 120)
-                .ignoresSafeArea(edges: .top)
-                .allowsHitTesting(false)
-                .accessibilityHidden(true)
-            }
-            .overlay(alignment: .top) {
-                filterRow
-                    .padding(.horizontal, 16)
-                    .padding(.top, chromeTopPadding)
             }
             .navigationDestination(for: LibraryWorkout.self) { workout in
                 ExerciseTutorialView(
@@ -109,6 +38,99 @@ struct LibraryView: View {
         }
         .onChange(of: path) { _, newPath in
             hidesFloatingTabBar = !newPath.isEmpty
+        }
+    }
+}
+
+/// Shared Library chrome: equipment filter + glass search + large glass tiles.
+struct LibraryBrowser: View {
+    var title: String = "Library"
+    var showsCancel: Bool = false
+    var bottomInset: CGFloat = 24
+    var onCancel: (() -> Void)? = nil
+    var onSelect: (LibraryWorkout) -> Void
+
+    @State private var query = ""
+    @State private var equipment: String?
+
+    private var chromeHeight: CGFloat { 48 }
+    private var chromeTopPadding: CGFloat { 8 }
+    private var chromeBottomGap: CGFloat { 16 }
+
+    private var results: [LibraryWorkout] {
+        LibraryCatalog.workouts.filter { workout in
+            if let equipment, workout.equipment != equipment {
+                return false
+            }
+            let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return true }
+            return workout.name.localizedStandardContains(trimmed)
+                || workout.muscle.localizedStandardContains(trimmed)
+                || workout.equipment.localizedStandardContains(trimmed)
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            Group {
+                if results.isEmpty {
+                    Text("No workouts match that search.")
+                        .font(.body)
+                        .foregroundStyle(.white.opacity(0.8))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    LazyVStack(spacing: 12) {
+                        ForEach(results) { workout in
+                            Button {
+                                onSelect(workout)
+                            } label: {
+                                LibraryTile(workout: workout)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, chromeTopPadding + chromeHeight + chromeBottomGap)
+            .padding(.bottom, 24)
+        }
+        .scrollDismissesKeyboard(.immediately)
+        .scrollContentBackground(.hidden)
+        .scrollEdgeEffectHidden(true, for: .vertical)
+        .contentMargins(.bottom, bottomInset, for: .scrollContent)
+        .foregroundStyle(.white)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .containerBackground(.clear, for: .navigation)
+        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+        .overlay(alignment: .top) {
+            LinearGradient(
+                stops: [
+                    .init(color: .black.opacity(0.28), location: 0),
+                    .init(color: .black.opacity(0.12), location: 0.45),
+                    .init(color: .clear, location: 1),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 120)
+            .ignoresSafeArea(edges: .top)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+        .overlay(alignment: .top) {
+            filterRow
+                .padding(.horizontal, 16)
+                .padding(.top, chromeTopPadding)
+        }
+        .navigationTitle(title)
+        .toolbarTitleDisplayMode(.inline)
+        .toolbar {
+            if showsCancel {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { onCancel?() }
+                }
+            }
         }
     }
 
@@ -148,7 +170,7 @@ struct LibraryView: View {
     }
 }
 
-private struct LibraryTile: View {
+struct LibraryTile: View {
     let workout: LibraryWorkout
 
     var body: some View {

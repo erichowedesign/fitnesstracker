@@ -54,6 +54,14 @@ struct Routine: Identifiable, Hashable {
     }
 
     func withExercises(_ exercises: [Exercise]) -> Routine {
+        withSections(exercises: exercises)
+    }
+
+    func withSections(
+        warmup: [GuideStep]? = nil,
+        exercises: [Exercise]? = nil,
+        cooldown: [GuideStep]? = nil
+    ) -> Routine {
         Routine(
             id: id,
             name: name,
@@ -61,9 +69,9 @@ struct Routine: Identifiable, Hashable {
             summary: summary,
             heroSlug: heroSlug,
             rotationIndex: rotationIndex,
-            warmup: warmup,
-            exercises: exercises,
-            cooldown: cooldown,
+            warmup: warmup ?? self.warmup,
+            exercises: exercises ?? self.exercises,
+            cooldown: cooldown ?? self.cooldown,
             minutes: minutes,
             difficulty: difficulty
         )
@@ -174,11 +182,35 @@ struct Exercise: Identifiable {
     }
 }
 
-struct GuideStep: Identifiable {
-    var id: String { title }
+struct GuideStep: Identifiable, Equatable {
+    let id: String
     let title: String
     let metaParts: [String]
     let slug: String
+
+    init(id: String = UUID().uuidString, title: String, metaParts: [String], slug: String) {
+        self.id = id
+        self.title = title
+        self.metaParts = metaParts
+        self.slug = slug
+    }
+
+    static func fromLibrary(_ workout: LibraryWorkout, sets: Int, reps: Int, weight: String?) -> GuideStep {
+        var parts = ["\(max(reps, 1)) reps", "\(max(sets, 1)) sets"]
+        if let weight = weight?.trimmingCharacters(in: .whitespacesAndNewlines), !weight.isEmpty {
+            if weight.localizedCaseInsensitiveContains("lbs") {
+                parts.append(weight)
+            } else {
+                parts.append("\(weight) lbs")
+            }
+        }
+        return GuideStep(
+            id: "\(workout.slug)-\(UUID().uuidString.prefix(8))",
+            title: workout.name,
+            metaParts: parts,
+            slug: workout.slug
+        )
+    }
 }
 
 enum WorkoutPlan {
@@ -272,29 +304,33 @@ enum WorkoutPlan {
             switch phase {
             case .warmup:
                 return [
-                    GuideStep(title: "Easy Walk", metaParts: ["3–5 minutes"], slug: "walking"),
-                    GuideStep(title: "Shoulder Circles", metaParts: ["30 seconds", "2 sets"], slug: "arm-circles"),
-                    GuideStep(title: "Band External Rotations", metaParts: ["12 reps", "2 sets"], slug: "cable-rear-delt-fly"),
-                    GuideStep(title: "Progressive Light Bench", metaParts: ["10 reps", "2 sets"], slug: "dumbbell-bench-press"),
+                    GuideStep(id: "\(routineId)-warmup-walking", title: "Easy Walk", metaParts: ["3–5 minutes"], slug: "walking"),
+                    GuideStep(id: "\(routineId)-warmup-arm-circles", title: "Shoulder Circles", metaParts: ["30 seconds", "2 sets"], slug: "arm-circles"),
+                    GuideStep(id: "\(routineId)-warmup-rear-delt", title: "Band External Rotations", metaParts: ["12 reps", "2 sets"], slug: "cable-rear-delt-fly"),
+                    GuideStep(id: "\(routineId)-warmup-bench", title: "Progressive Light Bench", metaParts: ["10 reps", "2 sets"], slug: "dumbbell-bench-press"),
                 ]
             case .cooldown:
                 return [
-                    GuideStep(title: "Easy Walk", metaParts: ["3 minutes"], slug: "walking"),
-                    GuideStep(title: "Shoulder Stretch", metaParts: ["30 seconds each side"], slug: "cross-body-shoulder-stretch"),
-                    GuideStep(title: "Standing Chest Stretch", metaParts: ["30 seconds each side"], slug: "doorway-chest-stretch"),
+                    GuideStep(id: "\(routineId)-cooldown-walking", title: "Easy Walk", metaParts: ["3 minutes"], slug: "walking"),
+                    GuideStep(id: "\(routineId)-cooldown-shoulder", title: "Shoulder Stretch", metaParts: ["30 seconds each side"], slug: "cross-body-shoulder-stretch"),
+                    GuideStep(id: "\(routineId)-cooldown-chest", title: "Standing Chest Stretch", metaParts: ["30 seconds each side"], slug: "doorway-chest-stretch"),
                 ]
             }
         }
+        let phaseKey = phase == .warmup ? "warmup" : "cooldown"
         return instructions
             .split(separator: ";")
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
-            .map { label in
+            .enumerated()
+            .map { index, label in
                 let presented = presentStep(label)
+                let slug = illustrationSlug(for: label)
                 return GuideStep(
+                    id: "\(routineId)-\(phaseKey)-\(index)-\(slug)",
                     title: presented.title,
                     metaParts: presented.metaParts,
-                    slug: illustrationSlug(for: label)
+                    slug: slug
                 )
             }
     }
