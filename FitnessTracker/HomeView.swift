@@ -19,10 +19,8 @@ struct HomeView: View {
         store.remainingRoutines(after: upNext, in: routines)
     }
 
-    /// Lets the last tile scroll into the upper half, clear of the pinned tab bar.
-    private var homeScrollBottomInset: CGFloat {
-        max(WashPlayback.screenSize.height * 0.5, 400)
-    }
+    /// Clears the floating tab bar; matches History’s bottom scroll inset.
+    private var homeScrollBottomInset: CGFloat { 120 }
 
     var body: some View {
         NavigationStack(path: $path) {
