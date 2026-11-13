@@ -59,9 +59,7 @@ struct RootTabs: View {
                         HomeView(hidesFloatingTabBar: $hidesFloatingTabBar)
                     }
                     tabPage(.history, width: width, height: proxy.size.height) {
-                        NavigationStack {
-                            PlaceholderScreen(title: "History")
-                        }
+                        HistoryView()
                     }
                     tabPage(.library, width: width, height: proxy.size.height) {
                         LibraryView(hidesFloatingTabBar: $hidesFloatingTabBar)
@@ -473,26 +471,3 @@ struct LockRootPopGesture: UIViewControllerRepresentable {
     }
 }
 
-private struct PlaceholderScreen: View {
-    let title: String
-
-    var body: some View {
-        Text(title)
-            .font(.title2)
-            .foregroundStyle(.white)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .containerBackground(.clear, for: .navigation)
-            .scrollEdgeEffectHidden(true, for: .vertical)
-            .navigationTitle(title)
-            .toolbarTitleDisplayMode(.inline)
-            .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
-            .background { LockRootPopGesture() }
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text(title)
-                        .opacity(0)
-                        .accessibilityHidden(true)
-                }
-            }
-    }
-}

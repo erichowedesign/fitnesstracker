@@ -160,7 +160,7 @@ struct RoutineView: View {
 
     private var completeWorkoutButton: some View {
         Button {
-            store.complete(routine)
+            store.complete(routine, weights: weights)
             didSave = true
         } label: {
             Text("Complete Workout")
