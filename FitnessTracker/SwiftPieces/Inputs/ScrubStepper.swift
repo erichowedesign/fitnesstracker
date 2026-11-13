@@ -119,6 +119,11 @@ public struct ScrubStepper: View {
         self.style = style
     }
 
+    /// `Style` stores non-optional Colors; `.clear` means “no fill tint” so pieceLiquid can use clear glass.
+    private static func resolvedTint(_ color: Color) -> Color? {
+        color == .clear ? nil : color
+    }
+
     public var body: some View {
         PieceLiquidGroup {
             HStack(spacing: gap) {
@@ -207,7 +212,9 @@ public struct ScrubStepper: View {
                 .accessibilityHidden(true)
             }
             .clipShape(shape)
-            .pieceLiquid(shape, tint: style.block == .clear ? nil : style.block, interactive: false)
+            // Untinted (clear) surfaces use Glass.clear so they match app chrome
+            // `.glassEffect(.clear)` cards; chromatic tints keep regular glass.
+            .pieceLiquid(shape, tint: Self.resolvedTint(style.block), interactive: false)
             // The digits roll without overshoot, so they never pass the true value.
             .animation(stepping ? nil : motion.value, value: value)
             // Grabbed, the tab lifts: a little larger. Visual only, so the buttons and the gesture's geometry never
@@ -251,7 +258,9 @@ public struct ScrubStepper: View {
             .pieceBudContent(out: out)
             .frame(width: buttonWidth, height: buttonWidth)
             // Its tint drains as it melts, so it dissolves into the pill instead of sitting on the numeral.
-            .pieceLiquid(.circle, tint: out ? style.button : nil, interactive: false)
+            // Color.clear must become nil tint — otherwise buttons stay on Glass.regular and look flatter
+            // than neighboring `.glassEffect(.clear)` / interactive chrome.
+            .pieceLiquid(.circle, tint: out ? Self.resolvedTint(style.button) : nil, interactive: true)
             // The button's click: it sinks, with no bounce on the way in.
             .pieceLiquidScale(pressed && !reduceMotion ? 0.9 : 1)
             .brightness(pressed && reduceMotion ? -0.08 : 0)
@@ -704,7 +713,10 @@ private struct PieceLiquidSurface<S: Shape>: ViewModifier {
     #if compiler(>=6.2)
     @available(iOS 26, *)
     private var glass: Glass {
-        interactive ? Glass.regular.interactive() : .regular
+        // Match Foundation chrome: untinted surfaces use clear glass (labels/cards);
+        // tinted signal buttons keep regular glass so house colors still read.
+        let base: Glass = tint == nil ? .clear : .regular
+        return interactive ? base.interactive() : base
     }
     #endif
 
