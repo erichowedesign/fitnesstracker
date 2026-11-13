@@ -167,8 +167,18 @@ private struct PlaceholderScreen: View {
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .containerBackground(.clear, for: .navigation)
+            .scrollEdgeEffectHidden(true, for: .vertical)
             .navigationTitle(title)
             .toolbarTitleDisplayMode(.inline)
-            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                    } label: {
+                        Image(systemName: "ellipsis")
+                    }
+                    .accessibilityLabel("More")
+                }
+            }
     }
 }

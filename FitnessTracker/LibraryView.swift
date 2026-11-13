@@ -52,15 +52,26 @@ struct LibraryView: View {
                 }
                 .scrollDismissesKeyboard(.immediately)
                 .scrollContentBackground(.hidden)
+                .scrollEdgeEffectHidden(true, for: .vertical)
                 .contentMargins(.bottom, 120, for: .scrollContent)
             }
             .padding(.horizontal, 16)
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .containerBackground(.clear, for: .navigation)
-            .toolbarBackground(.hidden, for: .navigationBar)
+            .scrollEdgeEffectHidden(true, for: .vertical)
+            .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .navigationTitle("Library")
             .toolbarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                    } label: {
+                        Image(systemName: "ellipsis")
+                    }
+                    .accessibilityLabel("More")
+                }
+            }
             .navigationDestination(for: LibraryWorkout.self) { workout in
                 ExerciseTutorialView(
                     exerciseName: workout.name,
