@@ -80,7 +80,13 @@ struct RootTabs: View {
                 .opacity(hidesFloatingTabBar ? 0 : 1)
                 .allowsHitTesting(!hidesFloatingTabBar)
                 .accessibilityHidden(hidesFloatingTabBar)
-                .animation(HomeHeroMotion.animation, value: hidesFloatingTabBar)
+                .animation(.smooth(duration: 0.35), value: hidesFloatingTabBar)
+
+            moreMenu
+                .opacity(hidesFloatingTabBar ? 0 : 1)
+                .allowsHitTesting(!hidesFloatingTabBar)
+                .accessibilityHidden(hidesFloatingTabBar)
+                .animation(.smooth(duration: 0.35), value: hidesFloatingTabBar)
         }
         .scrollIndicators(.hidden)
         .preferredColorScheme(.dark)
@@ -200,19 +206,12 @@ struct RootTabs: View {
                             tabTitle("Library", page: .library)
                         }
                     }
-                    ToolbarItem(id: "tab-menu", placement: .topBarTrailing) {
-                        Button {
-                        } label: {
-                            Image(systemName: "ellipsis")
-                        }
-                        .accessibilityLabel("More")
-                    }
                 }
         }
         .ignoresSafeArea()
         .allowsHitTesting(false)
         .opacity(hidesFloatingTabBar ? 0 : 1)
-        .animation(HomeHeroMotion.animation, value: hidesFloatingTabBar)
+        .animation(.smooth(duration: 0.35), value: hidesFloatingTabBar)
         .accessibilityHidden(hidesFloatingTabBar)
     }
 
@@ -240,81 +239,68 @@ struct RootTabs: View {
         return 0
     }
 
-    private var selectedPillX: CGFloat {
-        let base: CGFloat
-        switch tab {
-        case .home: base = 0
-        case .history: base = 94
-        case .library: base = 188
-        }
-        guard pageWidth > 1 else { return base }
-        let progress = min(max(dragOffset / pageWidth, -1), 1)
-        return min(max(base - progress * 94, 0), 188)
+    private var dockSelection: Binding<Int> {
+        Binding(
+            get: { tab.order },
+            set: { newValue in
+                let next: AppTab
+                switch newValue {
+                case 1: next = .history
+                case 2: next = .library
+                default: next = .home
+                }
+                select(next)
+            }
+        )
     }
 
     private var tabBar: some View {
-        ZStack {
-            Capsule()
-                .fill(Color.black.opacity(0.6))
-            Capsule()
-                .fill(Color.white.opacity(0.06))
-
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(Color(red: 18 / 255, green: 18 / 255, blue: 18 / 255))
-                    .blendMode(.plusLighter)
-                    .frame(width: 106, height: 54)
-                    .offset(x: selectedPillX)
-
-                HStack(spacing: -8) {
-                    tabButton(.home, title: "Home", systemImage: "house")
-                    tabButton(.history, title: "History", systemImage: "clock.arrow.circlepath")
-                    tabButton(.library, title: "Library", systemImage: "book")
-                }
-                .padding(.horizontal, 2)
-            }
-            .frame(width: 294, height: 54)
-        }
-        .frame(width: 302, height: 62)
-        .glassEffect(.regular.interactive(), in: Capsule())
+        FloatingDock(
+            items: [
+                .init("Home", systemImage: "house.fill"),
+                .init("History", systemImage: "clock.arrow.circlepath"),
+                .init("Library", systemImage: "book.fill"),
+            ],
+            selection: dockSelection,
+            tint: Color(red: 0, green: 0.569, blue: 1),
+            scrollProgress: hidesFloatingTabBar ? 1 : 0,
+            style: FloatingDock.Style(
+                surface: Color.black.opacity(0.6),
+                indicator: Color(red: 0, green: 0.569, blue: 1),
+                selectedInk: .white,
+                inactive: Color(red: 0.961, green: 0.961, blue: 0.961),
+                badge: Color(red: 0, green: 0.569, blue: 1)
+            )
+        )
         .padding(.bottom, 8)
-        .animation(.snappy(duration: 0.25), value: tab)
     }
 
-    private func tabButton(
-        _ value: AppTab,
-        title: String,
-        systemImage: String,
-        unselectedImage: String? = nil
-    ) -> some View {
-        let selected = tab == value
-        return Button {
-            select(value)
-        } label: {
-            VStack(spacing: 1) {
-                Image(systemName: selected ? systemImage : (unselectedImage ?? systemImage))
-                    .symbolVariant(.none)
-                    .environment(\.symbolVariants, .none)
-                    .font(.system(size: 20, weight: .medium))
-                    .frame(height: 28)
-                Text(title)
-                    .font(.system(size: 10, weight: .medium))
-                    .frame(height: 12)
+    /// Replaces the empty trailing ellipsis with a real settings stub.
+    private var moreMenu: some View {
+        VStack {
+            HStack {
+                Spacer(minLength: 0)
+                GlassActionMenu(
+                    items: [
+                        .init(symbol: "gearshape", label: "Settings") {},
+                    ],
+                    triggerSymbol: "ellipsis",
+                    arrangement: .linear,
+                    tint: .clear,
+                    style: GlassActionMenu.Style(
+                        trigger: .clear,
+                        ink: .white,
+                        triggerSize: 44,
+                        itemSize: 52,
+                        scrimOpacity: 0.22,
+                        confirmsAction: true
+                    )
+                )
+                .padding(.trailing, 12)
             }
-            .foregroundStyle(
-                selected
-                    ? Color(red: 0, green: 0.569, blue: 1)
-                    : Color(red: 0.961, green: 0.961, blue: 0.961)
-            )
-            .blendMode(selected ? .normal : .plusLighter)
-            .padding(.horizontal, 8)
-            .padding(.top, 6)
-            .frame(width: 102, height: 54, alignment: .top)
-            .contentShape(Rectangle())
+            Spacer(minLength: 0)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(title)
-        .accessibilityAddTraits(selected ? .isSelected : [])
+        .padding(.top, 4)
     }
 }
 

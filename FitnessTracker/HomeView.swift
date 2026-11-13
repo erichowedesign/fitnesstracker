@@ -1,17 +1,10 @@
 import SwiftUI
 
-enum HomeHeroMotion {
-    static let duration: TimeInterval = 0.8
-    static var animation: Animation { .smooth(duration: duration) }
-}
-
 struct HomeView: View {
     @Environment(SessionStore.self) private var store
     @Environment(WashTheme.self) private var wash
-    @Namespace private var hero
     @Binding var hidesFloatingTabBar: Bool
     @State private var path: [Routine] = []
-    @State private var heroMatchEnabled = true
     private let routines = WorkoutPlan.all()
 
     init(hidesFloatingTabBar: Binding<Bool> = .constant(false)) {
@@ -58,11 +51,7 @@ struct HomeView: View {
                 Button {
                     openRoutine(upNext)
                 } label: {
-                    UpNextCard(
-                        routine: upNext,
-                        hero: hero,
-                        matchEnabled: heroMatchEnabled
-                    )
+                    UpNextCard(routine: upNext)
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 24)
@@ -78,11 +67,7 @@ struct HomeView: View {
                         Button {
                             openRoutine(routine)
                         } label: {
-                            RoutineListCard(
-                                routine: routine,
-                                hero: hero,
-                                matchEnabled: heroMatchEnabled
-                            )
+                            RoutineListCard(routine: routine)
                         }
                         .buttonStyle(.plain)
                     }
@@ -111,14 +96,10 @@ struct HomeView: View {
             }
         }
         .navigationDestination(for: Routine.self) { routine in
-            RoutineView(routine: routine, hero: hero, heroMatchEnabled: heroMatchEnabled)
-                .homeHeroZoom(id: routine.id, in: hero)
+            RoutineView(routine: routine)
         }
         .onChange(of: path) { _, newPath in
             hidesFloatingTabBar = !newPath.isEmpty
-            if newPath.isEmpty {
-                heroMatchEnabled = true
-            }
         }
         .onAppear {
             wash.grade = .grayscale
@@ -141,16 +122,8 @@ struct HomeView: View {
     }
 
     private func openRoutine(_ routine: Routine) {
-        heroMatchEnabled = true
         hidesFloatingTabBar = true
-        withAnimation(HomeHeroMotion.animation) {
-            path.append(routine)
-        }
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(HomeHeroMotion.duration))
-            guard path.last?.id == routine.id else { return }
-            heroMatchEnabled = false
-        }
+        path.append(routine)
     }
 }
 
@@ -161,8 +134,6 @@ private func homeIllustrationThumb(gap: CGFloat) -> RoundedRectangle {
 
 private struct UpNextCard: View {
     let routine: Routine
-    var hero: Namespace.ID
-    var matchEnabled: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -170,15 +141,11 @@ private struct UpNextCard: View {
                 WashWindow(grade: WashGrade.forRoutine(routine.id))
                 IllustrationView(slug: routine.heroSlug, label: routine.name)
                     .frame(width: 192, height: 192)
-                    .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .foregroundStyle(.white)
-                Color.clear
-                    .matchedTransitionSource(id: routine.id, in: hero)
                 Text("Routine \(routine.rotationIndex)")
                     .font(.subheadline)
                     .foregroundStyle(.white)
-                    .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                     .padding(.top, 16)
                     .padding(.leading, 32)
             }
@@ -190,10 +157,8 @@ private struct UpNextCard: View {
                 Text(routine.name)
                     .font(.system(size: 28, weight: .bold))
                     .frame(height: 34, alignment: .leading)
-                    .homeHeroMatch("title-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                 Text(routine.focus)
                     .font(.body)
-                    .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                     .padding(.top, 4)
                 Spacer(minLength: 0)
                 HStack(alignment: .center, spacing: 8) {
@@ -225,8 +190,6 @@ private struct UpNextCard: View {
 
 private struct RoutineListCard: View {
     let routine: Routine
-    var hero: Namespace.ID
-    var matchEnabled: Bool
 
     var body: some View {
         ZStack(alignment: .leading) {
@@ -236,9 +199,6 @@ private struct RoutineListCard: View {
                         .clipShape(homeIllustrationThumb(gap: 16))
                     IllustrationView(slug: routine.heroSlug, label: routine.name)
                         .frame(width: 120, height: 120)
-                        .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
-                    Color.clear
-                        .matchedTransitionSource(id: routine.id, in: hero)
                 }
                 .frame(width: 120, height: 120)
                 .clipShape(homeIllustrationThumb(gap: 16))
@@ -247,18 +207,15 @@ private struct RoutineListCard: View {
                     Text("Routine \(routine.rotationIndex)")
                         .font(.system(size: 15))
                         .frame(height: 18, alignment: .leading)
-                        .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                     VStack(alignment: .leading, spacing: 6) {
                         Text(routine.name)
                             .font(.system(size: 22, weight: .semibold))
                             .frame(height: 25, alignment: .leading)
                             .lineLimit(1)
-                            .homeHeroMatch("title-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                         Text(routine.focus)
                             .font(.system(size: 16))
                             .multilineTextAlignment(.leading)
                             .lineLimit(2)
-                            .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: true, enabled: matchEnabled)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -272,46 +229,6 @@ private struct RoutineListCard: View {
         .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Routine \(routine.rotationIndex), \(routine.name), \(routine.focus)")
-    }
-}
-
-extension View {
-    func homeHeroMatch(_ id: String, in ns: Namespace.ID?, isSource: Bool = true, enabled: Bool = true) -> some View {
-        modifier(HomeHeroMatchModifier(id: id, namespace: ns, isSource: isSource, enabled: enabled))
-    }
-
-    func homeHeroZoom(id: String, in ns: Namespace.ID?) -> some View {
-        modifier(HomeHeroZoomModifier(id: id, namespace: ns))
-    }
-}
-
-private struct HomeHeroMatchModifier: ViewModifier {
-    let id: String
-    let namespace: Namespace.ID?
-    let isSource: Bool
-    var enabled: Bool = true
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func body(content: Content) -> some View {
-        if let namespace, enabled, !reduceMotion {
-            content.matchedGeometryEffect(id: id, in: namespace, isSource: isSource)
-        } else {
-            content
-        }
-    }
-}
-
-private struct HomeHeroZoomModifier: ViewModifier {
-    let id: String
-    let namespace: Namespace.ID?
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    func body(content: Content) -> some View {
-        if let namespace, !reduceMotion {
-            content.navigationTransition(.zoom(sourceID: id, in: namespace))
-        } else {
-            content
-        }
     }
 }
 

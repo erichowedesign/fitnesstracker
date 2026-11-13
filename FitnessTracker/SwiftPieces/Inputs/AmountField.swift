@@ -1,0 +1,1228 @@
+// Copyright (c) 2026 Saivion Hayes
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, and distribute the Software as part of
+// an application, website, or product, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// Commons Clause Restriction
+//
+// You may use this Software, including for any commercial purpose, so long as
+// you do not sell, sublicense, or redistribute the components themselves, whether
+// alone, in a bundle, or as a ported version.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
+import SwiftUI
+
+/// Currency amount entry with live locale formatting, a `Decimal` value and a limit.
+///
+/// The field keeps its own digit buffer and renders the formatted string itself, so the caret never jumps and
+/// locale separators never break parsing. Formatting follows `\.locale`; fraction digits come from the currency.
+///
+/// The figure is content and stays on your ground. The compact block is a liquid glass shape, and the limit shows on
+/// a butter glass pill: it buds down out of the compact block and melts back into it, and rises in under the hero
+/// figure, which has no glass of its own to come from.
+///
+/// - Parameters:
+///   - label: Caption above the amount, also the accessibility label. Pass an empty string to hide the caption.
+///   - value: Bound amount. Never negative; external values are shown at the currency's precision (a negative or over-precise value is normalized and written back).
+///   - currencyCode: ISO 4217 code. Sets the symbol and the fraction digits (USD 2, JPY 0, KWD 3). Defaults to the current locale's currency.
+///   - limit: Largest amount that can be typed or pasted. A keystroke past it is refused with a shake (the digits dim for a beat under Reduce Motion), an error haptic and the limit message. `nil` means no limit.
+///   - limitMessage: Text of the pill shown when the limit refuses input or the value is over it. `nil` shows "Up to" plus the formatted limit; an empty string shows no pill.
+///   - allowsDecimal: Allow the decimal key. When `false`, amounts are whole units and the number pad has no decimal key.
+///   - size: `.hero` is a large centered figure for a payments screen; `.compact` is a 56pt liquid glass form-row block.
+///   - isFocused: Optional binding to read or drive keyboard focus, for example to raise the keyboard on appear.
+///   - style: Colors and metrics. Defaults to the SwiftPieces house palette, adapting to light and dark.
+public struct AmountField: View {
+    /// How prominent the field is.
+    public enum Size: Sendable {
+        /// A large centered figure that shrinks to fit its width, for a dedicated amount screen.
+        case hero
+        /// A liquid glass form-row block with the caption above, like other SwiftPieces inputs.
+        case compact
+    }
+
+    /// Colors and metrics. `.standard` is the house palette.
+    public struct Style: Sendable {
+        /// The glass tint of the compact block. `.clear`, the default, leaves it neutral glass. The hero figure sits
+        /// directly on your ground.
+        public var field: Color
+        /// Typed digits and the compact focus ring.
+        public var amount: Color
+        /// Currency symbol, caption and the empty "0".
+        public var secondaryLabel: Color
+        /// The blinking caret: the signal red by default.
+        public var caret: Color
+        /// The limit pill's tint and the compact ring over the limit. Butter by default: a warning, never the signal red.
+        public var error: Color
+        /// Text on the tinted limit pill.
+        public var ink: Color
+        /// Compact field minimum height.
+        public var height: CGFloat
+        /// Compact field corner radius.
+        public var cornerRadius: CGFloat
+
+        /// Pass only what you want to change; `nil` keeps the house palette value.
+        public init(field: Color? = nil, amount: Color? = nil, secondaryLabel: Color? = nil, caret: Color? = nil, error: Color? = nil, ink: Color? = nil, height: CGFloat = 56, cornerRadius: CGFloat = 18) {
+            self.field = field ?? .clear
+            self.amount = amount ?? adaptive(light: 0x141414, dark: 0xF4F3EF)
+            self.secondaryLabel = secondaryLabel ?? adaptive(light: 0x5C5A56, dark: 0xA6A49F)
+            self.caret = caret ?? adaptive(light: 0xFF0000, dark: 0xFF0000)
+            self.error = error ?? adaptive(light: 0xFFC21A, dark: 0xFFC21A)
+            self.ink = ink ?? adaptive(light: 0x141414, dark: 0x141414)
+            self.height = max(height, 44)
+            self.cornerRadius = cornerRadius
+        }
+
+        public static let standard = Style()
+    }
+
+    /// A refused key or paste. Each one knocks once; `repeated` marks one that lands within a second of the last of
+    /// the same kind, so a key held against a full register gets a lighter tap and a half-height knock instead of escalating.
+    private struct Refusal: Equatable {
+        /// Only `limit` shows the limit message. A key past the digit cap clears it, since it no longer explains the
+        /// refusal; a paste that is not an amount leaves it as it is.
+        enum Reason { case limit, length, paste }
+
+        var count = 0
+        var repeated = false
+    }
+
+    @Environment(\.locale) private var locale
+    @Environment(\.layoutDirection) private var layoutDirection
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isEnabled) private var isEnabled
+    @ScaledMetric(relativeTo: .largeTitle) private var heroSize: CGFloat = 72
+    @FocusState private var focused: Bool
+    @Binding private var value: Decimal
+    @State private var buffer: AmountBuffer
+    @State private var fieldText: String
+    @State private var refusal = Refusal()
+    @State private var lastRefusal: (reason: Refusal.Reason, at: ContinuousClock.Instant)?
+    @State private var flash = false
+    @State private var noticeShown = false
+    @State private var caretOn = true
+    @State private var natural: CGFloat = 0
+    @State private var available: CGFloat = 0
+    /// The compact limit pill: out while the limit has something to say, melted into the block otherwise.
+    @State private var buds = PieceBuds()
+    /// The text the compact pill carries. It outlives the message by the pill's melt, so the words never change under
+    /// a pill on its way home.
+    @State private var notice: String?
+    @ScaledMetric(relativeTo: .footnote) private var pillHeight: CGFloat = 28
+
+    private let label: String
+    private let currencyCode: String
+    private let limit: Decimal?
+    private let limitMessage: String?
+    private let allowsDecimal: Bool
+    private let size: Size
+    private let isFocused: Binding<Bool>?
+    private let style: Style
+
+    public init(_ label: String = "Amount", value: Binding<Decimal>, currencyCode: String = Locale.current.currency?.identifier ?? "USD", limit: Decimal? = nil, limitMessage: String? = nil, allowsDecimal: Bool = true, size: Size = .hero, isFocused: Binding<Bool>? = nil, style: Style = .standard) {
+        self.label = label
+        self._value = value
+        self.currencyCode = currencyCode
+        self.limit = limit
+        self.limitMessage = limitMessage
+        self.allowsDecimal = allowsDecimal
+        self.size = size
+        self.isFocused = isFocused
+        self.style = style
+        let digits = allowsDecimal ? AmountEngine.fractionDigits(code: currencyCode, locale: .current) : 0
+        let initial = AmountBuffer(value.wrappedValue, fractionDigits: digits)
+        self._buffer = State(initialValue: initial)
+        self._fieldText = State(initialValue: initial.canonical)
+    }
+
+    private var fractionDigits: Int { allowsDecimal ? AmountEngine.fractionDigits(code: currencyCode, locale: locale) : 0 }
+    private var isOver: Bool { limit.map { buffer.decimal > $0 } ?? false }
+    private var motion: PieceMotion { PieceMotion(reduceMotion: reduceMotion) }
+
+    private var limitText: String? {
+        guard let limit else { return nil }
+        if let limitMessage { return limitMessage.isEmpty ? nil : limitMessage }
+        let formatted = AmountEngine.string(AmountBuffer(limit, fractionDigits: fractionDigits), code: currencyCode, locale: locale)
+        return "Up to \(formatted)"
+    }
+
+    /// The limit's text while it has something to say: after a refusal, or while the value is over the limit.
+    private var message: String? { (noticeShown || isOver) ? limitText : nil }
+
+    public var body: some View {
+        let message = self.message
+        // A refusal's knock leads and its message follows a beat behind; a value over the limit lands with its message
+        // on the digits' spring. It leaves quickly. `refuse` and the hides use the same roles for the host's layout.
+        let messageMotion = message == nil ? motion.dismiss : (noticeShown ? motion.cascade(motion.reveal, index: 2) : motion.value)
+
+        let layout = VStack(alignment: size == .hero ? .center : .leading, spacing: size == .hero ? 8 : 10) {
+            if !label.isEmpty {
+                Text(label.uppercased())
+                    .font(.caption)
+                    .tracking(0.8)
+                    .foregroundStyle(focused && size == .hero ? style.amount : style.secondaryLabel)
+                    .accessibilityHidden(true)
+            }
+
+            if size == .hero { hero(message) } else { compact }
+        }
+        .frame(maxWidth: .infinity, alignment: size == .hero ? .center : .leading)
+        .fontWeight(.semibold)
+        .contentShape(.rect)
+        .onTapGesture { if isEnabled { focused = true } }
+        .opacity(isEnabled ? 1 : 0.45)
+        .animation(messageMotion, value: message)
+        .animation(motion.snap, value: focused)
+        return observe(layout, message: message)
+    }
+
+    /// Feedback, input, focus, the refusal clock and the pill's bud cycle, kept apart from the layout so each stays
+    /// quick to type-check.
+    private func observe(_ content: some View, message: String?) -> some View {
+        content
+        .sensoryFeedback(trigger: refusal) { _, new in Self.feedback(for: new) }
+        .onChange(of: fieldText) { _, new in handleInput(new) }
+        .onChange(of: value) { _, new in sync(from: new) }
+        .onChange(of: currencyCode) { sync(from: value, force: true) }
+        .onChange(of: locale) { sync(from: value, force: true) }
+        .onChange(of: allowsDecimal) { sync(from: value, force: true) }
+        .onChange(of: focused) { _, now in
+            isFocused?.wrappedValue = now
+            // Leaving the field settles "12.5" to "12.50" and "12." to "12".
+            if !now { replaceBuffer(AmountBuffer(buffer.decimal, fractionDigits: fractionDigits)) }
+        }
+        .onChange(of: isFocused?.wrappedValue ?? false) { _, wanted in
+            if isFocused != nil, wanted != focused { focused = wanted }
+        }
+        .onAppear {
+            sync(from: value, force: true)
+            if isFocused?.wrappedValue == true { focused = true }
+        }
+        // One clock per refusal, in both motion modes: the Reduce Motion flash clears after a beat, the message after a
+        // moment. A newer refusal restarts it, and a cancelled sleep returns rather than hiding the message it just showed.
+        .task(id: refusal.count) {
+            guard refusal.count > 0 else { return }
+            try? await Task.sleep(for: .milliseconds(320))
+            guard !Task.isCancelled else { return }
+            if flash { withAnimation(motion.rebound) { flash = false } }
+            try? await Task.sleep(for: .milliseconds(2080))
+            guard !Task.isCancelled else { return }
+            withAnimation(motion.dismiss) { noticeShown = false }
+        }
+        // The compact pill buds out of the block when the limit speaks and melts home when it is done.
+        .onChange(of: message) { _, new in pill(new) }
+        .onAppear {
+            notice = message
+            if message != nil && size == .compact { buds.place(["notice"]) }
+        }
+    }
+
+    /// Sends the compact pill out with `text`, or calls it home and lets its text go once it is back in the block.
+    private func pill(_ text: String?) {
+        guard size == .compact else {
+            notice = text
+            return
+        }
+        if let text {
+            notice = text
+            if !buds.isOut("notice") { Task { await buds.bloom(["notice"], reduceMotion: reduceMotion) } }
+        } else {
+            Task {
+                await buds.gather(["notice"], reduceMotion: reduceMotion)
+                if !buds.contains("notice") { notice = nil }
+            }
+        }
+    }
+
+    // MARK: Layouts
+
+    /// The figure on your ground, with the limit pill rising in under it. The figure has no glass of its own for the
+    /// pill to bud from, so the pill arrives like anything with no parent: on `reveal`.
+    @ViewBuilder
+    private func hero(_ message: String?) -> some View {
+        entry
+        if let message {
+            PieceLiquidGroup {
+                limitPill(message, out: true)
+            }
+            .transition(motion.transition(.offset(y: -6).combined(with: .opacity)))
+        }
+    }
+
+    /// The glass block, with the limit pill joined under it. The pill's room in the layout opens and closes with it, so
+    /// whatever sits below glides rather than jumps.
+    private var compact: some View {
+        let out = buds.isOut("notice")
+        // Home is just inside the block's bottom edge, two points deep so the shrunk pill clears its rounded corners.
+        let home = PieceLiquid.joined + pillHeight / 2 + pillHeight * PieceLiquid.homeScale / 2 + 2
+        return PieceLiquidGroup {
+            VStack(alignment: .leading, spacing: 0) {
+                // Above the pill, so the pill at home slips under the block.
+                entry.zIndex(1)
+                if buds.contains("notice"), let notice {
+                    limitPill(notice, out: out)
+                        .pieceBud(out: out, home: CGSize(width: 0, height: -home))
+                        .padding(.top, PieceLiquid.joined)
+                        .frame(height: out ? nil : 0, alignment: .top)
+                }
+            }
+        }
+    }
+
+    /// The limit on a glass capsule, butter with house ink while it speaks. Heading home, its words go at once and
+    /// its tint drains, so it melts into the block as clear glass.
+    private func limitPill(_ text: String, out: Bool) -> some View {
+        Text(text)
+            .font(.footnote)
+            .foregroundStyle(style.ink)
+            .multilineTextAlignment(size == .hero ? .center : .leading)
+            .pieceBudContent(out: out)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 4)
+            .frame(minHeight: pillHeight)
+            .pieceLiquid(.capsule, tint: out ? style.error : nil, interactive: false)
+            .accessibilityHidden(true)
+    }
+
+    // MARK: Entry
+
+    private var entry: some View {
+        let parts = AmountEngine.parts(buffer, code: currencyCode, locale: locale)
+        let spoken = AmountEngine.string(buffer, code: currencyCode, locale: locale)
+        let shape = RoundedRectangle(cornerRadius: style.cornerRadius, style: .continuous)
+        let fit = natural > 0 && available > 0 ? min(1, available / natural) : 1
+        let hero = size == .hero
+
+        return display(parts)
+            .fixedSize()
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { natural = $0 }
+            .scaleEffect(fit, anchor: hero ? .center : (layoutDirection == .rightToLeft ? .trailing : .leading))
+            // On the digits' own spring, so the figure shrinks while a digit rolls in rather than after it. `value`
+            // never overshoots, so the figure never grows past the width it was fitted to.
+            .animation(motion.value, value: fit)
+            .frame(maxWidth: .infinity, alignment: hero ? .center : .leading)
+            .accessibilityHidden(true)
+            .overlay {
+                // The real input: invisible, covering the figure, so a tap focuses it, long-press offers Paste and hardware keys work.
+                TextField(text: $fieldText, prompt: Text(verbatim: "")) { Text(label) }
+                    .focused($focused)
+                    .keyboardType(fractionDigits > 0 ? .decimalPad : .numberPad)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .foregroundStyle(.clear)
+                    .tint(.clear)
+                    .accessibilityLabel(label.isEmpty ? "Amount" : label)
+                    .accessibilityValue(spoken)
+                    .accessibilityHint(limitText ?? "")
+            }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { available = $0 }
+        .padding(.horizontal, hero ? 0 : 18)
+        .padding(.vertical, hero ? 4 : 8)
+        .frame(minHeight: hero ? nil : style.height)
+        // The ring is drawn inside the glass: on iOS 26 a glass container takes in whatever is layered over a glass
+        // shape after it, and the ring would all but vanish.
+        .overlay {
+            // A few points in from the edge, so a neck to the field never cuts through the ring.
+            if !hero {
+                RoundedRectangle(cornerRadius: max(style.cornerRadius - 3, 0), style: .continuous)
+                    .strokeBorder(isOver ? style.error : style.amount, lineWidth: 2)
+                    .padding(3)
+                    .opacity(focused || isOver ? 1 : 0)
+            }
+        }
+        .modifier(CompactGlass(hero: hero, shape: shape, tint: style.field == .clear ? nil : style.field))
+        // A refused key knocks the figure, or the compact block with its ring, once. Reduce Motion dims the digits instead.
+        .pieceShake(trigger: refusal.count, distance: refusal.repeated ? 4 : 8)
+    }
+
+    /// The compact block's liquid glass. The hero figure is content and stays on your ground.
+    private struct CompactGlass<S: Shape>: ViewModifier {
+        let hero: Bool
+        let shape: S
+        let tint: Color?
+
+        func body(content: Content) -> some View {
+            if hero {
+                content
+            } else {
+                content.pieceLiquid(shape, tint: tint, interactive: false)
+            }
+        }
+    }
+
+    /// Symbol and digits in logical order, with the caret placed right after the digits whatever the layout direction.
+    private func display(_ parts: AmountEngine.Parts) -> some View {
+        let font: Font = size == .hero ? .system(size: min(heroSize, 150), weight: .semibold) : .title2.weight(.semibold)
+        // Over the limit the digits keep their colour (butter would not read on a light ground); the pill and the
+        // compact ring say it. The empty "0" stays quiet.
+        let digits = buffer.isEmpty ? style.secondaryLabel : style.amount
+        let rtl = layoutDirection == .rightToLeft
+        let caretHeight = size == .hero ? min(heroSize, 150) * 0.78 : 26
+
+        return HStack(spacing: 0) {
+            if !parts.leading.isEmpty {
+                Text(parts.leading).foregroundStyle(style.secondaryLabel)
+            }
+            if rtl { caret(height: caretHeight) }
+            Text(parts.number)
+                .foregroundStyle(digits)
+                // The Reduce Motion refusal: the digits dim for a beat. It shows on the empty "0" too, so a refused
+                // paste into an empty field is never silent.
+                .opacity(flash ? 0.3 : 1)
+                .contentTransition(reduceMotion ? .opacity : .numericText(value: NSDecimalNumber(decimal: buffer.decimal).doubleValue))
+            if !rtl { caret(height: caretHeight) }
+            if !parts.trailing.isEmpty {
+                Text(parts.trailing).foregroundStyle(style.secondaryLabel)
+            }
+        }
+        .font(font)
+        .monospacedDigit()
+        .lineLimit(1)
+        .tracking(size == .hero ? -1 : 0)
+    }
+
+    private func caret(height: CGFloat) -> some View {
+        Capsule()
+            .fill(style.caret)
+            .frame(width: size == .hero ? 3 : 2, height: height)
+            .padding(.horizontal, size == .hero ? 3 : 2)
+            .opacity(focused && caretOn ? 1 : 0)
+            .frame(width: focused ? nil : 0)
+            .task(id: CaretTick(focused: focused, text: buffer.canonical)) {
+                caretOn = true
+                guard focused else { return }
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .milliseconds(530))
+                    guard !Task.isCancelled else { return }
+                    // The blink runs on a clock and eases like the system caret; a keystroke still shows it at once, above.
+                    withAnimation(.easeInOut(duration: 0.1)) { caretOn.toggle() }
+                }
+            }
+    }
+
+    private struct CaretTick: Equatable {
+        let focused: Bool
+        let text: String
+    }
+
+    // MARK: Input
+
+    /// Diffs the hidden field against the buffer: one character is a key, several are a paste, removals are backspaces.
+    private func handleInput(_ new: String) {
+        let old = buffer.canonical
+        guard new != old else { return }
+        let o = Array(old), n = Array(new)
+        var prefix = 0
+        while prefix < o.count, prefix < n.count, o[prefix] == n[prefix] { prefix += 1 }
+        var suffix = 0
+        while suffix < o.count - prefix, suffix < n.count - prefix, o[o.count - 1 - suffix] == n[n.count - 1 - suffix] { suffix += 1 }
+        let inserted = String(n[prefix..<(n.count - suffix)])
+        let removed = o.count - prefix - suffix
+
+        if inserted.count > 1 {
+            paste(inserted)
+        } else {
+            var next = removed >= o.count ? AmountBuffer() : buffer
+            if removed < o.count {
+                for _ in 0..<removed {
+                    if case .changed(let b) = AmountEngine.apply(.backspace, to: next, fractionDigits: fractionDigits, limit: nil) { next = b }
+                }
+            }
+            if let character = inserted.first {
+                if let key = AmountEngine.key(for: character, locale: locale) {
+                    switch AmountEngine.apply(key, to: next, fractionDigits: fractionDigits, limit: limit) {
+                    case .changed(let b): next = b
+                    case .ignored: break
+                    case .overLimit: refuse(.limit); next = buffer
+                    case .tooLong: refuse(.length); next = buffer
+                    }
+                }
+            }
+            commit(next)
+        }
+        // Put the hidden field back on the canonical text so the next diff starts clean.
+        if fieldText != buffer.canonical { fieldText = buffer.canonical }
+    }
+
+    private func paste(_ text: String) {
+        // Text that is not an amount is refused like a key past the limit, without touching the limit message.
+        guard let parsed = AmountEngine.parse(text, locale: locale, fractionDigits: fractionDigits) else {
+            refuse(.paste)
+            return
+        }
+        if let limit, parsed > limit { refuse(.limit); return }
+        commit(AmountBuffer(parsed, fractionDigits: fractionDigits))
+    }
+
+    private func commit(_ next: AmountBuffer) {
+        guard next != buffer else { return }
+        // The amount is read as it lands: digits roll in on `value`, never past their place.
+        withAnimation(motion.value) { buffer = next }
+        if noticeShown && !isOver { withAnimation(motion.dismiss) { noticeShown = false } }
+        if value != next.decimal { value = next.decimal }
+    }
+
+    /// One haptic per refusal, on the beat of the knock: the error pattern, then a lighter rigid tap for quick repeats.
+    private static func feedback(for refusal: Refusal) -> SensoryFeedback {
+        refusal.repeated ? .impact(flexibility: .rigid, intensity: 0.7) : .error
+    }
+
+    private func refuse(_ reason: Refusal.Reason) {
+        let now = ContinuousClock.now
+        let repeated = lastRefusal.map { $0.reason == reason && $0.at.duration(to: now) < .seconds(1) } ?? false
+        lastRefusal = (reason, now)
+        refusal = Refusal(count: refusal.count + 1, repeated: repeated)
+        // Explicit transactions, so the host's layout opens and closes the message's room with the message, not before it.
+        switch reason {
+        case .limit: withAnimation(motion.cascade(motion.reveal, index: 2)) { noticeShown = true }
+        case .length: if noticeShown { withAnimation(motion.dismiss) { noticeShown = false } }
+        case .paste: break
+        }
+        if reduceMotion { withAnimation(motion.error) { flash = true } }
+        if reason == .limit, let limitText {
+            AccessibilityNotification.Announcement(limitText).post()
+        }
+    }
+
+    /// Rebuilds the display from an external value, e.g. a quick-amount chip. Own writes compare equal and are skipped.
+    private func sync(from new: Decimal, force: Bool = false) {
+        guard force || new != buffer.decimal else { return }
+        let next = AmountBuffer(new, fractionDigits: fractionDigits)
+        if !force || next.canonical != buffer.canonical {
+            withAnimation(motion.value) { buffer = next }
+        }
+        if fieldText != next.canonical { fieldText = next.canonical }
+        if next.decimal != new { value = next.decimal }
+    }
+
+    private func replaceBuffer(_ next: AmountBuffer) {
+        guard next != buffer else { return }
+        buffer = next
+        fieldText = next.canonical
+    }
+}
+
+// MARK: - Engine
+
+/// The typed amount as ASCII digits, kept apart from formatting so the display can be rebuilt on every keystroke.
+private struct AmountBuffer: Equatable, Sendable {
+    /// Integer digits, "0"..."9" only, no leading zeros except a lone "0". Empty means nothing typed.
+    var integer = ""
+    /// Fraction digits typed after the decimal key; `nil` until the decimal key is pressed.
+    var fraction: String?
+
+    var isEmpty: Bool { integer.isEmpty && fraction == nil }
+
+    /// The locale-free canonical form, e.g. "1234.5"; also what the hidden text field holds.
+    var canonical: String { integer + (fraction.map { "." + $0 } ?? "") }
+
+    var decimal: Decimal {
+        let whole = integer.isEmpty ? "0" : integer
+        let text = fraction.map { $0.isEmpty ? whole : whole + "." + $0 } ?? whole
+        return Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")) ?? 0
+    }
+
+    /// Builds the resting form of a value: integers show no fraction, anything else shows the currency's full precision.
+    init(_ value: Decimal, fractionDigits: Int) {
+        var input = max(value, 0), rounded = Decimal()
+        NSDecimalRound(&rounded, &input, fractionDigits, .plain)
+        let parts = (rounded as NSDecimalNumber).stringValue.split(separator: ".", omittingEmptySubsequences: false)
+        let whole = String(parts.first ?? "0")
+        integer = whole == "0" && rounded == 0 ? "" : whole
+        if parts.count > 1, fractionDigits > 0 {
+            let digits = String(parts[1])
+            fraction = digits + String(repeating: "0", count: max(fractionDigits - digits.count, 0))
+            if integer.isEmpty { integer = "0" }
+        }
+    }
+
+    init() {}
+}
+
+/// Pure formatting and parsing. Everything locale-specific goes through Foundation's currency format style.
+private enum AmountEngine {
+    static let maxIntegerDigits = 12
+    static let posix = Locale(identifier: "en_US_POSIX")
+
+    enum Key: Equatable { case digit(Character), separator, backspace }
+
+    enum Outcome: Equatable {
+        case changed(AmountBuffer)
+        /// The key did nothing (a second separator, a digit past the currency's precision, backspace on empty).
+        case ignored
+        /// Accepting the key would pass the limit.
+        case overLimit
+        /// Accepting the key would pass the digit cap.
+        case tooLong
+    }
+
+    /// The display, split so the caret sits right after the digits and the symbol can be colored apart.
+    struct Parts: Equatable {
+        var leading: String
+        var number: String
+        var trailing: String
+    }
+
+    static func currencyStyle(_ code: String, _ locale: Locale) -> Decimal.FormatStyle.Currency {
+        Decimal.FormatStyle.Currency(code: code, locale: locale)
+    }
+
+    /// The currency's standard fraction digits in this locale (USD 2, JPY 0, KWD 3), read from the formatter itself.
+    static func fractionDigits(code: String, locale: Locale) -> Int {
+        let text = Decimal(0).formatted(currencyStyle(code, locale).attributed)
+        return text.runs.reduce(0) { count, run in
+            run.numberPart == .fraction ? count + text[run.range].characters.count : count
+        }
+    }
+
+    /// Formats exactly what was typed: "12." keeps its separator and "12.50" keeps its zero.
+    static func parts(_ buffer: AmountBuffer, code: String, locale: Locale) -> Parts {
+        let style = currencyStyle(code, locale)
+            .precision(.fractionLength(buffer.fraction?.count ?? 0))
+            .decimalSeparator(strategy: buffer.fraction == nil ? .automatic : .always)
+        let text = buffer.decimal.formatted(style.attributed)
+        var leading = "", number = "", trailing = ""
+        for run in text.runs {
+            let chunk = String(text[run.range].characters)
+            let isNumber = run.numberPart != nil || run.numberSymbol == .decimalSeparator || run.numberSymbol == .groupingSeparator
+            if isNumber { number += trailing; trailing = ""; number += chunk }
+            else if number.isEmpty { leading += chunk }
+            else { trailing += chunk }
+        }
+        if number.isEmpty { return Parts(leading: "", number: String(text.characters), trailing: "") }
+        return Parts(leading: leading, number: number, trailing: trailing)
+    }
+
+    /// The whole formatted string, for VoiceOver and callers.
+    static func string(_ buffer: AmountBuffer, code: String, locale: Locale) -> String {
+        let p = parts(buffer, code: code, locale: locale)
+        return p.leading + p.number + p.trailing
+    }
+
+    /// Maps one typed character to a key. Digits in any script (Arabic-Indic, Devanagari, full-width) become ASCII.
+    static func key(for character: Character, locale: Locale) -> Key? {
+        if let digit = asciiDigit(character) { return .digit(digit) }
+        if character == "." || character == "," || character == "\u{066B}" || String(character) == locale.decimalSeparator { return .separator }
+        return nil
+    }
+
+    static func asciiDigit(_ character: Character) -> Character? {
+        guard character.unicodeScalars.count == 1, let scalar = character.unicodeScalars.first,
+              scalar.properties.numericType == .decimal, let value = character.wholeNumberValue, (0...9).contains(value) else { return nil }
+        return Character(String(value))
+    }
+
+    static func apply(_ key: Key, to buffer: AmountBuffer, fractionDigits: Int, limit: Decimal?) -> Outcome {
+        var next = buffer
+        switch key {
+        case .backspace:
+            if var fraction = next.fraction {
+                if fraction.isEmpty { next.fraction = nil } else { fraction.removeLast(); next.fraction = fraction }
+            } else if !next.integer.isEmpty {
+                next.integer.removeLast()
+            } else {
+                return .ignored
+            }
+            return .changed(next)
+        case .separator:
+            guard fractionDigits > 0, next.fraction == nil else { return .ignored }
+            if next.integer.isEmpty { next.integer = "0" }
+            next.fraction = ""
+            return .changed(next)
+        case .digit(let digit):
+            if let fraction = next.fraction {
+                guard fraction.count < fractionDigits else { return .ignored }
+                next.fraction = fraction + String(digit)
+            } else if next.integer == "0" || next.integer.isEmpty {
+                if digit == "0" && next.integer == "0" { return .ignored }
+                next.integer = String(digit)
+            } else {
+                guard next.integer.count < maxIntegerDigits else { return .tooLong }
+                next.integer.append(digit)
+            }
+            if let limit, next.decimal > limit { return .overLimit }
+            return .changed(next)
+        }
+    }
+
+    /// Parses pasted text such as "1,234.56", "$99", "1 234,56 €", "١٬٢٣٤٫٥٦ ر.س." or "US$ 12". Returns `nil` for anything
+    /// that is not a single non-negative amount (words, two numbers, a minus sign).
+    static func parse(_ raw: String, locale: Locale, fractionDigits: Int) -> Decimal? {
+        let chars: [Character] = raw.trimmingCharacters(in: .whitespacesAndNewlines).map { asciiDigit($0) ?? $0 }
+        guard let first = chars.firstIndex(where: \.isASCIIDigitChar), let last = chars.lastIndex(where: \.isASCIIDigitChar) else { return nil }
+        if chars.contains(where: { "-\u{2212}(".contains($0) }) { return nil }
+        var start = first
+        let decimalMarks: Set<Character> = [".", ",", "\u{066B}"]
+        // ".50" or "$.50": a separator right before the first digit, not after a letter as in "Rs.12".
+        if start > 0, decimalMarks.contains(chars[start - 1]), start == 1 || !chars[start - 2].isLetter { start -= 1 }
+        for affix in [chars[..<start], chars[(last + 1)...]] {
+            guard affix.count <= 10, affix.filter(\.isLetter).count <= 4 else { return nil }
+        }
+        let body = chars[start...last]
+        let grouping: Set<Character> = ["'", "\u{2019}", "\u{066C}"]
+        for c in body where !(c.isASCIIDigitChar || decimalMarks.contains(c) || grouping.contains(c) || c.isWhitespace) { return nil }
+
+        let marks = body.indices.filter { decimalMarks.contains(body[$0]) }
+        var decimalAt: Int?
+        if let arabic = marks.last(where: { body[$0] == "\u{066B}" }) {
+            guard marks.filter({ body[$0] == "\u{066B}" }).count == 1 else { return nil }
+            decimalAt = arabic
+        } else if let lastMark = marks.last {
+            let c = body[lastMark]
+            let sameKind = marks.filter { body[$0] == c }.count
+            let kinds = Set(marks.map { body[$0] })
+            if kinds.count > 1 {
+                guard sameKind == 1 else { return nil }
+                decimalAt = lastMark
+            } else if sameKind == 1 {
+                let after = body[(lastMark + 1)...].filter(\.isASCIIDigitChar).count
+                // Three digits after a lone mark read as thousands ("1,234", "1.234") unless that mark is this
+                // locale's decimal separator and the currency actually carries three decimals (KWD "1.234").
+                let isGrouping = after == 3 && (fractionDigits < 3 || String(c) != locale.decimalSeparator)
+                decimalAt = isGrouping ? nil : lastMark
+            }
+        }
+        let wholeDigits = String((decimalAt.map { body[..<$0] } ?? body[...]).filter(\.isASCIIDigitChar))
+        let fractionDigitsText = decimalAt.map { String(body[($0 + 1)...].filter(\.isASCIIDigitChar)) } ?? ""
+        let trimmedWhole = wholeDigits.drop(while: { $0 == "0" })
+        guard trimmedWhole.count <= maxIntegerDigits else { return nil }
+        let text = (wholeDigits.isEmpty ? "0" : wholeDigits) + (fractionDigitsText.isEmpty ? "" : "." + fractionDigitsText)
+        guard var value = Decimal(string: text, locale: posix) else { return nil }
+        var rounded = Decimal()
+        NSDecimalRound(&rounded, &value, fractionDigits, .plain)
+        return rounded
+    }
+}
+
+private extension Character {
+    var isASCIIDigitChar: Bool { isASCII && isWholeNumber }
+}
+
+/// A house-palette color that follows the interface style.
+private func adaptive(light: UInt32, dark: UInt32) -> Color {
+    Color(uiColor: UIColor { @Sendable traits in
+        let hex = traits.userInterfaceStyle == .dark ? dark : light
+        return UIColor(red: CGFloat((hex >> 16) & 0xFF) / 255, green: CGFloat((hex >> 8) & 0xFF) / 255, blue: CGFloat(hex & 0xFF) / 255, alpha: 1)
+    })
+}
+
+// MARK: - Example
+
+/// A "Send money" hero entry in USD with a $2,500 limit and joined glass quick-amount chips, and a compact EUR field
+/// formatted for de_DE.
+private struct AmountFieldExample: View {
+    @State private var amount: Decimal = 0
+    @State private var rent: Decimal = 1234.5
+    @State private var focused = true
+    @State private var chipTaps = 0
+
+    private let quick: [Decimal] = [20, 50, 100]
+
+    var body: some View {
+        VStack(spacing: 28) {
+            AmountField("Send", value: $amount, currencyCode: "USD", limit: 2500, isFocused: $focused)
+                .environment(\.locale, Locale(identifier: "en_US"))
+
+            // Quick amounts: neutral glass capsules resting joined, so they read as one liquid strip.
+            PieceLiquidGroup {
+                HStack(spacing: PieceLiquid.joined) {
+                    ForEach(quick, id: \.self) { preset in
+                        Button {
+                            amount = preset
+                            chipTaps += 1
+                        } label: {
+                            Text(preset, format: .currency(code: "USD").precision(.fractionLength(0)).locale(Locale(identifier: "en_US")))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(adaptive(light: 0x141414, dark: 0xF4F3EF))
+                                .padding(.horizontal, 18)
+                                .frame(minHeight: 44)
+                                .contentShape(.capsule)
+                                .pieceLiquid(.capsule, interactive: false)
+                        }
+                        .buttonStyle(PieceLiquidPressStyle())
+                    }
+                }
+            }
+            .sensoryFeedback(.selection, trigger: chipTaps)
+
+            AmountField("Miete", value: $rent, currencyCode: "EUR", size: .compact)
+                .environment(\.locale, Locale(identifier: "de_DE"))
+        }
+        .padding(.horizontal, 30)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(adaptive(light: 0xF3F2EE, dark: 0x121212))
+    }
+}
+
+#Preview("Light") {
+    AmountFieldExample()
+}
+
+#Preview("Dark") {
+    AmountFieldExample()
+        .preferredColorScheme(.dark)
+}
+
+// MARK: - Piece motion
+//
+// The SwiftPieces motion language: shared spring tokens and gesture physics, with the same values in every
+// piece. Each piece carries a copy of only the parts it uses, so this file stands alone. Generated from
+// registry/foundation/PieceMotion.swift in the SwiftPieces repo; edit it there, not here.
+// swiftpieces-motion: 1.1.0 (core, follow, pressMath, shake)
+
+/// The SwiftPieces motion language: five spring tiers, and a named role for every moment a piece moves,
+/// each with its Reduce Motion substitute.
+///
+/// Build one from the environment, `PieceMotion(reduceMotion: reduceMotion)`, and pick the role that names
+/// what just happened. Never animate the tracking of a finger: set gesture state directly in `onChanged`, so the
+/// surface stays under the finger, and spring only the release.
+private struct PieceMotion {
+    var reduceMotion = false
+
+    // Tiers. Overshoot and settle times are measured from rest with SwiftUI's Spring.
+    /// No overshoot, 90% in about 90ms. A press arriving under the finger.
+    static var tight: Spring { Spring(duration: 0.14, bounce: 0) }
+    /// About 2.8% overshoot, 90% in about 140ms. Snapping to a detent, page or segment.
+    static var responsive: Spring { Spring(duration: 0.32, bounce: 0.25) }
+    /// About 8.4% overshoot. Visible give: a release, a return from past an edge, a drag settling home.
+    static var elastic: Spring { Spring(duration: 0.42, bounce: 0.38) }
+    /// About 15% overshoot. A resolved action landing. At most once per interaction.
+    static var expressive: Spring { Spring(duration: 0.48, bounce: 0.48) }
+    /// About 1.5% overshoot, unhurried. Opening large surfaces and ambient change.
+    static var calm: Spring { Spring(duration: 0.5, bounce: 0.2) }
+
+    /// Reduce Motion: settles become this short spring with no overshoot.
+    private static var still: Animation { .spring(duration: 0.25, bounce: 0) }
+
+    // Roles.
+    /// Touch-down. Starts on the same frame and never bounces under the finger.
+    var press: Animation { .spring(Self.tight) }
+    /// The finger lifts off a pressed surface, which springs back through rest.
+    var release: Animation { reduceMotion ? Self.still : .spring(Self.elastic) }
+    /// A dragged thing comes to rest. With a gesture's velocity, use `settle(velocity:from:to:)` instead.
+    var settle: Animation { reduceMotion ? Self.still : .spring(Self.elastic) }
+    /// Lands on a detent, page or segment.
+    var snap: Animation { reduceMotion ? Self.still : .spring(Self.responsive) }
+    /// A number, a chart value or anything else people read moves to its new value. Never overshoots, so it
+    /// never shows a value that isn't true.
+    var value: Animation { reduceMotion ? Self.still : .spring(duration: 0.35, bounce: 0) }
+    /// Comes back from past a limit: a pull beyond the edge, a value pushed against its bound.
+    var rebound: Animation { reduceMotion ? Self.still : .spring(Self.elastic) }
+    /// A shape or container changes size, corner radius or form, with a little give at the end.
+    var morph: Animation { reduceMotion ? Self.still : .spring(duration: 0.4, bounce: 0.2) }
+    /// Something appears, opens or expands. Opening is a little slower than closing.
+    var reveal: Animation { reduceMotion ? .easeOut(duration: 0.2) : .spring(Self.calm) }
+    /// Something leaves, closes or collapses. Quick and firm, out of the way.
+    var dismiss: Animation { reduceMotion ? .easeIn(duration: 0.18) : .spring(duration: 0.3, bounce: 0.08) }
+    /// A resolved action lands: a check, a sent state, a reaction.
+    var success: Animation { reduceMotion ? .easeOut(duration: 0.24) : .spring(Self.expressive) }
+    /// A refused action. Firm, no wobble; `pieceShake` adds the movement.
+    var error: Animation { reduceMotion ? .easeOut(duration: 0.2) : .spring(Self.responsive) }
+    /// Slow ambient change. Loops themselves stop under Reduce Motion: check `allowsAmbient`.
+    var ambient: Animation { reduceMotion ? .easeInOut(duration: 0.3) : .spring(Self.calm) }
+
+    /// Loops, drifts, idle breathing and parallax run only when this is true.
+    var allowsAmbient: Bool { !reduceMotion }
+
+    /// A moving transition, or a plain fade under Reduce Motion.
+    func transition(_ transition: AnyTransition) -> AnyTransition {
+        reduceMotion ? .opacity : transition
+    }
+
+    /// For content replaced inside a container that stays put (a label, a glyph, a count): the old content
+    /// blurs out as the new one sharpens in. A fade under Reduce Motion.
+    @MainActor var swap: AnyTransition {
+        reduceMotion ? .opacity : AnyTransition(.blurReplace)
+    }
+}
+
+extension PieceMotion {
+    /// Follow-through: rank 0 leads, each later rank arrives a beat later on a slightly looser spring. Safe to reverse.
+    func follow(_ spring: Spring = PieceMotion.elastic, rank: Int) -> Animation {
+        guard !reduceMotion else { return .spring(duration: 0.25, bounce: 0) }
+        let k = Double(min(max(rank, 0), 6))
+        return .spring(duration: spring.duration + 0.04 * k, bounce: min(spring.bounce + 0.02 * k, 0.55))
+    }
+
+    /// One-shot entrances only: item `index` waits 30ms per place, capped at the seventh. Exits go together.
+    func cascade(_ animation: Animation, index: Int, step: Double = 0.03) -> Animation {
+        guard !reduceMotion, index > 0 else { return animation }
+        return animation.delay(step * Double(min(index, 7)))
+    }
+}
+
+extension PieceMotion {
+    /// About `depth` points per edge, not a fixed percentage: an icon sinks to 0.92, a pill 0.95, a card 0.985.
+    nonisolated static func pressScale(for size: CGSize, depth: CGFloat = 2.5) -> CGFloat {
+        let side = (max(size.width, 1) * max(size.height, 1)).squareRoot()
+        return min(max(1 - depth * 2 / side, 0.92), 0.985)
+    }
+
+    /// An anchor partway from the center toward the touch, so the press leans into the finger without tipping.
+    nonisolated static func pressAnchor(touch: CGPoint?, in size: CGSize, lean: CGFloat = 0.6) -> UnitPoint {
+        guard let touch, size.width > 0, size.height > 0 else { return .center }
+        let x = min(max(touch.x / size.width, 0), 1)
+        let y = min(max(touch.y / size.height, 0), 1)
+        return UnitPoint(x: 0.5 + (x - 0.5) * lean, y: 0.5 + (y - 0.5) * lean)
+    }
+}
+
+/// A short decaying side-to-side shake for refused input, each time `trigger` changes. Under Reduce Motion it stays
+/// still (same view, no identity change): pair it with a color or message change and the error haptic.
+private struct PieceShake: ViewModifier {
+    let trigger: AnyHashable
+    var distance: CGFloat = 8
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        let distance = reduceMotion ? 0 : distance
+        content.keyframeAnimator(initialValue: CGFloat(0), trigger: trigger) { view, x in
+            view.offset(x: x)
+        } keyframes: { _ in
+            KeyframeTrack {
+                CubicKeyframe(-distance, duration: 0.06)
+                CubicKeyframe(distance * 0.75, duration: 0.07)
+                CubicKeyframe(-distance * 0.5, duration: 0.07)
+                CubicKeyframe(distance * 0.25, duration: 0.06)
+                SpringKeyframe(0, duration: 0.12, spring: Spring(duration: 0.18, bounce: 0))
+            }
+        }
+    }
+}
+
+private extension View {
+    /// Shakes this view side to side once each time `trigger` changes, for input that was refused.
+    func pieceShake(trigger: some Hashable & Sendable, distance: CGFloat = 8) -> some View {
+        modifier(PieceShake(trigger: AnyHashable(trigger), distance: distance))
+    }
+}
+
+// swiftpieces-motion: end
+
+// MARK: - Piece liquid
+//
+// The SwiftPieces liquid glass language: glass shapes that merge through a neck, bubbles that bud out of
+// and melt back into each other, and the frosted fallback before iOS 26. Each piece carries a copy of only
+// the parts it uses, so this file stands alone. Generated from registry/foundation/PieceLiquid.swift in the
+// SwiftPieces repo; edit it there, not here. The rules are in LIQUID_GLASS.md.
+// swiftpieces-liquid: 1.8.0 (liquid, liquidPress, bud)
+
+/// The liquid glass language: one merge distance, two rest gaps, and the springs a bubble leaves and comes home on.
+///
+/// Glass shapes inside one `PieceLiquidGroup` melt into each other through a neck when they come within `merge`
+/// points. Parts of one control rest `joined`, inside that distance, so the neck holds; separate actions rest
+/// `apart`, outside it, so they only goo while one buds out of, or melts back into, another.
+private enum PieceLiquid {
+    /// Glass shapes closer than this share a neck.
+    static let merge: CGFloat = 20
+    /// The gap between parts of one control (a stepper's buttons, a progress pill and its stop): the neck holds,
+    /// short and smooth, about two thirds of the shapes' height at its waist. Joined parts read best at one height.
+    static let joined: CGFloat = 4
+    /// The gap between separate actions (menu items, confirm and cancel, chips): they rest as their own bubbles.
+    static let apart: CGFloat = 26
+    /// How far a bubble shrinks while it is home inside its parent.
+    static let homeScale: CGFloat = 0.72
+
+    /// A bubble leaving its parent: slow enough that the neck's stretch and snap read.
+    static func split(reduceMotion: Bool) -> Animation {
+        reduceMotion ? .easeOut(duration: 0.2) : .spring(duration: 0.62, bounce: 0.22)
+    }
+
+    /// A bubble going home. No bounce: a bounce would carry it out through the far side of its parent.
+    static func home(reduceMotion: Bool) -> Animation {
+        reduceMotion ? .easeIn(duration: 0.18) : .spring(duration: 0.5, bounce: 0)
+    }
+}
+
+/// A group of glass shapes that merge into one liquid surface. On iOS 26 it is a `GlassEffectContainer`; before
+/// that, and under Reduce Transparency, the shapes draw on their own and simply don't merge. `lift` adds the soft
+/// shadow liquid glass floats on in light mode.
+private struct PieceLiquidGroup<Content: View>: View {
+    var spacing: CGFloat = PieceLiquid.merge
+    var lift = true
+    @ViewBuilder var content: Content
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
+
+    var body: some View {
+        container
+            .shadow(color: .black.opacity(lift && colorScheme == .light ? 0.07 : 0), radius: 18, y: 8)
+    }
+
+    @ViewBuilder private var container: some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26, *), !reduceTransparency {
+            GlassEffectContainer(spacing: spacing) { content }
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
+    }
+}
+
+/// One liquid glass shape: Liquid Glass on iOS 26, carrying `tint` as a solid colour and swelling under a press when
+/// `interactive`; a frosted Material with a light rim and a soft shadow before that; a solid fill under Reduce
+/// Transparency.
+///
+/// The tint is painted inside clear glass rather than tinting the glass. Tinted glass in a group bleeds its colour
+/// through every neck as a smear, so a red button would glow into the white pill it is joined to; painted inside,
+/// the colour stays crisp to the shape's edge, the necks between shapes are clear glass, and a tint change animates
+/// like any colour (tinted glass snaps).
+private struct PieceLiquidSurface<S: Shape>: ViewModifier {
+    var shape: S
+    var tint: Color?
+    var interactive: Bool
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.pieceLiquidScale) private var scale
+
+    func body(content: Content) -> some View {
+        #if compiler(>=6.2)
+        if #available(iOS 26, *), !reduceTransparency {
+            // Scaled as two parts, content and outline, about the same centre. A scaleEffect on a glass view inside a
+            // GlassEffectContainer shrinks the glass but leaves what it carries full size, pinned to its corner.
+            content
+                .background { shape.fill(tint ?? .clear) }
+                .scaleEffect(scale)
+                .glassEffect(glass, in: shape.scale(scale))
+        } else {
+            fallback(content).scaleEffect(scale)
+        }
+        #else
+        fallback(content).scaleEffect(scale)
+        #endif
+    }
+
+    #if compiler(>=6.2)
+    @available(iOS 26, *)
+    private var glass: Glass {
+        interactive ? Glass.regular.interactive() : .regular
+    }
+    #endif
+
+    private func fallback(_ content: Content) -> some View {
+        let dark = colorScheme == .dark
+        return content
+            .background {
+                if reduceTransparency {
+                    shape.fill(tint ?? (dark ? Color(white: 0.17) : Color(white: 0.97)))
+                } else {
+                    ZStack {
+                        shape.fill(.regularMaterial)
+                        if let tint { shape.fill(tint.opacity(0.88)) }
+                    }
+                }
+            }
+            .overlay { shape.stroke(Color.white.opacity(dark ? 0.14 : 0.7), lineWidth: 0.5) }
+            .shadow(color: .black.opacity(dark ? 0.32 : 0.08), radius: 10, y: 5)
+    }
+}
+
+private struct PieceLiquidScaleKey: EnvironmentKey {
+    static let defaultValue: CGFloat = 1
+}
+
+private extension EnvironmentValues {
+    /// How much the liquid shapes below are scaled, about their own centres. Nested scales multiply.
+    var pieceLiquidScale: CGFloat {
+        get { self[PieceLiquidScaleKey.self] }
+        set { self[PieceLiquidScaleKey.self] = newValue }
+    }
+}
+
+private extension View {
+    /// Draws this view on a liquid glass `shape`. Put it inside a `PieceLiquidGroup` so it can merge with its neighbours.
+    func pieceLiquid<S: Shape>(_ shape: S, tint: Color? = nil, interactive: Bool = true) -> some View {
+        modifier(PieceLiquidSurface(shape: shape, tint: tint, interactive: interactive))
+    }
+
+    /// Scales the liquid glass shapes in this view, content and outline together, about their own centres. Use it
+    /// instead of `scaleEffect` on a glass view (a press, a lift, a swell): inside a group a plain `scaleEffect` shrinks
+    /// the glass but leaves its content full size and off centre. Animates like any other value.
+    func pieceLiquidScale(_ scale: CGFloat) -> some View {
+        transformEnvironment(\.pieceLiquidScale) { $0 *= scale }
+    }
+}
+
+/// The press for a glass control: the same size-aware sink and lean as `piecePress`, applied through
+/// `pieceLiquidScale` so the glass and what it carries sink together (a plain scaleEffect on glass leaves the content
+/// behind). Put the glass inside what it presses: the label of a button, the view this modifies. Under Reduce Motion
+/// it shades instead of moving.
+private struct PieceLiquidPress: ViewModifier {
+    let pressed: Bool
+    var touch: CGPoint?
+    var depth: CGFloat = 2.5
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var size: CGSize = .zero
+    @State private var anchor: UnitPoint = .center
+
+    func body(content: Content) -> some View {
+        let motion = PieceMotion(reduceMotion: reduceMotion)
+        let scale = pressed && !reduceMotion ? PieceMotion.pressScale(for: size, depth: depth) : 1
+        // A scale about `anchor` is a scale about the centre plus this shift toward the anchor.
+        let lean = CGSize(width: (anchor.x - 0.5) * size.width * (1 - scale), height: (anchor.y - 0.5) * size.height * (1 - scale))
+        content
+            .onGeometryChange(for: CGSize.self) { $0.size } action: { size = $0 }
+            .brightness(pressed && reduceMotion ? (colorScheme == .dark ? 0.1 : -0.08) : 0)
+            .pieceLiquidScale(scale)
+            .offset(lean)
+            .animation(pressed ? motion.press : motion.release, value: pressed)
+            .onChange(of: pressed) { _, isPressed in
+                if isPressed { anchor = PieceMotion.pressAnchor(touch: touch, in: size) }
+            }
+            .onChange(of: touch) { _, touch in
+                if pressed, let touch { anchor = PieceMotion.pressAnchor(touch: touch, in: size) }
+            }
+    }
+}
+
+/// `PiecePressStyle` for glass buttons: the label (with its `.pieceLiquid` inside) sinks as one.
+private struct PieceLiquidPressStyle: ButtonStyle {
+    var depth: CGFloat = 2.5
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.pieceLiquidPress(configuration.isPressed, depth: depth)
+    }
+}
+
+private extension View {
+    /// Sinks this view's glass while `pressed`, leaning toward `touch` (in this view's coordinates) when given.
+    func pieceLiquidPress(_ pressed: Bool, touch: CGPoint? = nil, depth: CGFloat = 2.5) -> some View {
+        modifier(PieceLiquidPress(pressed: pressed, touch: touch, depth: depth))
+    }
+}
+
+/// The bud: how a bubble leaves and rejoins its parent, driven explicitly so every bubble shows the whole cycle.
+///
+/// A bubble is born at `home`, inside its parent, where the two glass shapes are one. It springs out to `rest`, and
+/// while it is inside the merge distance a neck holds it to the parent, thinning as it goes, until it snaps free.
+/// Going home it springs back on a spring with no bounce, the neck reaches out and re-forms, and only once it has
+/// melted all the way in is it removed. Both offsets are relative to where the bubble is laid out. Under Reduce
+/// Motion it stays at `rest`: its content fades and its glass closes in place.
+private struct PieceBud: ViewModifier {
+    var out: Bool
+    var rest: CGSize
+    var home: CGSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func body(content: Content) -> some View {
+        if reduceMotion {
+            // No travel. Inside a group glass ignores opacity, so the glass closes to nothing in place on the short
+            // Reduce Motion ease while its content fades; the opacity covers a bubble outside a group.
+            content
+                .pieceLiquidScale(out ? 1 : 0.001)
+                .opacity(out ? 1 : 0)
+                .offset(rest)
+        } else {
+            // The glass shrinks through `pieceLiquidScale`, never a plain scaleEffect (see there), then moves.
+            content
+                .pieceLiquidScale(out ? 1 : PieceLiquid.homeScale)
+                .offset(out ? rest : home)
+        }
+    }
+}
+
+/// A bubble's own content, on its own clock: gone the moment the bubble heads home, so it never rides over the
+/// parent's content, and arriving just after the bubble leaves.
+private struct PieceBudContent: ViewModifier {
+    var out: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .blur(radius: out ? 0 : 6)
+            .opacity(out ? 1 : 0)
+            .animation(out ? .easeOut(duration: 0.3).delay(0.1) : .easeOut(duration: 0.14), value: out)
+    }
+}
+
+private extension View {
+    /// Places a bubble at `rest` while `out`, and at `home` (inside its parent, shrunk) while not.
+    func pieceBud(out: Bool, rest: CGSize = .zero, home: CGSize) -> some View {
+        modifier(PieceBud(out: out, rest: rest, home: home))
+    }
+
+    /// Hides a bubble's icon or label while it is home. Put it on the content, inside the glass.
+    func pieceBudContent(out: Bool) -> some View {
+        modifier(PieceBudContent(out: out))
+    }
+}
+
+/// Which bubbles exist and which are out. A bubble is added home with no animation, sent out on the next frame,
+/// and called home before it is removed, so it always melts in rather than fading. Keep one in `@State`.
+@MainActor @Observable
+private final class PieceBuds {
+    private(set) var present: [String] = []
+    private(set) var out: Set<String> = []
+    /// The latest call for each bubble. A bloom or gather that has been overtaken (a bubble sent home while it was
+    /// still waiting to go out, or called out again while melting) leaves that bubble alone.
+    @ObservationIgnored private var turn: [String: Int] = [:]
+
+    func contains(_ id: String) -> Bool { present.contains(id) }
+    func isOut(_ id: String) -> Bool { out.contains(id) }
+
+    private func claim(_ ids: [String]) -> [String: Int] {
+        var mine: [String: Int] = [:]
+        for id in ids {
+            let next = (turn[id] ?? 0) + 1
+            turn[id] = next
+            mine[id] = next
+        }
+        return mine
+    }
+
+    /// Puts bubbles straight out at rest with no motion: a view's first frame, or a state restored.
+    func place(_ ids: [String]) {
+        _ = claim(ids)
+        var quiet = Transaction()
+        quiet.disablesAnimations = true
+        withTransaction(quiet) {
+            for id in ids where !present.contains(id) { present.append(id) }
+            out.formUnion(ids)
+        }
+    }
+
+    /// Adds bubbles home, then sends each out, `stagger` seconds apart, after an optional `delay`.
+    func bloom(_ ids: [String], reduceMotion: Bool, stagger: Double = 0.05, delay: Double = 0) async {
+        let mine = claim(ids)
+        var quiet = Transaction()
+        quiet.disablesAnimations = true
+        withTransaction(quiet) {
+            for id in ids where !present.contains(id) { present.append(id) }
+        }
+        try? await Task.sleep(for: .milliseconds(24 + Int(max(delay, 0) * 1000)))
+        let split = PieceLiquid.split(reduceMotion: reduceMotion)
+        for (i, id) in ids.enumerated() where turn[id] == mine[id] {
+            withAnimation(split.delay(reduceMotion ? 0 : Double(i) * stagger)) { _ = out.insert(id) }
+        }
+    }
+
+    /// Calls bubbles home, last first, then removes them once they have melted in.
+    func gather(_ ids: [String], reduceMotion: Bool, stagger: Double = 0.04) async {
+        let mine = claim(ids)
+        let home = PieceLiquid.home(reduceMotion: reduceMotion)
+        for (i, id) in ids.reversed().enumerated() {
+            withAnimation(home.delay(reduceMotion ? 0 : Double(i) * stagger)) { _ = out.remove(id) }
+        }
+        try? await Task.sleep(for: .milliseconds(Int((0.52 + Double(ids.count) * stagger) * 1000)))
+        var quiet = Transaction()
+        quiet.disablesAnimations = true
+        withTransaction(quiet) { present.removeAll { ids.contains($0) && !out.contains($0) && turn[$0] == mine[$0] } }
+    }
+}
+
+// swiftpieces-liquid: end

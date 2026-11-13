@@ -10,15 +10,14 @@ struct UpperPushView: View {
 struct RoutineView: View {
     @Environment(SessionStore.self) private var store
     let routine: Routine
-    var hero: Namespace.ID? = nil
-    var heroMatchEnabled: Bool = false
     @State private var didSave = false
     @State private var showCompleteButton = false
-    @State private var openWeightRowID: String?
+    @State private var openSwipeID: AnyHashable?
     @State private var editingWeightRowID: String?
     @State private var weightDraft = ""
     @State private var weights: [String: String] = [:]
     @State private var tutorial: ExerciseTutorial?
+    @State private var completePhase: CommitButton.Phase = .idle
 
     var body: some View {
         ScrollView {
@@ -26,17 +25,14 @@ struct RoutineView: View {
                     Text(routine.name)
                         .font(.largeTitle)
                         .fontWeight(.bold)
-                        .homeHeroMatch("title-\(routine.id)", in: hero, isSource: false, enabled: heroMatchEnabled)
                     Text(routine.focus)
                         .font(.body)
-                        .homeHeroMatch("focus-\(routine.id)", in: hero, isSource: false, enabled: heroMatchEnabled)
                         .padding(.top, 8)
 
                     RoutineHeroCycle(exercises: routine.exercises)
                         .frame(maxWidth: .infinity)
                         .frame(height: 370)
                         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-                        .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: false, enabled: heroMatchEnabled)
                         .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
                         .padding(.top, 32)
 
@@ -82,21 +78,13 @@ struct RoutineView: View {
         }
         .navigationTitle("Routine \(routine.rotationIndex)")
         .toolbarTitleDisplayMode(.inline)
-        .toolbar {
-            if hero != nil, heroMatchEnabled {
-                ToolbarItem(placement: .principal) {
-                    Text("Routine \(routine.rotationIndex)")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .homeHeroMatch("eyebrow-\(routine.id)", in: hero, isSource: false, enabled: heroMatchEnabled)
-                }
-            }
-        }
-        .alert("Workout saved", isPresented: $didSave) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("\(routine.name) is stored on this iPhone.")
-        }
+        .toast(
+            isPresented: $didSave,
+            message: "Workout saved",
+            detail: "\(routine.name) is stored on this iPhone.",
+            style: .success,
+            position: .top
+        )
         .background {
             DisableRoutineInteractivePop()
         }
@@ -109,6 +97,10 @@ struct RoutineView: View {
                 hints: item.hints,
                 hintSource: item.hintSource
             )
+        }
+        .onChange(of: openSwipeID) { oldValue, newValue in
+            guard newValue == nil, let closedID = oldValue as? String else { return }
+            cancelWeightRow(closedID)
         }
     }
 
@@ -160,16 +152,19 @@ struct RoutineView: View {
     }
 
     private var completeWorkoutButton: some View {
-        Button {
+        CommitButton(
+            "Complete Workout",
+            phase: $completePhase,
+            tint: Color(red: 0, green: 0.569, blue: 1),
+            tintInk: .white,
+            successTitle: "Saved",
+            collapses: false
+        ) {
+            completePhase = .loading
             store.complete(routine, weights: weights)
+            completePhase = .success
             didSave = true
-        } label: {
-            Text("Complete Workout")
-                .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.glass)
-        .controlSize(.extraLarge)
-        .buttonBorderShape(.capsule)
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
     }
@@ -205,26 +200,49 @@ struct RoutineView: View {
             Text("Main Workout")
                 .font(.title2)
                 .fontWeight(.bold)
-            GlassEffectContainer(spacing: 12) {
-                VStack(spacing: 12) {
-                    ForEach(routine.exercises) { exercise in
-                        MainWorkoutRow(
-                            exercise: exercise,
+            VStack(spacing: 12) {
+                ForEach(routine.exercises) { exercise in
+                    SwipeActionRow(
+                        id: exercise.id,
+                        trailing: [
+                            .init(
+                                "Edit",
+                                systemImage: "pencil",
+                                tint: Color(red: 0.18, green: 0.545, blue: 1)
+                            ) {
+                                beginWeightEdit(exercise)
+                            },
+                        ],
+                        background: Color.clear,
+                        open: $openSwipeID,
+                        style: mainSwipeStyle
+                    ) {
+                        GuideRow(
+                            title: exercise.name,
+                            metaParts: exercise.metaParts,
+                            slug: exercise.slug,
                             weight: weights[exercise.id] ?? exercise.displayWeight ?? "—",
-                            isOpen: openWeightRowID == exercise.id,
-                            isEditing: editingWeightRowID == exercise.id,
+                            isEditingWeight: editingWeightRowID == exercise.id,
                             weightDraft: $weightDraft,
-                            onOpen: { openWeightRow(exercise.id) },
-                            onClose: { closeWeightRow(exercise.id) },
-                            onEdit: { beginWeightEdit(exercise) },
-                            onCancel: { cancelWeightRow(exercise.id) },
-                            onSelect: { openTutorial(exercise) }
+                            onKeyboardDone: { closeWeightRow(exercise.id) }
                         )
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            guard editingWeightRowID == nil else { return }
+                            openTutorial(exercise)
+                        }
                     }
                 }
             }
         }
         .padding(.top, 48)
+    }
+
+    private var mainSwipeStyle: SwipeActionRowStyle {
+        var style = SwipeActionRowStyle.standard
+        style.cornerRadius = 34
+        style.tileWidth = 88
+        return style
     }
 
     private func openTutorial(_ exercise: Exercise) {
@@ -255,8 +273,11 @@ struct RoutineView: View {
         hints: [String],
         hintSource: String?
     ) {
-        if let id = openWeightRowID {
-            closeWeightRow(id)
+        if openSwipeID != nil {
+            openSwipeID = nil
+        }
+        if editingWeightRowID != nil {
+            cancelWeightEdit()
         }
         tutorial = ExerciseTutorial(
             name: name,
@@ -267,38 +288,27 @@ struct RoutineView: View {
         )
     }
 
-    private func openWeightRow(_ id: String) {
-        if openWeightRowID != id {
-            commitWeightEdit()
-        }
-        withAnimation(.smooth(duration: 0.32)) {
-            openWeightRowID = id
-        }
-    }
-
     private func closeWeightRow(_ id: String) {
-        guard openWeightRowID == id else { return }
+        guard editingWeightRowID == id else { return }
         commitWeightEdit()
-        withAnimation(.smooth(duration: 0.32)) {
-            openWeightRowID = nil
-        }
+        openSwipeID = nil
     }
 
-    /// Slide the open row shut without writing the draft.
+    /// Close without writing the draft (swipe shut or leave the row).
     private func cancelWeightRow(_ id: String) {
-        guard openWeightRowID == id else { return }
+        guard editingWeightRowID == id else { return }
+        cancelWeightEdit()
+    }
+
+    private func cancelWeightEdit() {
         editingWeightRowID = nil
         weightDraft = ""
-        withAnimation(.smooth(duration: 0.32)) {
-            openWeightRowID = nil
-        }
     }
 
     private func beginWeightEdit(_ exercise: Exercise) {
         let display = weights[exercise.id] ?? exercise.displayWeight ?? ""
         weightDraft = Self.poundsText(from: display)
         editingWeightRowID = exercise.id
-        openWeightRow(exercise.id)
     }
 
     private func commitWeightEdit() {
@@ -331,93 +341,6 @@ struct RoutineView: View {
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
             .tint(.white.opacity(0.8))
-    }
-}
-
-private struct MainWorkoutRow: View {
-    let exercise: Exercise
-    let weight: String
-    let isOpen: Bool
-    let isEditing: Bool
-    @Binding var weightDraft: String
-    let onOpen: () -> Void
-    let onClose: () -> Void
-    let onEdit: () -> Void
-    let onCancel: () -> Void
-    var onSelect: (() -> Void)? = nil
-
-    @State private var dragTranslation: CGFloat = 0
-
-    private let buttonWidth: CGFloat = 141
-    private let gap: CGFloat = 12
-    private var revealWidth: CGFloat { buttonWidth + gap }
-
-    private var offsetX: CGFloat {
-        let base = isOpen ? -revealWidth : 0
-        return min(0, max(-revealWidth, base + dragTranslation))
-    }
-
-    var body: some View {
-        ZStack(alignment: .trailing) {
-            if offsetX < -4 {
-                Button(action: onEdit) {
-                    Text("Edit")
-                        .font(.title3)
-                        .foregroundStyle(Color(red: 0.90, green: 0.90, blue: 0.92))
-                        .frame(width: buttonWidth, height: 152)
-                }
-                .buttonStyle(.plain)
-                .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
-                .allowsHitTesting(isOpen)
-            }
-
-            GuideRow(
-                title: exercise.name,
-                metaParts: exercise.metaParts,
-                slug: exercise.slug,
-                weight: weight,
-                isEditingWeight: isEditing,
-                weightDraft: $weightDraft,
-                onKeyboardDone: onClose
-            )
-            .offset(x: offsetX)
-        }
-        .frame(height: 152)
-        .clipped()
-        .contentShape(Rectangle())
-        .onTapGesture {
-            guard !isOpen, abs(dragTranslation) < 4 else { return }
-            onSelect?()
-        }
-        .simultaneousGesture(swipeGesture)
-        .onChange(of: isOpen) { _, open in
-            if !open {
-                dragTranslation = 0
-            }
-        }
-    }
-
-    private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: 16, coordinateSpace: .local)
-            .onChanged { value in
-                let translation = value.translation
-                guard abs(translation.width) > abs(translation.height) * 0.65 else { return }
-                dragTranslation = translation.width
-            }
-            .onEnded { value in
-                let width = value.translation.width
-                let predicted = value.predictedEndTranslation.width
-                if isOpen && (width > 36 || predicted > 80) {
-                    onCancel()
-                } else if !isOpen && (width < -36 || predicted < -80) {
-                    dragTranslation = 0
-                    onOpen()
-                } else {
-                    withAnimation(.smooth(duration: 0.32)) {
-                        dragTranslation = 0
-                    }
-                }
-            }
     }
 }
 
@@ -462,7 +385,7 @@ private struct GuideRow: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 152)
-        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .glassSurface(.rect(cornerRadius: 34))
     }
 
     @ViewBuilder
@@ -489,6 +412,9 @@ private struct WeightField: View {
             .textFieldStyle(.plain)
             .focused($focused)
             .labelsHidden()
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .glassSurface(.rect(cornerRadius: 12), interactive: true)
             .onAppear { focused = true }
             .onChange(of: draft) { _, newValue in
                 let filtered = Self.filterPounds(newValue)

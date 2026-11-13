@@ -4,7 +4,7 @@ struct LibraryView: View {
     @Binding var hidesFloatingTabBar: Bool
     @State private var path: [LibraryWorkout] = []
     @State private var query = ""
-    @State private var equipment: String?
+    @State private var equipmentSelection: Set<String> = ["All"]
     @State private var chromeHidden = false
     @State private var lastScrollY: CGFloat = 0
     /// Accumulated downward travel while chrome is visible; reset on scroll up.
@@ -19,6 +19,16 @@ struct LibraryView: View {
 
     init(hidesFloatingTabBar: Binding<Bool> = .constant(false)) {
         _hidesFloatingTabBar = hidesFloatingTabBar
+    }
+
+    private var equipmentOptions: [String] {
+        ["All"] + LibraryCatalog.equipment
+    }
+
+    private var equipment: String? {
+        let picked = equipmentSelection.first
+        guard let picked, picked != "All" else { return nil }
+        return picked
     }
 
     private var results: [LibraryWorkout] {
@@ -39,7 +49,7 @@ struct LibraryView: View {
         max(WashPlayback.screenSize.height * 0.5, 400)
     }
 
-    private var chromeHeight: CGFloat { 48 }
+    private var chromeHeight: CGFloat { 112 }
     private var chromeTopPadding: CGFloat { 8 }
     private var chromeBottomGap: CGFloat { 16 }
 
@@ -48,10 +58,18 @@ struct LibraryView: View {
             ScrollView {
                 Group {
                     if results.isEmpty {
-                        Text("No workouts match that search.")
-                            .font(.body)
-                            .foregroundStyle(.white.opacity(0.8))
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                        OutcomeScreen(
+                            outcome: .empty,
+                            title: "No matches",
+                            message: "Nothing in the library fits that search or filter.",
+                            primaryTitle: "Clear filters",
+                            primaryAction: clearFilters,
+                            style: OutcomeScreen.Style(
+                                text: .white,
+                                muted: .white.opacity(0.75)
+                            )
+                        )
+                        .padding(.top, 24)
                     } else {
                         LazyVStack(spacing: 12) {
                             ForEach(results) { workout in
@@ -108,8 +126,7 @@ struct LibraryView: View {
                 .accessibilityHidden(true)
             }
             .overlay(alignment: .top) {
-                filterRow
-                    .padding(.horizontal, 16)
+                filterChrome
                     .padding(.top, chromeTopPadding)
                     .offset(y: chromeHidden ? -(chromeTopPadding + chromeHeight + 12) : 0)
                     .opacity(chromeHidden ? 0 : 1)
@@ -133,6 +150,11 @@ struct LibraryView: View {
                 chromeHidden = false
             }
         }
+    }
+
+    private func clearFilters() {
+        query = ""
+        equipmentSelection = ["All"]
     }
 
     private func updateChrome(for offset: CGFloat) {
@@ -165,24 +187,8 @@ struct LibraryView: View {
         }
     }
 
-    private var filterRow: some View {
-        HStack(spacing: 12) {
-            Menu {
-                Picker("Equipment", selection: $equipment) {
-                    Text("All").tag(nil as String?)
-                    ForEach(LibraryCatalog.equipment, id: \.self) { item in
-                        Text(item).tag(item as String?)
-                    }
-                }
-            } label: {
-                Image(systemName: "line.3.horizontal.decrease")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 48, height: 48)
-                    .glassEffect(.regular.interactive(), in: Circle())
-            }
-            .accessibilityLabel(equipment.map { "Filter by equipment, \($0)" } ?? "Filter by equipment")
-
+    private var filterChrome: some View {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 16, weight: .semibold))
@@ -192,12 +198,37 @@ struct LibraryView: View {
                     .font(.body)
                     .foregroundStyle(.white)
                     .autocorrectionDisabled()
+                if !query.isEmpty {
+                    Button {
+                        query = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.55))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear search")
+                }
             }
             .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
             .frame(height: 48)
-            .glassEffect(.regular.interactive(), in: Capsule())
+            .glassSurface(.capsule, interactive: true)
+
+            FilterRail(
+                options: equipmentOptions,
+                selection: $equipmentSelection,
+                allowsMultiple: false,
+                style: FilterRail.Style(
+                    label: .white,
+                    secondaryLabel: .white.opacity(0.7),
+                    indicator: Color(red: 0, green: 0.569, blue: 1),
+                    onIndicator: .white
+                )
+            )
+            .padding(.horizontal, -16)
         }
+        .padding(.horizontal, 16)
     }
 }
 
@@ -220,7 +251,7 @@ private struct LibraryTile: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 152)
-        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .glassSurface(.rect(cornerRadius: 34))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(workout.name)
         .accessibilityHint("Opens the tutorial")
