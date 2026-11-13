@@ -663,16 +663,22 @@ private struct AddLibraryExerciseSheet: View {
                     .listRowBackground(Color.clear)
                 }
 
-                Section("Required") {
-                    TextField("Sets", text: $setsText)
-                        .keyboardType(.numberPad)
-                    TextField("Reps", text: $repsText)
-                        .keyboardType(.numberPad)
-                }
-
-                Section("Optional") {
-                    TextField("Weight (lbs)", text: $weightText)
-                        .keyboardType(.decimalPad)
+                Section {
+                    LabeledContent("Reps") {
+                        TextField("Reps", text: $repsText)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    LabeledContent("Sets") {
+                        TextField("Sets", text: $setsText)
+                            .keyboardType(.numberPad)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    LabeledContent("Weight") {
+                        TextField("Optional", text: $weightText)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                    }
                 }
             }
             .navigationTitle("Define Workout")
