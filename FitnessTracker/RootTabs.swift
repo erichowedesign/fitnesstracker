@@ -128,8 +128,9 @@ struct RootTabs: View {
     private func applyDrag(_ translation: CGFloat) {
         guard !hidesFloatingTabBar else { return }
         let width = max(pageWidth, 1)
-        let lower: CGFloat = tab.previous == nil ? 0 : -width
-        let upper: CGFloat = tab.next == nil ? 0 : width
+        // Finger left (negative) reveals the next tab. Finger right reveals the previous one.
+        let lower: CGFloat = tab.next == nil ? 0 : -width
+        let upper: CGFloat = tab.previous == nil ? 0 : width
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
