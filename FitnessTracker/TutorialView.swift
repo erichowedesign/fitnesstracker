@@ -198,17 +198,17 @@ struct ExerciseTutorialView: View {
     }
 
     private func doseRow<Content: View>(label: String, @ViewBuilder control: () -> Content) -> some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             Text(label)
                 .font(.headline)
                 .foregroundStyle(.white)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
             Spacer(minLength: 0)
             control()
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
     }
 
     private var cyclingHero: some View {
