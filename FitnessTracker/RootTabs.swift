@@ -2,30 +2,47 @@ import SwiftUI
 
 private enum AppTab: Hashable {
     case home, history, library
+
+    var order: Int {
+        switch self {
+        case .home: return 0
+        case .history: return 1
+        case .library: return 2
+        }
+    }
 }
 
 struct RootTabs: View {
     @Environment(WashTheme.self) private var wash
     @State private var tab: AppTab = .home
+    @State private var previousTab: AppTab = .home
     @State private var hidesFloatingTabBar = false
+
+    private var pageSlide: Animation { .smooth(duration: 0.35) }
 
     var body: some View {
         ZStack(alignment: .bottom) {
             Color.black.ignoresSafeArea()
 
-            Group {
-                switch tab {
-                case .home:
-                    HomeView(hidesFloatingTabBar: $hidesFloatingTabBar)
-                case .history:
-                    NavigationStack {
-                        PlaceholderScreen(title: "History")
+            GeometryReader { proxy in
+                let width = proxy.size.width
+                ZStack {
+                    tabPage(.home, width: width, height: proxy.size.height) {
+                        HomeView(hidesFloatingTabBar: $hidesFloatingTabBar)
                     }
-                case .library:
-                    LibraryView(hidesFloatingTabBar: $hidesFloatingTabBar)
+                    tabPage(.history, width: width, height: proxy.size.height) {
+                        NavigationStack {
+                            PlaceholderScreen(title: "History")
+                        }
+                    }
+                    tabPage(.library, width: width, height: proxy.size.height) {
+                        LibraryView(hidesFloatingTabBar: $hidesFloatingTabBar)
+                    }
                 }
+                .frame(width: width, height: proxy.size.height, alignment: .leading)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
 
             tabBar
                 .opacity(hidesFloatingTabBar ? 0 : 1)
@@ -36,6 +53,34 @@ struct RootTabs: View {
         .preferredColorScheme(.dark)
         .onAppear {
             wash.grade = .grayscale
+        }
+    }
+
+    private func tabPage<Content: View>(
+        _ page: AppTab,
+        width: CGFloat,
+        height: CGFloat,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        let delta = page.order - tab.order
+        let sliding = page == tab || page == previousTab
+        return content()
+            .frame(width: width, height: height)
+            .offset(x: delta == 0 ? 0 : (delta > 0 ? width : -width))
+            .transaction { transaction in
+                if !sliding {
+                    transaction.disablesAnimations = true
+                }
+            }
+            .allowsHitTesting(page == tab)
+            .accessibilityHidden(page != tab)
+    }
+
+    private func select(_ newTab: AppTab) {
+        guard newTab != tab else { return }
+        withAnimation(pageSlide) {
+            previousTab = tab
+            tab = newTab
         }
     }
 
@@ -84,7 +129,7 @@ struct RootTabs: View {
     ) -> some View {
         let selected = tab == value
         return Button {
-            tab = value
+            select(value)
         } label: {
             VStack(spacing: 1) {
                 Image(systemName: selected ? systemImage : (unselectedImage ?? systemImage))
