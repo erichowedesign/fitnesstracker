@@ -53,6 +53,22 @@ struct Routine: Identifiable, Hashable {
         "\(exerciseCountLabel) workouts / \(minutes) minutes"
     }
 
+    func withExercises(_ exercises: [Exercise]) -> Routine {
+        Routine(
+            id: id,
+            name: name,
+            focus: focus,
+            summary: summary,
+            heroSlug: heroSlug,
+            rotationIndex: rotationIndex,
+            warmup: warmup,
+            exercises: exercises,
+            cooldown: cooldown,
+            minutes: minutes,
+            difficulty: difficulty
+        )
+    }
+
     static func == (lhs: Routine, rhs: Routine) -> Bool { lhs.id == rhs.id }
 
     func hash(into hasher: inout Hasher) {
@@ -117,6 +133,35 @@ struct Exercise: Identifiable {
             work = "—"
         }
         return [work, "\(sets) sets", Self.restLabel(restSeconds)]
+    }
+
+    static func fromLibrary(
+        _ workout: LibraryWorkout,
+        sets: Int,
+        reps: Int,
+        weight: String?,
+        restSeconds: Int = 90
+    ) -> Exercise {
+        let trimmedWeight = weight?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let display: String? = {
+            guard let trimmedWeight, !trimmedWeight.isEmpty else { return nil }
+            if trimmedWeight.localizedCaseInsensitiveContains("lbs") { return trimmedWeight }
+            return "\(trimmedWeight) lbs"
+        }()
+        return Exercise(
+            id: "\(workout.slug)-\(UUID().uuidString.prefix(8))",
+            hevyTemplateId: workout.slug,
+            name: workout.name,
+            equipment: workout.equipment,
+            sets: max(sets, 1),
+            targetReps: max(reps, 1),
+            targetDurationSeconds: nil,
+            restSeconds: restSeconds,
+            notes: "",
+            tracksAssistance: workout.name.range(of: "assisted", options: .caseInsensitive) != nil,
+            slug: workout.slug,
+            displayWeight: display
+        )
     }
 
     private static func restLabel(_ seconds: Int) -> String {

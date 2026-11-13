@@ -9,6 +9,7 @@ struct UpperPushView: View {
 
 struct RoutineView: View {
     @Environment(SessionStore.self) private var store
+    @Environment(RoutineOverridesStore.self) private var routineOverrides
     let routine: Routine
     @State private var didSave = false
     @State private var showCompleteButton = false
@@ -17,86 +18,144 @@ struct RoutineView: View {
     @State private var weightDraft = ""
     @State private var weights: [String: String] = [:]
     @State private var tutorial: ExerciseTutorial?
+    @State private var isEditingRoutine = false
+    @State private var draftExercises: [Exercise] = []
+    @State private var showLibraryPicker = false
+    @State private var stagedLibraryWorkout: LibraryWorkout?
+    @State private var pendingLibraryWorkout: LibraryWorkout?
+    @State private var editMode: EditMode = .inactive
+
+    private var activeRoutine: Routine {
+        routine.withExercises(draftExercises)
+    }
 
     var body: some View {
+        routineScroll
+            .scrollDismissesKeyboard(.immediately)
+            .scrollContentBackground(.hidden)
+            .scrollEdgeEffectHidden(true, for: .vertical)
+            .foregroundStyle(.white)
+            .background { routineWashBackground }
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+            .safeAreaInset(edge: .bottom) { completeInset }
+            .navigationTitle("Routine \(routine.rotationIndex)")
+            .toolbarTitleDisplayMode(.inline)
+            .toolbar { editToolbar }
+            .environment(\.editMode, $editMode)
+            .alert("Workout saved", isPresented: $didSave) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("\(routine.name) is stored on this iPhone.")
+            }
+            .background { DisableRoutineInteractivePop() }
+            .navigationDestination(item: $tutorial) { item in
+                ExerciseTutorialView(
+                    exerciseName: item.name,
+                    muscles: item.muscles,
+                    grade: WashGrade.forRoutine(routine.id),
+                    frames: item.frames,
+                    hints: item.hints,
+                    hintSource: item.hintSource
+                )
+            }
+            .modifier(RoutineEditSheets(
+                showLibraryPicker: $showLibraryPicker,
+                stagedLibraryWorkout: $stagedLibraryWorkout,
+                pendingLibraryWorkout: $pendingLibraryWorkout,
+                onAdd: addLibraryExercise
+            ))
+            .onAppear(perform: loadDraft)
+    }
+
+    private var routineScroll: some View {
         ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(routine.name)
-                        .font(.largeTitle)
-                        .fontWeight(.bold)
-                    Text(routine.focus)
-                        .font(.body)
-                        .padding(.top, 8)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(routine.name)
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                Text(routine.focus)
+                    .font(.body)
+                    .padding(.top, 8)
 
-                    RoutineHeroCycle(exercises: routine.exercises)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 370)
-                        .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-                        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
-                        .padding(.top, 32)
+                RoutineHeroCycle(exercises: draftExercises)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 370)
+                    .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+                    .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+                    .padding(.top, 32)
 
-                    glanceCard
-                        .padding(.top, 16)
+                glanceCard
+                    .padding(.top, 16)
 
-                    Text(routine.summary)
-                        .font(.body)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 48)
+                Text(routine.summary)
+                    .font(.body)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 48)
 
+                if !isEditingRoutine {
                     section("Warm-up", steps: routine.warmup, revealsCompleteButton: true)
-                    mainWorkoutSection
+                }
+                mainWorkoutSection
+                if !isEditingRoutine {
                     section("Cool Down", steps: routine.cooldown)
+                }
 
-                    credit
-                        .padding(.top, 32)
-                        .padding(.bottom, 8)
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 34)
-                .padding(.bottom, 88)
+                credit
+                    .padding(.top, 32)
+                    .padding(.bottom, 8)
             }
-        .scrollDismissesKeyboard(.immediately)
-        .scrollContentBackground(.hidden)
-        .scrollEdgeEffectHidden(true, for: .vertical)
-        .foregroundStyle(.white)
-        .background {
-            ZStack {
-                Color.black
-                WashBackground(grade: WashGrade.forRoutine(routine.id))
+            .padding(.horizontal, 16)
+            .padding(.top, 34)
+            .padding(.bottom, 88)
+        }
+    }
+
+    private var routineWashBackground: some View {
+        ZStack {
+            Color.black
+            WashBackground(grade: WashGrade.forRoutine(routine.id))
+        }
+        .ignoresSafeArea()
+    }
+
+    private var completeInset: some View {
+        ZStack {
+            if showCompleteButton, !isEditingRoutine {
+                completeWorkoutButton
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-            .ignoresSafeArea()
         }
-        .toolbarBackground(.hidden, for: .navigationBar)
-        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
-        .safeAreaInset(edge: .bottom) {
-            ZStack {
-                if showCompleteButton {
-                    completeWorkoutButton
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
+        .animation(.smooth(duration: 0.4), value: showCompleteButton)
+        .animation(.smooth(duration: 0.28), value: isEditingRoutine)
+    }
+
+    @ToolbarContentBuilder
+    private var editToolbar: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button(isEditingRoutine ? "Done" : "Edit") {
+                toggleRoutineEditing()
             }
-            .animation(.smooth(duration: 0.4), value: showCompleteButton)
+            .fontWeight(.semibold)
         }
-        .navigationTitle("Routine \(routine.rotationIndex)")
-        .toolbarTitleDisplayMode(.inline)
-        .alert("Workout saved", isPresented: $didSave) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("\(routine.name) is stored on this iPhone.")
+    }
+
+    private func loadDraft() {
+        draftExercises = routineOverrides.exercises(for: routine.id, fallback: routine.exercises)
+        for exercise in draftExercises {
+            guard weights[exercise.id] == nil, let seed = exercise.displayWeight else { continue }
+            weights[exercise.id] = seed
         }
-        .background {
-            DisableRoutineInteractivePop()
+    }
+
+    private func addLibraryExercise(_ workout: LibraryWorkout, sets: Int, reps: Int, weight: String?) {
+        let exercise = Exercise.fromLibrary(workout, sets: sets, reps: reps, weight: weight)
+        draftExercises.append(exercise)
+        if let weight, !weight.trimmingCharacters(in: .whitespaces).isEmpty {
+            weights[exercise.id] = exercise.displayWeight ?? weight
         }
-        .navigationDestination(item: $tutorial) { item in
-            ExerciseTutorialView(
-                exerciseName: item.name,
-                muscles: item.muscles,
-                grade: WashGrade.forRoutine(routine.id),
-                frames: item.frames,
-                hints: item.hints,
-                hintSource: item.hintSource
-            )
-        }
+        persistDraft()
+        pendingLibraryWorkout = nil
     }
 
     private static var screenMidY: CGFloat {
@@ -111,7 +170,7 @@ struct RoutineView: View {
             HStack(alignment: .top, spacing: 56) {
                 VStack(alignment: .leading, spacing: 8) {
                     glanceLabel("exercises")
-                    glanceNumber(routine.exerciseCountLabel)
+                    glanceNumber(activeRoutine.exerciseCountLabel)
                 }
                 VStack(alignment: .leading, spacing: 8) {
                     glanceLabel("minutes")
@@ -130,7 +189,7 @@ struct RoutineView: View {
         .frame(height: 120)
         .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(routine.exercises.count) exercises, \(routine.minutes) minutes, difficulty \(routine.difficulty) of five")
+        .accessibilityLabel("\(draftExercises.count) exercises, \(routine.minutes) minutes, difficulty \(routine.difficulty) of five")
     }
 
     private func glanceLabel(_ title: String) -> some View {
@@ -148,7 +207,7 @@ struct RoutineView: View {
 
     private var completeWorkoutButton: some View {
         Button {
-            store.complete(routine, weights: weights)
+            store.complete(activeRoutine, weights: weights)
             didSave = true
         } label: {
             Text("Complete Workout")
@@ -189,29 +248,127 @@ struct RoutineView: View {
 
     private var mainWorkoutSection: some View {
         VStack(alignment: .leading, spacing: 24) {
-            Text("Main Workout")
-                .font(.title2)
-                .fontWeight(.bold)
-            GlassEffectContainer(spacing: 12) {
-                VStack(spacing: 12) {
-                    ForEach(routine.exercises) { exercise in
-                        MainWorkoutRow(
-                            exercise: exercise,
-                            weight: weights[exercise.id] ?? exercise.displayWeight ?? "—",
-                            isOpen: openWeightRowID == exercise.id,
-                            isEditing: editingWeightRowID == exercise.id,
-                            weightDraft: $weightDraft,
-                            onOpen: { openWeightRow(exercise.id) },
-                            onClose: { closeWeightRow(exercise.id) },
-                            onEdit: { beginWeightEdit(exercise) },
-                            onCancel: { cancelWeightRow(exercise.id) },
-                            onSelect: { openTutorial(exercise) }
-                        )
+            HStack {
+                Text("Main Workout")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                Spacer(minLength: 0)
+                if isEditingRoutine {
+                    Button {
+                        showLibraryPicker = true
+                    } label: {
+                        Label("Add", systemImage: "plus")
+                            .font(.body.weight(.semibold))
+                    }
+                    .buttonStyle(.glass)
+                    .buttonBorderShape(.capsule)
+                    .controlSize(.regular)
+                }
+            }
+
+            if isEditingRoutine {
+                editableExerciseList
+            } else {
+                GlassEffectContainer(spacing: 12) {
+                    VStack(spacing: 12) {
+                        ForEach(draftExercises) { exercise in
+                            MainWorkoutRow(
+                                exercise: exercise,
+                                weight: weights[exercise.id] ?? exercise.displayWeight ?? "—",
+                                isOpen: openWeightRowID == exercise.id,
+                                isEditing: editingWeightRowID == exercise.id,
+                                weightDraft: $weightDraft,
+                                onOpen: { openWeightRow(exercise.id) },
+                                onClose: { closeWeightRow(exercise.id) },
+                                onEdit: { beginWeightEdit(exercise) },
+                                onCancel: { cancelWeightRow(exercise.id) },
+                                onSelect: { openTutorial(exercise) }
+                            )
+                        }
                     }
                 }
             }
         }
-        .padding(.top, 48)
+        .padding(.top, isEditingRoutine ? 24 : 48)
+    }
+
+    private var editableExerciseList: some View {
+        List {
+            ForEach(draftExercises) { exercise in
+                HStack(spacing: 16) {
+                    IllustrationView(slug: editThumbSlug(exercise.slug), label: exercise.name)
+                        .frame(width: 72, height: 72)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(exercise.name)
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                        MetaLine(parts: exercise.metaParts)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.vertical, 8)
+                .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+                .listRowBackground(
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .fill(.white.opacity(0.08))
+                        .padding(.vertical, 4)
+                )
+                .listRowSeparator(.hidden)
+            }
+            .onMove(perform: moveExercises)
+            .onDelete(perform: deleteExercises)
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .scrollDisabled(true)
+        .environment(\.editMode, .constant(.active))
+        .frame(height: max(CGFloat(draftExercises.count) * 104, 120))
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func toggleRoutineEditing() {
+        if isEditingRoutine {
+            persistDraft()
+            openWeightRowID = nil
+            editingWeightRowID = nil
+            withAnimation(.smooth(duration: 0.28)) {
+                isEditingRoutine = false
+                editMode = .inactive
+            }
+        } else {
+            if let id = openWeightRowID {
+                closeWeightRow(id)
+            }
+            withAnimation(.smooth(duration: 0.28)) {
+                isEditingRoutine = true
+                editMode = .active
+                showCompleteButton = false
+            }
+        }
+    }
+
+    private func persistDraft() {
+        routineOverrides.save(exercises: draftExercises, for: routine.id)
+    }
+
+    private func moveExercises(from source: IndexSet, to destination: Int) {
+        draftExercises.move(fromOffsets: source, toOffset: destination)
+        persistDraft()
+    }
+
+    private func deleteExercises(at offsets: IndexSet) {
+        let removed = offsets.map { draftExercises[$0].id }
+        draftExercises.remove(atOffsets: offsets)
+        for id in removed {
+            weights.removeValue(forKey: id)
+        }
+        persistDraft()
+    }
+
+    private func editThumbSlug(_ slug: String) -> String {
+        if UIImage(named: slug) != nil { return slug }
+        return "library/\(slug)/frame-1"
     }
 
     private func openTutorial(_ exercise: Exercise) {
@@ -318,6 +475,151 @@ struct RoutineView: View {
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
             .tint(.white.opacity(0.8))
+    }
+}
+
+private struct RoutineEditSheets: ViewModifier {
+    @Binding var showLibraryPicker: Bool
+    @Binding var stagedLibraryWorkout: LibraryWorkout?
+    @Binding var pendingLibraryWorkout: LibraryWorkout?
+    var onAdd: (_ workout: LibraryWorkout, _ sets: Int, _ reps: Int, _ weight: String?) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .sheet(isPresented: $showLibraryPicker, onDismiss: presentDoseSheetIfNeeded) {
+                LibraryExercisePicker { workout in
+                    stagedLibraryWorkout = workout
+                    showLibraryPicker = false
+                }
+            }
+            .sheet(item: $pendingLibraryWorkout) { workout in
+                AddLibraryExerciseSheet(workout: workout) { sets, reps, weight in
+                    onAdd(workout, sets, reps, weight)
+                }
+            }
+    }
+
+    private func presentDoseSheetIfNeeded() {
+        guard let stagedLibraryWorkout else { return }
+        pendingLibraryWorkout = stagedLibraryWorkout
+        self.stagedLibraryWorkout = nil
+    }
+}
+
+private struct LibraryExercisePicker: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var query = ""
+    var onPick: (LibraryWorkout) -> Void
+
+    private var results: [LibraryWorkout] {
+        let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return LibraryCatalog.workouts }
+        return LibraryCatalog.workouts.filter {
+            $0.name.localizedStandardContains(trimmed)
+                || $0.equipment.localizedStandardContains(trimmed)
+                || $0.muscle.localizedStandardContains(trimmed)
+        }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List(results) { workout in
+                Button {
+                    onPick(workout)
+                } label: {
+                    HStack(spacing: 14) {
+                        IllustrationView(slug: workout.frames[0], label: workout.name)
+                            .frame(width: 56, height: 56)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(workout.name)
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            Text("\(workout.equipment) · \(workout.muscle)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .searchable(text: $query, prompt: "Search library")
+            .navigationTitle("Add Workout")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+}
+
+private struct AddLibraryExerciseSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let workout: LibraryWorkout
+    var onAdd: (_ sets: Int, _ reps: Int, _ weight: String?) -> Void
+
+    @State private var setsText = "3"
+    @State private var repsText = "10"
+    @State private var weightText = ""
+
+    private var setsValue: Int? { Int(setsText.trimmingCharacters(in: .whitespaces)) }
+    private var repsValue: Int? { Int(repsText.trimmingCharacters(in: .whitespaces)) }
+    private var canAdd: Bool {
+        guard let setsValue, let repsValue else { return false }
+        return setsValue > 0 && repsValue > 0
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    HStack(spacing: 14) {
+                        IllustrationView(slug: workout.frames[0], label: workout.name)
+                            .frame(width: 64, height: 64)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(workout.name)
+                                .font(.headline)
+                            Text("\(workout.equipment) · \(workout.muscle)")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .listRowBackground(Color.clear)
+                }
+
+                Section("Required") {
+                    TextField("Sets", text: $setsText)
+                        .keyboardType(.numberPad)
+                    TextField("Reps", text: $repsText)
+                        .keyboardType(.numberPad)
+                }
+
+                Section("Optional") {
+                    TextField("Weight (lbs)", text: $weightText)
+                        .keyboardType(.decimalPad)
+                }
+            }
+            .navigationTitle("Define Workout")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Add") {
+                        guard let setsValue, let repsValue else { return }
+                        let trimmed = weightText.trimmingCharacters(in: .whitespacesAndNewlines)
+                        onAdd(setsValue, repsValue, trimmed.isEmpty ? nil : trimmed)
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(!canAdd)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
     }
 }
 
@@ -696,6 +998,7 @@ private struct ThumbnailFit {
         RoutineView(routine: WorkoutPlan.upperPush())
     }
     .environment(SessionStore())
+    .environment(RoutineOverridesStore())
     .environment(WashTheme())
     .preferredColorScheme(.dark)
 }

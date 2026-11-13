@@ -2,13 +2,17 @@ import SwiftUI
 
 struct HomeView: View {
     @Environment(SessionStore.self) private var store
+    @Environment(RoutineOverridesStore.self) private var routineOverrides
     @Environment(WashTheme.self) private var wash
     @Binding var hidesFloatingTabBar: Bool
     @State private var path: [Routine] = []
-    private let routines = WorkoutPlan.all()
 
     init(hidesFloatingTabBar: Binding<Bool> = .constant(false)) {
         _hidesFloatingTabBar = hidesFloatingTabBar
+    }
+
+    private var routines: [Routine] {
+        WorkoutPlan.all().map(routineOverrides.resolved)
     }
 
     private var upNext: Routine {
@@ -233,6 +237,7 @@ private struct RoutineListCard: View {
 #Preview {
     HomeView()
     .environment(SessionStore())
+    .environment(RoutineOverridesStore())
     .environment(WashTheme())
     .preferredColorScheme(.dark)
 }
