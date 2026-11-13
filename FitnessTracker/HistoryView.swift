@@ -6,8 +6,10 @@ struct HistoryView: View {
     @State private var expandedSessionID: UUID?
     @State private var draftWeights: [String: String] = [:]
     @State private var didResubmit = false
+    @State private var volumeRange: ClosedRange<Date> = Date()...Date()
 
     private var stats: HistoryStats { store.stats }
+    private let accent = Color(red: 0, green: 0.569, blue: 1)
 
     var body: some View {
         NavigationStack {
@@ -21,7 +23,13 @@ struct HistoryView: View {
                         .foregroundStyle(.white.opacity(0.85))
                         .padding(.top, 8)
 
-                    dashboard
+                    liveStatRow
+                        .padding(.top, 28)
+
+                    volumeSection
+                        .padding(.top, 28)
+
+                    mixSection
                         .padding(.top, 28)
 
                     Text("Recent Workouts")
@@ -66,6 +74,10 @@ struct HistoryView: View {
             }
             .onAppear {
                 wash.grade = .grayscale
+                volumeRange = defaultVolumeWindow
+            }
+            .onChange(of: store.sessions.count) { _, _ in
+                volumeRange = clamped(volumeRange)
             }
             .alert("Workout updated", isPresented: $didResubmit) {
                 Button("OK", role: .cancel) {}
@@ -75,165 +87,302 @@ struct HistoryView: View {
         }
     }
 
-    private var dashboard: some View {
-        VStack(spacing: 12) {
-            HStack(alignment: .top, spacing: 12) {
-                glassModule {
-                    VStack(alignment: .leading, spacing: 10) {
-                        moduleLabel("Workouts")
-                        Text("\(stats.workoutsCompleted)")
-                            .font(.system(size: 56, weight: .semibold))
-                            .monospacedDigit()
-                            .minimumScaleFactor(0.7)
-                        Text("completed")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.75))
-                        Spacer(minLength: 0)
-                        Text(stats.totalSets > 0 ? "\(stats.totalSets) sets logged" : "No sets yet")
-                            .font(.footnote)
-                            .foregroundStyle(.white.opacity(0.7))
-                    }
+    // MARK: - Stats
+
+    private var liveStatRow: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("At a glance")
+                .font(.title3)
+                .fontWeight(.semibold)
+
+            if store.sessions.isEmpty {
+                chartEmpty("Log a workout to unlock these numbers.")
+            } else {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                    LiveStat(
+                        label: "Workouts",
+                        value: Double(stats.workoutsCompleted),
+                        format: .number.precision(.fractionLength(0)),
+                        series: cumulativeWorkoutSeries,
+                        tint: accent,
+                        style: liveStatStyle(numeral: 40)
+                    )
+                    .frame(minHeight: 148)
+
+                    LiveStat(
+                        label: "This week",
+                        value: Double(stats.thisWeek),
+                        format: .number.precision(.fractionLength(0)),
+                        series: recentDailyWorkoutCounts,
+                        tint: accent,
+                        style: liveStatStyle(numeral: 34)
+                    )
+                    .frame(minHeight: 148)
+
+                    LiveStat(
+                        label: "Streak",
+                        value: Double(stats.currentStreak),
+                        format: .number.precision(.fractionLength(0)),
+                        tint: accent,
+                        style: liveStatStyle(numeral: 34)
+                    )
+                    .frame(minHeight: 132)
+
+                    LiveStat(
+                        label: "Hours",
+                        value: Double(stats.totalMinutes) / 60,
+                        format: .number.precision(.fractionLength(stats.totalMinutes < 600 ? 1 : 0)),
+                        series: cumulativeMinutesSeries.map { $0 / 60 },
+                        tint: accent,
+                        style: liveStatStyle(numeral: 34)
+                    )
+                    .frame(minHeight: 132)
                 }
+            }
+        }
+    }
+
+    private var volumeSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Volume")
+                .font(.title3)
+                .fontWeight(.semibold)
+            Text("Minutes trained by day")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.7))
+
+            if volumeSamples.count < 2 {
+                chartEmpty("Finish a couple of workouts to chart volume over time.")
+            } else {
+                RangeLens(
+                    samples: volumeSamples,
+                    selection: $volumeRange,
+                    summary: .total,
+                    unit: "min",
+                    minimumSpan: 7,
+                    showsAverage: true,
+                    style: RangeLens.Style(
+                        accent: accent,
+                        accentInk: .white,
+                        text: .white,
+                        secondary: .white.opacity(0.75),
+                        tertiary: .white.opacity(0.55),
+                        dim: Color.white.opacity(0.18),
+                        grid: Color.white.opacity(0.12),
+                        track: Color.white.opacity(0.08),
+                        chartHeight: 150,
+                        numeralSize: 30
+                    )
+                )
+                .padding(16)
                 .frame(maxWidth: .infinity)
-                .frame(height: 188)
+                .glassSurface(.rect(cornerRadius: 28))
 
-                VStack(spacing: 12) {
-                    glassModule {
-                        VStack(alignment: .leading, spacing: 6) {
-                            moduleLabel("This week")
-                            Text("\(stats.thisWeek)")
-                                .font(.system(size: 34, weight: .semibold))
-                                .monospacedDigit()
-                            Text("sessions")
-                                .font(.footnote)
-                                .foregroundStyle(.white.opacity(0.7))
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                    glassModule {
-                        VStack(alignment: .leading, spacing: 6) {
-                            moduleLabel("This month")
-                            Text("\(stats.thisMonth)")
-                                .font(.system(size: 34, weight: .semibold))
-                                .monospacedDigit()
-                            Text("sessions")
-                                .font(.footnote)
-                                .foregroundStyle(.white.opacity(0.7))
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-                .frame(width: 132)
-                .frame(height: 188)
-            }
-
-            HStack(spacing: 12) {
-                glassModule {
-                    VStack(alignment: .leading, spacing: 8) {
-                        moduleLabel("Streak")
-                        HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text("\(stats.currentStreak)")
-                                .font(.system(size: 40, weight: .semibold))
-                                .monospacedDigit()
-                            Text(stats.currentStreak == 1 ? "day" : "days")
-                                .font(.subheadline)
-                                .foregroundStyle(.white.opacity(0.75))
-                        }
-                        Text(streakCopy)
-                            .font(.footnote)
-                            .foregroundStyle(.white.opacity(0.7))
-                    }
-                }
+                ScrubChart(
+                    series: scrubSeries,
+                    mode: .bars,
+                    tint: accent,
+                    format: ChartFormat.number.precision(.fractionLength(0)),
+                    style: scrubStyle
+                )
+                .padding(16)
                 .frame(maxWidth: .infinity)
-                .frame(height: 120)
-
-                glassModule {
-                    VStack(alignment: .leading, spacing: 8) {
-                        moduleLabel("Time logged")
-                        Text(formatHours(stats.totalMinutes))
-                            .font(.system(size: 34, weight: .semibold))
-                            .monospacedDigit()
-                            .minimumScaleFactor(0.75)
-                        Text("\(stats.totalMinutes) min total")
-                            .font(.footnote)
-                            .foregroundStyle(.white.opacity(0.7))
-                    }
-                }
-                .frame(width: 148)
-                .frame(height: 120)
+                .frame(minHeight: 260)
+                .glassSurface(.rect(cornerRadius: 28))
             }
-
-            glassModule {
-                VStack(alignment: .leading, spacing: 14) {
-                    moduleLabel("Routine mix")
-                    if stats.routineMix.isEmpty {
-                        Text("Finish a few workouts to see the split.")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.75))
-                    } else {
-                        VStack(spacing: 10) {
-                            ForEach(stats.routineMix.prefix(4), id: \.name) { item in
-                                routineMixRow(name: item.name, count: item.count)
-                            }
-                        }
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity)
         }
     }
 
-    private var streakCopy: String {
-        if stats.currentStreak == 0 {
-            return "Start one today"
-        }
-        if stats.currentStreak == 1 {
-            return "Keep it going"
-        }
-        return "On a roll"
-    }
+    private var mixSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Routine mix")
+                .font(.title3)
+                .fontWeight(.semibold)
+            Text("Share of completed sessions")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.7))
 
-    private func moduleLabel(_ title: String) -> some View {
-        Text(title)
-            .font(.subheadline)
-            .foregroundStyle(.white.opacity(0.8))
-    }
-
-    private func glassModule<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        content()
-            .padding(16)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-    }
-
-    private func routineMixRow(name: String, count: Int) -> some View {
-        let total = max(stats.workoutsCompleted, 1)
-        let fraction = CGFloat(count) / CGFloat(total)
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(name)
-                    .font(.subheadline)
-                Spacer(minLength: 8)
-                Text("\(count)")
-                    .font(.subheadline)
-                    .monospacedDigit()
-                    .foregroundStyle(.white.opacity(0.8))
+            if stats.routineMix.isEmpty {
+                chartEmpty("Finish a few workouts to see the split.")
+            } else {
+                RingBreakdown(
+                    slices: mixSlices,
+                    thickness: 32,
+                    tint: accent,
+                    format: ChartFormat.number.precision(.fractionLength(0)),
+                    style: ringStyle
+                )
+                .padding(20)
+                .frame(maxWidth: .infinity)
+                .glassSurface(.rect(cornerRadius: 28))
             }
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule()
-                        .fill(.white.opacity(0.12))
-                    Capsule()
-                        .fill(.white.opacity(0.85))
-                        .frame(width: max(8, proxy.size.width * fraction))
-                }
-            }
-            .frame(height: 6)
         }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(name), \(count) workouts")
     }
+
+    private func chartEmpty(_ message: String) -> some View {
+        Text(message)
+            .font(.body)
+            .foregroundStyle(.white.opacity(0.75))
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(20)
+            .glassSurface(.rect(cornerRadius: 28))
+    }
+
+    // MARK: - Chart data (SessionStore)
+
+    /// Daily minutes across the logged span (or last 60 days), for RangeLens.
+    private var volumeSamples: [RangeLens.Sample] {
+        dailyTotals(metric: .minutes, days: volumeDayCount).map {
+            RangeLens.Sample(date: $0.date, value: $0.value)
+        }
+    }
+
+    private typealias ChartFormat = FloatingPointFormatStyle<Double>
+    private typealias ScrubPoint = ScrubChart<ChartFormat>.Point
+    private typealias ScrubSeries = ScrubChart<ChartFormat>.Series
+    private typealias MixSlice = RingBreakdown<ChartFormat>.Slice
+
+    private var scrubSeries: [ScrubSeries] {
+        let workouts = dailyTotals(metric: .workouts, days: 28).map {
+            ScrubPoint(date: $0.date, value: $0.value)
+        }
+        let minutes = dailyTotals(metric: .minutes, days: 28).map {
+            ScrubPoint(date: $0.date, value: $0.value)
+        }
+        return [
+            ScrubSeries(label: "Workouts", points: workouts),
+            ScrubSeries(label: "Minutes", points: minutes),
+        ]
+    }
+
+    private var mixSlices: [MixSlice] {
+        stats.routineMix.map { item in
+            MixSlice(label: item.name, value: Double(item.count))
+        }
+    }
+
+    private var cumulativeWorkoutSeries: [Double] {
+        cumulativeSeries { _ in 1 }
+    }
+
+    private var cumulativeMinutesSeries: [Double] {
+        cumulativeSeries { Double($0.durationMinutes) }
+    }
+
+    private var recentDailyWorkoutCounts: [Double] {
+        dailyTotals(metric: .workouts, days: 14).map(\.value)
+    }
+
+    private var volumeDayCount: Int {
+        max(spanDays, 14)
+    }
+
+    private var spanDays: Int {
+        guard let oldest = store.sessions.map(\.finishedAt).min() else { return 14 }
+        let days = Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: oldest), to: Calendar.current.startOfDay(for: Date())).day ?? 14
+        return min(max(days + 1, 14), 90)
+    }
+
+    private var defaultVolumeWindow: ClosedRange<Date> {
+        let cal = Calendar.current
+        let end = cal.startOfDay(for: Date())
+        let start = cal.date(byAdding: .day, value: -13, to: end) ?? end
+        return clamped(start...end)
+    }
+
+    private func clamped(_ range: ClosedRange<Date>) -> ClosedRange<Date> {
+        guard let first = volumeSamples.first?.date, let last = volumeSamples.last?.date else {
+            return range
+        }
+        let lower = max(range.lowerBound, first)
+        let upper = min(range.upperBound, last)
+        if lower <= upper { return lower...upper }
+        return first...last
+    }
+
+    private enum DailyMetric { case workouts, minutes }
+
+    private func dailyTotals(metric: DailyMetric, days: Int) -> [(date: Date, value: Double)] {
+        let cal = Calendar.current
+        let today = cal.startOfDay(for: Date())
+        guard let start = cal.date(byAdding: .day, value: -(days - 1), to: today) else { return [] }
+
+        var buckets: [Date: Double] = [:]
+        for offset in 0..<days {
+            if let day = cal.date(byAdding: .day, value: offset, to: start) {
+                buckets[day] = 0
+            }
+        }
+        for session in store.sessions {
+            let day = cal.startOfDay(for: session.finishedAt)
+            guard day >= start else { continue }
+            switch metric {
+            case .workouts: buckets[day, default: 0] += 1
+            case .minutes: buckets[day, default: 0] += Double(session.durationMinutes)
+            }
+        }
+        return buckets.keys.sorted().map { ($0, buckets[$0] ?? 0) }
+    }
+
+    private func cumulativeSeries(_ contribution: (FinishedSession) -> Double) -> [Double] {
+        let ordered = store.sessions.sorted { $0.finishedAt < $1.finishedAt }
+        var running = 0.0
+        var values: [Double] = []
+        for session in ordered {
+            running += contribution(session)
+            values.append(running)
+        }
+        return values
+    }
+
+    // MARK: - Styles
+
+    private func liveStatStyle(numeral: CGFloat) -> LiveStatStyle {
+        LiveStatStyle(
+            background: .clear,
+            text: .white,
+            muted: .white.opacity(0.7),
+            line: accent,
+            accent: accent,
+            up: Color(red: 0, green: 0.77, blue: 0.655),
+            down: Color(red: 1, green: 0.35, blue: 0.35),
+            chipInk: .white,
+            numeralSize: numeral
+        )
+    }
+
+    private var scrubStyle: ScrubChartStyle {
+        ScrubChartStyle(
+            line: .white.opacity(0.9),
+            accent: accent,
+            up: Color(red: 0, green: 0.77, blue: 0.655),
+            down: Color(red: 1, green: 0.35, blue: 0.35),
+            ink: .white,
+            muted: .white.opacity(0.65),
+            band: Color.white.opacity(0.12),
+            ground: Color.black.opacity(0.35),
+            numeralSize: 36
+        )
+    }
+
+    private var ringStyle: RingBreakdownStyle {
+        RingBreakdownStyle(
+            blocks: [
+                accent,
+                Color(red: 0.45, green: 0.9, blue: 0.35),
+                Color(red: 1, green: 0.76, blue: 0.2),
+                Color(red: 1, green: 0.45, blue: 0.25),
+                Color(red: 0.55, green: 0.75, blue: 1),
+                Color(red: 0.95, green: 0.95, blue: 0.95),
+            ],
+            rest: Color.white.opacity(0.16),
+            ink: Color(red: 0.08, green: 0.08, blue: 0.08),
+            text: .white,
+            muted: .white.opacity(0.7)
+        )
+    }
+
+    // MARK: - Sessions list
 
     private func sessionRow(_ session: FinishedSession) -> some View {
         let expanded = expandedSessionID == session.id
@@ -323,7 +472,7 @@ struct HistoryView: View {
                 .padding(.bottom, 16)
             }
         }
-        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .glassSurface(.rect(cornerRadius: 28))
         .animation(.smooth(duration: 0.28), value: expanded)
     }
 
@@ -361,14 +510,6 @@ struct HistoryView: View {
             expandedSessionID = nil
             draftWeights = [:]
         }
-    }
-
-    private func formatHours(_ minutes: Int) -> String {
-        let hours = Double(minutes) / 60
-        if hours < 10 {
-            return String(format: "%.1fh", hours)
-        }
-        return String(format: "%.0fh", hours)
     }
 
     private static let dateLabel: DateFormatter = {
