@@ -5,6 +5,8 @@ struct LibraryView: View {
     @State private var path: [LibraryWorkout] = []
     @State private var query = ""
     @State private var equipment: String?
+    @State private var chromeHidden = false
+    @State private var lastScrollY: CGFloat = 0
 
     init(hidesFloatingTabBar: Binding<Bool> = .constant(false)) {
         _hidesFloatingTabBar = hidesFloatingTabBar
@@ -23,19 +25,24 @@ struct LibraryView: View {
         }
     }
 
+    /// Match Home: last tiles can scroll clear of the pinned tab bar.
+    private var libraryScrollBottomInset: CGFloat {
+        max(WashPlayback.screenSize.height * 0.5, 400)
+    }
+
+    private var chromeHeight: CGFloat { 48 }
+    private var chromeTopPadding: CGFloat { 8 }
+    private var chromeBottomGap: CGFloat { 16 }
+
     var body: some View {
         NavigationStack(path: $path) {
-            VStack(spacing: 0) {
-                filterRow
-                    .padding(.top, 8)
-
-                ScrollView {
+            ScrollView {
+                Group {
                     if results.isEmpty {
                         Text("No workouts match that search.")
                             .font(.body)
                             .foregroundStyle(.white.opacity(0.8))
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.top, 24)
                     } else {
                         LazyVStack(spacing: 12) {
                             ForEach(results) { workout in
@@ -47,19 +54,24 @@ struct LibraryView: View {
                                 .buttonStyle(.plain)
                             }
                         }
-                        .padding(.top, 24)
                     }
                 }
-                .scrollDismissesKeyboard(.immediately)
-                .scrollContentBackground(.hidden)
-                .scrollEdgeEffectHidden(true, for: .vertical)
-                .contentMargins(.bottom, 120, for: .scrollContent)
+                .padding(.horizontal, 16)
+                .padding(.top, chromeTopPadding + chromeHeight + chromeBottomGap)
+                .padding(.bottom, 24)
             }
-            .padding(.horizontal, 16)
+            .scrollDismissesKeyboard(.immediately)
+            .scrollContentBackground(.hidden)
+            .scrollEdgeEffectHidden(true, for: .vertical)
+            .contentMargins(.bottom, libraryScrollBottomInset, for: .scrollContent)
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentOffset.y
+            } action: { _, newOffset in
+                updateChrome(for: newOffset)
+            }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .containerBackground(.clear, for: .navigation)
-            .scrollEdgeEffectHidden(true, for: .vertical)
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .background { LockRootPopGesture() }
             .navigationTitle("Library")
@@ -70,6 +82,30 @@ struct LibraryView: View {
                         .opacity(0)
                         .accessibilityHidden(true)
                 }
+            }
+            .overlay(alignment: .top) {
+                LinearGradient(
+                    stops: [
+                        .init(color: .black.opacity(0.28), location: 0),
+                        .init(color: .black.opacity(0.12), location: 0.45),
+                        .init(color: .clear, location: 1),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 120)
+                .ignoresSafeArea(edges: .top)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+            .overlay(alignment: .top) {
+                filterRow
+                    .padding(.horizontal, 16)
+                    .padding(.top, chromeTopPadding)
+                    .offset(y: chromeHidden ? -(chromeTopPadding + chromeHeight + 12) : 0)
+                    .opacity(chromeHidden ? 0 : 1)
+                    .allowsHitTesting(!chromeHidden)
+                    .animation(.smooth(duration: 0.28), value: chromeHidden)
             }
             .navigationDestination(for: LibraryWorkout.self) { workout in
                 ExerciseTutorialView(
@@ -84,6 +120,31 @@ struct LibraryView: View {
         }
         .onChange(of: path) { _, newPath in
             hidesFloatingTabBar = !newPath.isEmpty
+            if newPath.isEmpty {
+                chromeHidden = false
+            }
+        }
+    }
+
+    private func updateChrome(for offset: CGFloat) {
+        let delta = offset - lastScrollY
+        lastScrollY = offset
+
+        // Rubber-banding / top of list always reveals the controls.
+        if offset <= 8 {
+            if chromeHidden {
+                chromeHidden = false
+            }
+            return
+        }
+
+        guard abs(delta) > 1.5 else { return }
+        if delta > 0 {
+            if !chromeHidden {
+                chromeHidden = true
+            }
+        } else if chromeHidden {
+            chromeHidden = false
         }
     }
 
