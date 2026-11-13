@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 private enum AppTab: Hashable {
     case home, history, library
@@ -28,10 +29,6 @@ private enum AppTab: Hashable {
     }
 }
 
-private enum TabDragAxis {
-    case horizontal, vertical
-}
-
 struct RootTabs: View {
     @Environment(WashTheme.self) private var wash
     @State private var tab: AppTab = .home
@@ -39,7 +36,6 @@ struct RootTabs: View {
     @State private var hidesFloatingTabBar = false
     @State private var dragOffset: CGFloat = 0
     @State private var isTracking = false
-    @State private var dragAxis: TabDragAxis?
     @State private var pageWidth: CGFloat = 1
     @State private var settleID = UUID()
 
@@ -79,7 +75,6 @@ struct RootTabs: View {
                 }
             }
             .ignoresSafeArea()
-            .modifier(TabSwipeAttachment(isEnabled: !hidesFloatingTabBar, gesture: tabDrag))
 
             tabHeader
 
@@ -90,6 +85,9 @@ struct RootTabs: View {
                 .animation(HomeHeroMotion.animation, value: hidesFloatingTabBar)
         }
         .preferredColorScheme(.dark)
+        .background {
+            TabPanBridge(isEnabled: !hidesFloatingTabBar, onChanged: applyDrag, onEnded: endDrag)
+        }
         .onAppear {
             wash.grade = .grayscale
         }
@@ -127,46 +125,35 @@ struct RootTabs: View {
         }
     }
 
-    private var tabDrag: some Gesture {
-        DragGesture(minimumDistance: 18, coordinateSpace: .local)
-            .onChanged { value in
-                guard !hidesFloatingTabBar else { return }
-                let translation = value.translation
-                if dragAxis == nil {
-                    guard hypot(translation.width, translation.height) > 12 else { return }
-                    dragAxis = abs(translation.width) > abs(translation.height) * 1.2 ? .horizontal : .vertical
-                }
-                guard dragAxis == .horizontal else { return }
-                let width = max(pageWidth, 1)
-                let lower: CGFloat = tab.previous == nil ? 0 : -width
-                let upper: CGFloat = tab.next == nil ? 0 : width
-                var transaction = Transaction()
-                transaction.disablesAnimations = true
-                withTransaction(transaction) {
-                    isTracking = true
-                    dragOffset = min(max(translation.width, lower), upper)
-                }
-            }
-            .onEnded { value in
-                let axis = dragAxis
-                dragAxis = nil
-                isTracking = false
-                guard axis == .horizontal, !hidesFloatingTabBar else {
-                    if dragOffset != 0 { settle(to: 0, selecting: nil) }
-                    return
-                }
-                let width = max(pageWidth, 1)
-                let travel = dragOffset
-                let predicted = value.predictedEndTranslation.width
-                let commitDistance = width * 0.22
-                if (travel < -commitDistance || (predicted < -280 && travel < -12)), let next = tab.next {
-                    settle(to: -width, selecting: next)
-                } else if (travel > commitDistance || (predicted > 280 && travel > 12)), let previous = tab.previous {
-                    settle(to: width, selecting: previous)
-                } else {
-                    settle(to: 0, selecting: nil)
-                }
-            }
+    private func applyDrag(_ translation: CGFloat) {
+        guard !hidesFloatingTabBar else { return }
+        let width = max(pageWidth, 1)
+        let lower: CGFloat = tab.previous == nil ? 0 : -width
+        let upper: CGFloat = tab.next == nil ? 0 : width
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            isTracking = true
+            dragOffset = min(max(translation, lower), upper)
+        }
+    }
+
+    private func endDrag(translation: CGFloat, predicted: CGFloat, cancelled: Bool) {
+        isTracking = false
+        guard !cancelled, !hidesFloatingTabBar else {
+            settle(to: 0, selecting: nil)
+            return
+        }
+        let width = max(pageWidth, 1)
+        let travel = dragOffset
+        let commitDistance = width * 0.22
+        if (travel < -commitDistance || (predicted < -280 && travel < -12)), let next = tab.next {
+            settle(to: -width, selecting: next)
+        } else if (travel > commitDistance || (predicted > 280 && travel > 12)), let previous = tab.previous {
+            settle(to: width, selecting: previous)
+        } else {
+            settle(to: 0, selecting: nil)
+        }
     }
 
     /// Finishes the slide, then swaps the selected tab without a second jump.
@@ -195,6 +182,7 @@ struct RootTabs: View {
         NavigationStack {
             Color.clear
                 .containerBackground(.clear, for: .navigation)
+                .background { LockRootPopGesture(passThrough: true) }
                 .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
                 .toolbarTitleDisplayMode(.inline)
                 .scrollEdgeEffectHidden(true, for: .vertical)
@@ -324,15 +312,150 @@ struct RootTabs: View {
     }
 }
 
-private struct TabSwipeAttachment<G: Gesture>: ViewModifier {
+/// Horizontal pans on the tab pages. A SwiftUI drag never begins here: the scroll
+/// view and the navigation back pan take the touch first.
+private struct TabPanBridge: UIViewRepresentable {
     var isEnabled: Bool
-    var gesture: G
+    var onChanged: (CGFloat) -> Void
+    var onEnded: (_ translation: CGFloat, _ predicted: CGFloat, _ cancelled: Bool) -> Void
 
-    func body(content: Content) -> some View {
-        if isEnabled {
-            content.simultaneousGesture(gesture)
-        } else {
-            content
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.isEnabled = isEnabled
+        context.coordinator.onChanged = onChanged
+        context.coordinator.onEnded = onEnded
+        context.coordinator.install(from: uiView)
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator: NSObject, UIGestureRecognizerDelegate {
+        var isEnabled = false
+        var onChanged: (CGFloat) -> Void = { _ in }
+        var onEnded: (CGFloat, CGFloat, Bool) -> Void = { _, _, _ in }
+        let pan = UIPanGestureRecognizer()
+        private weak var host: UIView?
+
+        override init() {
+            super.init()
+            pan.addTarget(self, action: #selector(handlePan))
+            pan.delegate = self
+            pan.cancelsTouchesInView = false
+        }
+
+        func install(from anchor: UIView) {
+            let host = ancestorHost(from: anchor)
+            guard let host else {
+                DispatchQueue.main.async { [weak self, weak anchor] in
+                    guard let self, let anchor else { return }
+                    self.install(from: anchor)
+                }
+                return
+            }
+            if pan.view !== host {
+                pan.view?.removeGestureRecognizer(pan)
+                host.addGestureRecognizer(pan)
+                self.host = host
+            }
+            guard isEnabled else { return }
+            linkScrollViews(in: host)
+        }
+
+        private func ancestorHost(from anchor: UIView) -> UIView? {
+            let window = anchor.window ?? anchor.superview?.window
+            guard let window else { return nil }
+            var host: UIView = anchor
+            while let parent = host.superview, parent !== window {
+                host = parent
+            }
+            return host
+        }
+
+        func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+            guard isEnabled, let pan = gestureRecognizer as? UIPanGestureRecognizer else { return false }
+            let velocity = pan.velocity(in: pan.view)
+            let translation = pan.translation(in: pan.view)
+            let dx = abs(velocity.x) > 1 ? abs(velocity.x) : abs(translation.x)
+            let dy = abs(velocity.y) > 1 ? abs(velocity.y) : abs(translation.y)
+            guard dx > 8 || dy > 8 else { return false }
+            return dx > dy
+        }
+
+        func gestureRecognizer(
+            _ gestureRecognizer: UIGestureRecognizer,
+            shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
+        ) -> Bool {
+            isEnabled && otherGestureRecognizer.view is UIScrollView
+        }
+
+        @objc private func handlePan(_ pan: UIPanGestureRecognizer) {
+            let translation = pan.translation(in: pan.view).x
+            switch pan.state {
+            case .changed:
+                onChanged(translation)
+            case .ended:
+                let velocity = pan.velocity(in: pan.view).x
+                onEnded(translation, translation + velocity * 0.25, false)
+            case .cancelled, .failed:
+                onEnded(translation, translation, true)
+            default:
+                break
+            }
+        }
+
+        private func linkScrollViews(in view: UIView) {
+            if let scroll = view as? UIScrollView {
+                scroll.panGestureRecognizer.require(toFail: pan)
+            }
+            for child in view.subviews {
+                linkScrollViews(in: child)
+            }
+        }
+    }
+}
+
+/// Root tab screens must not start a back transition. That gesture was hiding the bar.
+struct LockRootPopGesture: UIViewControllerRepresentable {
+    var passThrough = false
+
+    func makeUIViewController(context: Context) -> Controller {
+        let controller = Controller()
+        controller.passThrough = passThrough
+        return controller
+    }
+
+    func updateUIViewController(_ controller: Controller, context: Context) {
+        controller.passThrough = passThrough
+        controller.apply()
+    }
+
+    final class Controller: UIViewController {
+        var passThrough = false
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            apply()
+        }
+
+        func apply() {
+            guard let nav = navigationController else { return }
+            if passThrough {
+                nav.view.isUserInteractionEnabled = false
+                nav.interactivePopGestureRecognizer?.isEnabled = false
+                nav.interactiveContentPopGestureRecognizer?.isEnabled = false
+                return
+            }
+            guard nav.viewControllers.count <= 1 else { return }
+            nav.interactivePopGestureRecognizer?.isEnabled = false
+            nav.interactiveContentPopGestureRecognizer?.isEnabled = false
         }
     }
 }
@@ -350,6 +473,7 @@ private struct PlaceholderScreen: View {
             .navigationTitle(title)
             .toolbarTitleDisplayMode(.inline)
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+            .background { LockRootPopGesture() }
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     Text(title)

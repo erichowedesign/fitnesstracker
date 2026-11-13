@@ -61,6 +61,7 @@ struct LibraryView: View {
             .containerBackground(.clear, for: .navigation)
             .scrollEdgeEffectHidden(true, for: .vertical)
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+            .background { LockRootPopGesture() }
             .navigationTitle("Library")
             .toolbarTitleDisplayMode(.inline)
             .toolbar {

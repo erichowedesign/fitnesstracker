@@ -100,6 +100,7 @@ struct HomeView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(.clear, for: .navigation)
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+        .background { LockRootPopGesture() }
         .navigationTitle("Foundation")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
