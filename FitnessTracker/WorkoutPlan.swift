@@ -250,7 +250,10 @@ enum WorkoutPlan {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .map { label in
-                let presented = presentStep(label)
+                let presented = presentStep(
+                    label,
+                    liftSets: routineId == "B" && phase == .warmup
+                )
                 return GuideStep(
                     title: presented.title,
                     metaParts: presented.meta.isEmpty ? [] : [presented.meta],
@@ -259,15 +262,28 @@ enum WorkoutPlan {
             }
     }
 
-    private static func presentStep(_ label: String) -> (title: String, meta: String) {
+    private static func presentStep(_ label: String, liftSets: Bool = false) -> (title: String, meta: String) {
         let cleaned = label.trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "."))
-        let pattern = #"^(\d+)\s*min(?:ute)?s?\s+(.+)$"#
-        if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive),
+        let minutesPattern = #"^(\d+)\s*min(?:ute)?s?\s+(.+)$"#
+        if let regex = try? NSRegularExpression(pattern: minutesPattern, options: .caseInsensitive),
            let match = regex.firstMatch(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned)),
            let minutesRange = Range(match.range(at: 1), in: cleaned),
            let restRange = Range(match.range(at: 2), in: cleaned) {
             return (sentence(String(cleaned[restRange])), "\(cleaned[minutesRange]) minutes")
+        }
+        let setsPattern = #"^(.+?)\s+(\d+)\s*[×xX]\s*(\d+)\s*(.*)$"#
+        if liftSets,
+           let regex = try? NSRegularExpression(pattern: setsPattern),
+           let match = regex.firstMatch(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned)),
+           let nameRange = Range(match.range(at: 1), in: cleaned),
+           let setsRange = Range(match.range(at: 2), in: cleaned),
+           let repsRange = Range(match.range(at: 3), in: cleaned),
+           let tailRange = Range(match.range(at: 4), in: cleaned) {
+            let tail = String(cleaned[tailRange]).trimmingCharacters(in: .whitespaces)
+            let dose = "\(cleaned[setsRange]) × \(cleaned[repsRange])"
+            let meta = tail.isEmpty ? dose : "\(dose) \(tail)"
+            return (sentence(String(cleaned[nameRange])), meta)
         }
         return (sentence(cleaned), "")
     }
