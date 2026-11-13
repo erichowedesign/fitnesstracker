@@ -84,6 +84,7 @@ struct RootTabs: View {
                 .accessibilityHidden(hidesFloatingTabBar)
                 .animation(HomeHeroMotion.animation, value: hidesFloatingTabBar)
         }
+        .scrollIndicators(.hidden)
         .preferredColorScheme(.dark)
         .background {
             TabPanBridge(isEnabled: !hidesFloatingTabBar, onChanged: applyDrag, onEnded: endDrag)
