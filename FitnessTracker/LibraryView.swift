@@ -5,17 +5,6 @@ struct LibraryView: View {
     @State private var path: [LibraryWorkout] = []
     @State private var query = ""
     @State private var equipment: String?
-    @State private var chromeHidden = false
-    @State private var lastScrollY: CGFloat = 0
-    /// Accumulated downward travel while chrome is visible; reset on scroll up.
-    @State private var downTravel: CGFloat = 0
-
-    /// Stay visible through small/jittery downward moves; hide only after real intent.
-    private let hideAfterDownTravel: CGFloat = 88
-    /// Don’t start hiding until the list has moved past the chrome band.
-    private let hideOnlyAfterOffset: CGFloat = 56
-    /// Any clear upward tick brings chrome back immediately.
-    private let showOnUpDelta: CGFloat = 1
 
     init(hidesFloatingTabBar: Binding<Bool> = .constant(false)) {
         _hidesFloatingTabBar = hidesFloatingTabBar
@@ -73,11 +62,6 @@ struct LibraryView: View {
             .scrollContentBackground(.hidden)
             .scrollEdgeEffectHidden(true, for: .vertical)
             .contentMargins(.bottom, libraryScrollBottomInset, for: .scrollContent)
-            .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                geometry.contentOffset.y
-            } action: { _, newOffset in
-                updateChrome(for: newOffset)
-            }
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .containerBackground(.clear, for: .navigation)
@@ -111,10 +95,6 @@ struct LibraryView: View {
                 filterRow
                     .padding(.horizontal, 16)
                     .padding(.top, chromeTopPadding)
-                    .offset(y: chromeHidden ? -(chromeTopPadding + chromeHeight + 12) : 0)
-                    .opacity(chromeHidden ? 0 : 1)
-                    .allowsHitTesting(!chromeHidden)
-                    .animation(.smooth(duration: 0.28), value: chromeHidden)
             }
             .navigationDestination(for: LibraryWorkout.self) { workout in
                 ExerciseTutorialView(
@@ -129,39 +109,6 @@ struct LibraryView: View {
         }
         .onChange(of: path) { _, newPath in
             hidesFloatingTabBar = !newPath.isEmpty
-            if newPath.isEmpty {
-                chromeHidden = false
-            }
-        }
-    }
-
-    private func updateChrome(for offset: CGFloat) {
-        let delta = offset - lastScrollY
-        lastScrollY = offset
-
-        // Rubber-banding / top of list always reveals the controls.
-        if offset <= 8 {
-            downTravel = 0
-            if chromeHidden {
-                chromeHidden = false
-            }
-            return
-        }
-
-        // Scroll up: show immediately. Keep the same slide animation via chromeHidden.
-        if delta <= -showOnUpDelta {
-            downTravel = 0
-            if chromeHidden {
-                chromeHidden = false
-            }
-            return
-        }
-
-        guard delta > 0, !chromeHidden else { return }
-        downTravel += delta
-        if offset >= hideOnlyAfterOffset, downTravel >= hideAfterDownTravel {
-            chromeHidden = true
-            downTravel = 0
         }
     }
 
