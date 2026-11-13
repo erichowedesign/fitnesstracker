@@ -312,8 +312,8 @@ struct RootTabs: View {
     }
 }
 
-/// Horizontal pans on the tab pages. A SwiftUI drag never begins here: the scroll
-/// view and the navigation back pan take the touch first.
+/// Horizontal pans on the tab pages. Tile presses wait for this pan so a sideways
+/// drag is not treated as a hold.
 private struct TabPanBridge: UIViewRepresentable {
     var isEnabled: Bool
     var onChanged: (CGFloat) -> Void
@@ -348,7 +348,10 @@ private struct TabPanBridge: UIViewRepresentable {
             super.init()
             pan.addTarget(self, action: #selector(handlePan))
             pan.delegate = self
-            pan.cancelsTouchesInView = false
+            // A tile press must not see the touch until this pan fails. If the
+            // pan begins, cancel that press so the drag is not a hold.
+            pan.cancelsTouchesInView = true
+            pan.delaysTouchesBegan = true
         }
 
         func install(from anchor: UIView) {
@@ -366,7 +369,7 @@ private struct TabPanBridge: UIViewRepresentable {
                 self.host = host
             }
             guard isEnabled else { return }
-            linkScrollViews(in: host)
+            linkGestures(in: host)
         }
 
         private func ancestorHost(from anchor: UIView) -> UIView? {
@@ -383,17 +386,19 @@ private struct TabPanBridge: UIViewRepresentable {
             guard isEnabled, let pan = gestureRecognizer as? UIPanGestureRecognizer else { return false }
             let velocity = pan.velocity(in: pan.view)
             let translation = pan.translation(in: pan.view)
-            let dx = abs(velocity.x) > 1 ? abs(velocity.x) : abs(translation.x)
-            let dy = abs(velocity.y) > 1 ? abs(velocity.y) : abs(translation.y)
-            guard dx > 8 || dy > 8 else { return false }
-            return dx > dy
+            let dx = max(abs(velocity.x), abs(translation.x))
+            let dy = max(abs(velocity.y), abs(translation.y))
+            guard dx > 1 || dy > 1 else { return false }
+            return dx >= dy
         }
 
         func gestureRecognizer(
             _ gestureRecognizer: UIGestureRecognizer,
             shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
         ) -> Bool {
-            isEnabled && otherGestureRecognizer.view is UIScrollView
+            // Tile presses and scroll pans wait. A horizontal drag wins; a tap
+            // runs only after this pan fails.
+            isEnabled && otherGestureRecognizer !== pan
         }
 
         @objc private func handlePan(_ pan: UIPanGestureRecognizer) {
@@ -411,12 +416,18 @@ private struct TabPanBridge: UIViewRepresentable {
             }
         }
 
-        private func linkScrollViews(in view: UIView) {
+        private func linkGestures(in view: UIView) {
             if let scroll = view as? UIScrollView {
                 scroll.panGestureRecognizer.require(toFail: pan)
             }
+            for recognizer in view.gestureRecognizers ?? [] where recognizer !== pan {
+                if let scroll = view as? UIScrollView, recognizer === scroll.panGestureRecognizer {
+                    continue
+                }
+                recognizer.require(toFail: pan)
+            }
             for child in view.subviews {
-                linkScrollViews(in: child)
+                linkGestures(in: child)
             }
         }
     }
