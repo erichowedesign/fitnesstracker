@@ -72,6 +72,14 @@ final class RoutineOverridesStore {
         persist()
     }
 
+    /// Restore every routine to the bundled WorkoutPlan (warm-up, main, cool-down).
+    func clearAll() {
+        overrides = [:]
+        persist()
+    }
+
+    var hasOverrides: Bool { !overrides.isEmpty }
+
     private func persist() {
         Self.write(overrides, to: url)
     }
