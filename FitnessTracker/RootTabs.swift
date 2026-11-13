@@ -38,6 +38,8 @@ struct RootTabs: View {
     @State private var isTracking = false
     @State private var pageWidth: CGFloat = 1
     @State private var settleID = UUID()
+    @State private var libraryQuery = ""
+    @State private var libraryFilter: LibraryListFilter = .all
 
     private var pageSlide: Animation { .smooth(duration: 0.35) }
 
@@ -62,7 +64,11 @@ struct RootTabs: View {
                         HistoryView()
                     }
                     tabPage(.library, width: width, height: proxy.size.height) {
-                        LibraryView(hidesFloatingTabBar: $hidesFloatingTabBar)
+                        LibraryView(
+                            hidesFloatingTabBar: $hidesFloatingTabBar,
+                            query: $libraryQuery,
+                            filter: $libraryFilter
+                        )
                     }
                 }
                 .frame(width: width, height: proxy.size.height, alignment: .leading)
@@ -76,11 +82,18 @@ struct RootTabs: View {
 
             tabHeader
 
-            tabBar
-                .opacity(hidesFloatingTabBar ? 0 : 1)
-                .allowsHitTesting(!hidesFloatingTabBar)
-                .accessibilityHidden(hidesFloatingTabBar)
-                .animation(.smooth(duration: 0.35), value: hidesFloatingTabBar)
+            Group {
+                if tab == .library {
+                    libraryBottomChrome
+                } else {
+                    tabBar
+                }
+            }
+            .opacity(hidesFloatingTabBar ? 0 : 1)
+            .allowsHitTesting(!hidesFloatingTabBar)
+            .accessibilityHidden(hidesFloatingTabBar)
+            .animation(.smooth(duration: 0.35), value: hidesFloatingTabBar)
+            .animation(.smooth(duration: 0.28), value: tab)
         }
         .scrollIndicators(.hidden)
         .preferredColorScheme(.dark)
@@ -279,6 +292,68 @@ struct RootTabs: View {
         .glassEffect(.regular.interactive(), in: Capsule())
         .padding(.bottom, 8)
         .animation(.snappy(duration: 0.25), value: tab)
+    }
+
+    /// Apple Music–style Library chrome: tab icon | search | filter.
+    private var libraryBottomChrome: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "book")
+                .symbolVariant(.none)
+                .environment(\.symbolVariants, .none)
+                .font(.system(size: 22, weight: .medium))
+                .foregroundStyle(Color(red: 0, green: 0.569, blue: 1))
+                .frame(width: 44, height: 44)
+                .accessibilityLabel("Library")
+                .accessibilityAddTraits(.isSelected)
+
+            HStack(spacing: 8) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.8))
+                TextField("Search", text: $libraryQuery)
+                    .textFieldStyle(.plain)
+                    .font(.body)
+                    .foregroundStyle(.white)
+                    .autocorrectionDisabled()
+            }
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+
+            Menu {
+                Picker("Filter", selection: $libraryFilter) {
+                    Text("All").tag(LibraryListFilter.all)
+                    Text("Favorites").tag(LibraryListFilter.favorites)
+                    ForEach(LibraryCatalog.equipment, id: \.self) { item in
+                        Text(item).tag(LibraryListFilter.equipment(item))
+                    }
+                }
+            } label: {
+                Image(systemName: "line.3.horizontal.decrease")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel(libraryFilterAccessibilityLabel)
+        }
+        .padding(.horizontal, 10)
+        .frame(maxWidth: .infinity)
+        .frame(height: 62)
+        .glassEffect(.regular.interactive(), in: Capsule())
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+    }
+
+    private var libraryFilterAccessibilityLabel: String {
+        switch libraryFilter {
+        case .all:
+            return "Filter, All"
+        case .favorites:
+            return "Filter, Favorites"
+        case .equipment(let item):
+            return "Filter by equipment, \(item)"
+        }
     }
 
     private func tabButton(

@@ -1,6 +1,6 @@
 import SwiftUI
 
-private enum LibraryListFilter: Hashable {
+enum LibraryListFilter: Hashable {
     case all
     case favorites
     case equipment(String)
@@ -8,15 +8,26 @@ private enum LibraryListFilter: Hashable {
 
 struct LibraryView: View {
     @Binding var hidesFloatingTabBar: Bool
+    @Binding var query: String
+    @Binding var filter: LibraryListFilter
     @State private var path: [LibraryWorkout] = []
 
-    init(hidesFloatingTabBar: Binding<Bool> = .constant(false)) {
+    init(
+        hidesFloatingTabBar: Binding<Bool> = .constant(false),
+        query: Binding<String> = .constant(""),
+        filter: Binding<LibraryListFilter> = .constant(.all)
+    ) {
         _hidesFloatingTabBar = hidesFloatingTabBar
+        _query = query
+        _filter = filter
     }
 
     var body: some View {
         NavigationStack(path: $path) {
             LibraryBrowser(
+                query: $query,
+                filter: $filter,
+                showsTopChrome: false,
                 showsIllustrationCredit: true,
                 bottomInset: max(WashPlayback.screenSize.height * 0.5, 400)
             ) { workout in
@@ -51,19 +62,20 @@ struct LibraryView: View {
     }
 }
 
-/// Shared Library chrome: equipment filter + glass search + large glass tiles.
+/// Shared Library chrome: search/filter + large glass tiles.
 struct LibraryBrowser: View {
     @Environment(FavoritesStore.self) private var favorites
 
+    @Binding var query: String
+    @Binding var filter: LibraryListFilter
+
     var title: String = "Library"
     var showsCancel: Bool = false
+    var showsTopChrome: Bool = true
     var showsIllustrationCredit: Bool = false
     var bottomInset: CGFloat = 24
     var onCancel: (() -> Void)? = nil
     var onSelect: (LibraryWorkout) -> Void
-
-    @State private var query = ""
-    @State private var filter: LibraryListFilter = .all
 
     private var chromeHeight: CGFloat { 48 }
     private var chromeTopPadding: CGFloat { 8 }
@@ -106,7 +118,12 @@ struct LibraryBrowser: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, chromeTopPadding + chromeHeight + chromeBottomGap)
+            .padding(
+                .top,
+                showsTopChrome
+                    ? chromeTopPadding + chromeHeight + chromeBottomGap
+                    : chromeTopPadding
+            )
             .padding(.bottom, showsIllustrationCredit ? 8 : 24)
 
             if showsIllustrationCredit {
@@ -139,9 +156,11 @@ struct LibraryBrowser: View {
             .accessibilityHidden(true)
         }
         .overlay(alignment: .top) {
-            filterRow
-                .padding(.horizontal, 16)
-                .padding(.top, chromeTopPadding)
+            if showsTopChrome {
+                LibraryFilterSearchChrome(query: $query, filter: $filter)
+                    .padding(.horizontal, 16)
+                    .padding(.top, chromeTopPadding)
+            }
         }
         .navigationTitle(title)
         .toolbarTitleDisplayMode(.inline)
@@ -169,41 +188,60 @@ struct LibraryBrowser: View {
             .frame(maxWidth: .infinity)
             .tint(.white.opacity(0.8))
     }
+}
 
-    private var filterRow: some View {
-        HStack(spacing: 12) {
-            Menu {
-                Picker("Filter", selection: $filter) {
-                    Text("All").tag(LibraryListFilter.all)
-                    Text("Favorites").tag(LibraryListFilter.favorites)
-                    ForEach(LibraryCatalog.equipment, id: \.self) { item in
-                        Text(item).tag(LibraryListFilter.equipment(item))
-                    }
-                }
-            } label: {
-                Image(systemName: "line.3.horizontal.decrease")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 48, height: 48)
-                    .glassEffect(.regular.interactive(), in: Circle())
-            }
-            .accessibilityLabel(filterAccessibilityLabel)
+/// Filter menu + search field used at the top (add-sheet) or bottom (Library tab).
+struct LibraryFilterSearchChrome: View {
+    @Binding var query: String
+    @Binding var filter: LibraryListFilter
+    var compact: Bool = false
 
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.8))
-                TextField("Search", text: $query)
-                    .textFieldStyle(.plain)
-                    .font(.body)
-                    .foregroundStyle(.white)
-                    .autocorrectionDisabled()
+    var body: some View {
+        HStack(spacing: compact ? 10 : 12) {
+            if !compact {
+                filterMenu
+                searchField
+            } else {
+                searchField
+                filterMenu
             }
-            .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity)
-            .frame(height: 48)
-            .glassEffect(.regular.interactive(), in: Capsule())
         }
+    }
+
+    private var filterMenu: some View {
+        Menu {
+            Picker("Filter", selection: $filter) {
+                Text("All").tag(LibraryListFilter.all)
+                Text("Favorites").tag(LibraryListFilter.favorites)
+                ForEach(LibraryCatalog.equipment, id: \.self) { item in
+                    Text(item).tag(LibraryListFilter.equipment(item))
+                }
+            }
+        } label: {
+            Image(systemName: "line.3.horizontal.decrease")
+                .font(.system(size: compact ? 17 : 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: compact ? 44 : 48, height: compact ? 44 : 48)
+                .glassEffect(.regular.interactive(), in: Circle())
+        }
+        .accessibilityLabel(filterAccessibilityLabel)
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.8))
+            TextField("Search", text: $query)
+                .textFieldStyle(.plain)
+                .font(.body)
+                .foregroundStyle(.white)
+                .autocorrectionDisabled()
+        }
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity)
+        .frame(height: compact ? 44 : 48)
+        .glassEffect(.regular.interactive(), in: Capsule())
     }
 
     private var filterAccessibilityLabel: String {

@@ -612,12 +612,17 @@ private struct RoutineEditSheets: ViewModifier {
 private struct LibraryExercisePicker: View {
     @Environment(\.dismiss) private var dismiss
     var onPick: (LibraryWorkout) -> Void
+    @State private var query = ""
+    @State private var filter: LibraryListFilter = .all
 
     var body: some View {
         NavigationStack {
             LibraryBrowser(
+                query: $query,
+                filter: $filter,
                 title: "Library",
                 showsCancel: true,
+                showsTopChrome: true,
                 bottomInset: 24,
                 onCancel: { dismiss() },
                 onSelect: onPick
