@@ -7,6 +7,15 @@ struct LibraryView: View {
     @State private var equipment: String?
     @State private var chromeHidden = false
     @State private var lastScrollY: CGFloat = 0
+    /// Accumulated downward travel while chrome is visible; reset on scroll up.
+    @State private var downTravel: CGFloat = 0
+
+    /// Stay visible through small/jittery downward moves; hide only after real intent.
+    private let hideAfterDownTravel: CGFloat = 88
+    /// Don’t start hiding until the list has moved past the chrome band.
+    private let hideOnlyAfterOffset: CGFloat = 56
+    /// Any clear upward tick brings chrome back immediately.
+    private let showOnUpDelta: CGFloat = 1
 
     init(hidesFloatingTabBar: Binding<Bool> = .constant(false)) {
         _hidesFloatingTabBar = hidesFloatingTabBar
@@ -132,19 +141,27 @@ struct LibraryView: View {
 
         // Rubber-banding / top of list always reveals the controls.
         if offset <= 8 {
+            downTravel = 0
             if chromeHidden {
                 chromeHidden = false
             }
             return
         }
 
-        guard abs(delta) > 1.5 else { return }
-        if delta > 0 {
-            if !chromeHidden {
-                chromeHidden = true
+        // Scroll up: show immediately. Keep the same slide animation via chromeHidden.
+        if delta <= -showOnUpDelta {
+            downTravel = 0
+            if chromeHidden {
+                chromeHidden = false
             }
-        } else if chromeHidden {
-            chromeHidden = false
+            return
+        }
+
+        guard delta > 0, !chromeHidden else { return }
+        downTravel += delta
+        if offset >= hideOnlyAfterOffset, downTravel >= hideAfterDownTravel {
+            chromeHidden = true
+            downTravel = 0
         }
     }
 
