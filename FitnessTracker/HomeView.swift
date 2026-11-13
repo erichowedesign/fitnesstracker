@@ -95,10 +95,11 @@ struct HomeView: View {
         }
         .contentMargins(.bottom, homeScrollBottomInset, for: .scrollContent)
         .scrollContentBackground(.hidden)
+        .scrollEdgeEffectHidden(true, for: .vertical)
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(.clear, for: .navigation)
-        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .navigationTitle("Foundation")
         .toolbarTitleDisplayMode(.inline)
         .toolbar {

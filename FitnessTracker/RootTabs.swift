@@ -40,9 +40,9 @@ struct RootTabs: View {
                     }
                 }
                 .frame(width: width, height: proxy.size.height, alignment: .leading)
+                .clipped()
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .clipped()
+            .ignoresSafeArea()
 
             tabBar
                 .opacity(hidesFloatingTabBar ? 0 : 1)
