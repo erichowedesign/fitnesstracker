@@ -10,6 +10,26 @@ private enum AppTab: Hashable {
         case .library: return 2
         }
     }
+
+    var next: AppTab? {
+        switch self {
+        case .home: return .history
+        case .history: return .library
+        case .library: return nil
+        }
+    }
+
+    var previous: AppTab? {
+        switch self {
+        case .home: return nil
+        case .history: return .home
+        case .library: return .history
+        }
+    }
+}
+
+private enum TabDragAxis {
+    case horizontal, vertical
 }
 
 struct RootTabs: View {
@@ -17,8 +37,20 @@ struct RootTabs: View {
     @State private var tab: AppTab = .home
     @State private var previousTab: AppTab = .home
     @State private var hidesFloatingTabBar = false
+    @State private var dragOffset: CGFloat = 0
+    @State private var isTracking = false
+    @State private var dragAxis: TabDragAxis?
+    @State private var pageWidth: CGFloat = 1
+    @State private var settleID = UUID()
 
     private var pageSlide: Animation { .smooth(duration: 0.35) }
+
+    /// The neighbor currently peeking in. One swipe only moves one tab.
+    private var dragNeighbor: AppTab? {
+        if dragOffset < -0.5 { return tab.next }
+        if dragOffset > 0.5 { return tab.previous }
+        return nil
+    }
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -41,8 +73,13 @@ struct RootTabs: View {
                 }
                 .frame(width: width, height: proxy.size.height, alignment: .leading)
                 .clipped()
+                .onAppear { pageWidth = width }
+                .onChange(of: width) { _, newValue in
+                    pageWidth = newValue
+                }
             }
             .ignoresSafeArea()
+            .modifier(TabSwipeAttachment(isEnabled: !hidesFloatingTabBar, gesture: tabDrag))
 
             tabHeader
 
@@ -65,12 +102,13 @@ struct RootTabs: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         let delta = page.order - tab.order
-        let sliding = page == tab || page == previousTab
+        let sliding = page == tab || page == previousTab || page == dragNeighbor
+        let base: CGFloat = delta == 0 ? 0 : (delta > 0 ? width : -width)
         return content()
             .frame(width: width, height: height)
-            .offset(x: delta == 0 ? 0 : (delta > 0 ? width : -width))
+            .offset(x: base + dragOffset)
             .transaction { transaction in
-                if !sliding {
+                if isTracking || !sliding {
                     transaction.disablesAnimations = true
                 }
             }
@@ -80,9 +118,75 @@ struct RootTabs: View {
 
     private func select(_ newTab: AppTab) {
         guard newTab != tab else { return }
+        settleID = UUID()
+        isTracking = false
         withAnimation(pageSlide) {
+            dragOffset = 0
             previousTab = tab
             tab = newTab
+        }
+    }
+
+    private var tabDrag: some Gesture {
+        DragGesture(minimumDistance: 18, coordinateSpace: .local)
+            .onChanged { value in
+                guard !hidesFloatingTabBar else { return }
+                let translation = value.translation
+                if dragAxis == nil {
+                    guard hypot(translation.width, translation.height) > 12 else { return }
+                    dragAxis = abs(translation.width) > abs(translation.height) * 1.2 ? .horizontal : .vertical
+                }
+                guard dragAxis == .horizontal else { return }
+                let width = max(pageWidth, 1)
+                let lower: CGFloat = tab.previous == nil ? 0 : -width
+                let upper: CGFloat = tab.next == nil ? 0 : width
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    isTracking = true
+                    dragOffset = min(max(translation.width, lower), upper)
+                }
+            }
+            .onEnded { value in
+                let axis = dragAxis
+                dragAxis = nil
+                isTracking = false
+                guard axis == .horizontal, !hidesFloatingTabBar else {
+                    if dragOffset != 0 { settle(to: 0, selecting: nil) }
+                    return
+                }
+                let width = max(pageWidth, 1)
+                let travel = dragOffset
+                let predicted = value.predictedEndTranslation.width
+                let commitDistance = width * 0.22
+                if (travel < -commitDistance || (predicted < -280 && travel < -12)), let next = tab.next {
+                    settle(to: -width, selecting: next)
+                } else if (travel > commitDistance || (predicted > 280 && travel > 12)), let previous = tab.previous {
+                    settle(to: width, selecting: previous)
+                } else {
+                    settle(to: 0, selecting: nil)
+                }
+            }
+    }
+
+    /// Finishes the slide, then swaps the selected tab without a second jump.
+    private func settle(to target: CGFloat, selecting next: AppTab?) {
+        let id = UUID()
+        settleID = id
+        isTracking = false
+        withAnimation(pageSlide, completionCriteria: .logicallyComplete) {
+            dragOffset = target
+        } completion: {
+            guard settleID == id else { return }
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                if let next {
+                    previousTab = tab
+                    tab = next
+                }
+                dragOffset = 0
+            }
         }
     }
 
@@ -119,19 +223,39 @@ struct RootTabs: View {
     }
 
     private func tabTitle(_ title: String, page: AppTab) -> some View {
-        Text(title)
+        let opacity = titleOpacity(for: page)
+        return Text(title)
             .font(.headline)
             .fontWeight(.semibold)
-            .opacity(tab == page ? 1 : 0)
-            .accessibilityHidden(tab != page)
+            .opacity(opacity)
+            .accessibilityHidden(opacity < 0.5)
+    }
+
+    private func titleOpacity(for page: AppTab) -> Double {
+        guard pageWidth > 1 else { return page == tab ? 1 : 0 }
+        let progress = min(max(dragOffset / pageWidth, -1), 1)
+        if page == tab {
+            return 1 - abs(progress)
+        }
+        if progress < 0, page == tab.next {
+            return -progress
+        }
+        if progress > 0, page == tab.previous {
+            return progress
+        }
+        return 0
     }
 
     private var selectedPillX: CGFloat {
+        let base: CGFloat
         switch tab {
-        case .home: return 0
-        case .history: return 94
-        case .library: return 188
+        case .home: base = 0
+        case .history: base = 94
+        case .library: base = 188
         }
+        guard pageWidth > 1 else { return base }
+        let progress = min(max(dragOffset / pageWidth, -1), 1)
+        return min(max(base - progress * 94, 0), 188)
     }
 
     private var tabBar: some View {
@@ -197,6 +321,19 @@ struct RootTabs: View {
         .buttonStyle(.plain)
         .accessibilityLabel(title)
         .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+private struct TabSwipeAttachment<G: Gesture>: ViewModifier {
+    var isEnabled: Bool
+    var gesture: G
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.simultaneousGesture(gesture)
+        } else {
+            content
+        }
     }
 }
 
