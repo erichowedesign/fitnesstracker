@@ -1,5 +1,11 @@
 import SwiftUI
 
+private enum LibraryListFilter: Hashable {
+    case all
+    case favorites
+    case equipment(String)
+}
+
 struct LibraryView: View {
     @Binding var hidesFloatingTabBar: Bool
     @State private var path: [LibraryWorkout] = []
@@ -11,6 +17,7 @@ struct LibraryView: View {
     var body: some View {
         NavigationStack(path: $path) {
             LibraryBrowser(
+                showsIllustrationCredit: true,
                 bottomInset: max(WashPlayback.screenSize.height * 0.5, 400)
             ) { workout in
                 path.append(workout)
@@ -32,7 +39,8 @@ struct LibraryView: View {
                     grade: workout.grade,
                     frames: workout.frames,
                     hints: workout.hints,
-                    hintSource: workout.hintSource
+                    hintSource: workout.hintSource,
+                    favoriteSlug: workout.slug
                 )
             }
         }
@@ -44,14 +52,17 @@ struct LibraryView: View {
 
 /// Shared Library chrome: equipment filter + glass search + large glass tiles.
 struct LibraryBrowser: View {
+    @Environment(FavoritesStore.self) private var favorites
+
     var title: String = "Library"
     var showsCancel: Bool = false
+    var showsIllustrationCredit: Bool = false
     var bottomInset: CGFloat = 24
     var onCancel: (() -> Void)? = nil
     var onSelect: (LibraryWorkout) -> Void
 
     @State private var query = ""
-    @State private var equipment: String?
+    @State private var filter: LibraryListFilter = .all
 
     private var chromeHeight: CGFloat { 48 }
     private var chromeTopPadding: CGFloat { 8 }
@@ -59,8 +70,13 @@ struct LibraryBrowser: View {
 
     private var results: [LibraryWorkout] {
         LibraryCatalog.workouts.filter { workout in
-            if let equipment, workout.equipment != equipment {
-                return false
+            switch filter {
+            case .all:
+                break
+            case .favorites:
+                guard favorites.isLiked(workout.slug) else { return false }
+            case .equipment(let equipment):
+                guard workout.equipment == equipment else { return false }
             }
             let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { return true }
@@ -74,26 +90,29 @@ struct LibraryBrowser: View {
         ScrollView {
             Group {
                 if results.isEmpty {
-                    Text("No workouts match that search.")
+                    Text(emptyMessage)
                         .font(.body)
                         .foregroundStyle(.white.opacity(0.8))
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     LazyVStack(spacing: 12) {
                         ForEach(results) { workout in
-                            Button {
+                            LibraryTile(workout: workout) {
                                 onSelect(workout)
-                            } label: {
-                                LibraryTile(workout: workout)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
                 }
             }
             .padding(.horizontal, 16)
             .padding(.top, chromeTopPadding + chromeHeight + chromeBottomGap)
-            .padding(.bottom, 24)
+            .padding(.bottom, showsIllustrationCredit ? 8 : 24)
+
+            if showsIllustrationCredit {
+                illustrationCredit
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 24)
+            }
         }
         .scrollDismissesKeyboard(.immediately)
         .scrollContentBackground(.hidden)
@@ -134,13 +153,30 @@ struct LibraryBrowser: View {
         }
     }
 
+    private var emptyMessage: String {
+        if case .favorites = filter {
+            return "No favorite workouts yet. Tap the heart on a tile to save one."
+        }
+        return "No workouts match that search."
+    }
+
+    private var illustrationCredit: some View {
+        Text(.init("Drawings by Everkinetic, arranged by Bryl Lim. [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)"))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .tint(.white.opacity(0.8))
+    }
+
     private var filterRow: some View {
         HStack(spacing: 12) {
             Menu {
-                Picker("Equipment", selection: $equipment) {
-                    Text("All").tag(nil as String?)
+                Picker("Filter", selection: $filter) {
+                    Text("All").tag(LibraryListFilter.all)
+                    Text("Favorites").tag(LibraryListFilter.favorites)
                     ForEach(LibraryCatalog.equipment, id: \.self) { item in
-                        Text(item).tag(item as String?)
+                        Text(item).tag(LibraryListFilter.equipment(item))
                     }
                 }
             } label: {
@@ -150,7 +186,7 @@ struct LibraryBrowser: View {
                     .frame(width: 48, height: 48)
                     .glassEffect(.regular.interactive(), in: Circle())
             }
-            .accessibilityLabel(equipment.map { "Filter by equipment, \($0)" } ?? "Filter by equipment")
+            .accessibilityLabel(filterAccessibilityLabel)
 
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
@@ -168,36 +204,69 @@ struct LibraryBrowser: View {
             .glassEffect(.regular.interactive(), in: Capsule())
         }
     }
+
+    private var filterAccessibilityLabel: String {
+        switch filter {
+        case .all:
+            return "Filter, All"
+        case .favorites:
+            return "Filter, Favorites"
+        case .equipment(let item):
+            return "Filter by equipment, \(item)"
+        }
+    }
 }
 
 struct LibraryTile: View {
+    @Environment(FavoritesStore.self) private var favorites
     let workout: LibraryWorkout
+    var onOpen: () -> Void
+
+    private var isLiked: Bool { favorites.isLiked(workout.slug) }
 
     var body: some View {
-        HStack(spacing: 20) {
-            IllustrationView(slug: workout.frames[0], label: workout.name)
-                .frame(width: 120, height: 120)
-                .accessibilityHidden(true)
-            Text(workout.name)
-                .font(.headline)
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.leading)
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
+        HStack(spacing: 16) {
+            Button(action: onOpen) {
+                HStack(spacing: 20) {
+                    IllustrationView(slug: workout.frames[0], label: workout.name)
+                        .frame(width: 120, height: 120)
+                        .accessibilityHidden(true)
+                    Text(workout.name)
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .multilineTextAlignment(.leading)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(workout.name)
+            .accessibilityHint("Opens the tutorial")
+
+            Button {
+                favorites.toggle(workout.slug)
+            } label: {
+                Image(systemName: isLiked ? "heart.fill" : "heart")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(isLiked ? Color.pink : .white)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isLiked ? "Remove from favorites" : "Add to favorites")
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 152)
         .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(workout.name)
-        .accessibilityHint("Opens the tutorial")
     }
 }
 
 #Preview {
     LibraryView()
+        .environment(FavoritesStore())
         .environment(WashTheme())
         .preferredColorScheme(.dark)
 }

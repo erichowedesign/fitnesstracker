@@ -6,16 +6,25 @@ struct ExerciseTutorial: Hashable {
     let frames: [String]
     let hints: [String]
     let hintSource: String?
+    let favoriteSlug: String?
 }
 
 struct ExerciseTutorialView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(FavoritesStore.self) private var favorites
     let exerciseName: String
     let muscles: String
     let grade: WashGrade
     let frames: [String]
     let hints: [String]
     let hintSource: String?
+    var favoriteSlug: String? = nil
+
+    private var canFavorite: Bool { favoriteSlug != nil }
+    private var isLiked: Bool {
+        guard let favoriteSlug else { return false }
+        return favorites.isLiked(favoriteSlug)
+    }
 
     var body: some View {
         ScrollView {
@@ -86,6 +95,24 @@ struct ExerciseTutorialView: View {
                 .accessibilityLabel("Back")
             }
             .sharedBackgroundVisibility(.hidden)
+
+            if canFavorite {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        guard let favoriteSlug else { return }
+                        favorites.toggle(favoriteSlug)
+                    } label: {
+                        Image(systemName: isLiked ? "heart.fill" : "heart")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(isLiked ? Color.pink : .white)
+                            .frame(width: 48, height: 48)
+                            .glassEffect(.regular.interactive(), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(isLiked ? "Remove from favorites" : "Add to favorites")
+                }
+                .sharedBackgroundVisibility(.hidden)
+            }
         }
         .overlay(alignment: .top) {
             LinearGradient(

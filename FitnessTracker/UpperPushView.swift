@@ -68,7 +68,8 @@ struct RoutineView: View {
                     grade: WashGrade.forRoutine(routine.id),
                     frames: item.frames,
                     hints: item.hints,
-                    hintSource: item.hintSource
+                    hintSource: item.hintSource,
+                    favoriteSlug: item.favoriteSlug
                 )
             }
             .modifier(RoutineEditSheets(
@@ -125,9 +126,6 @@ struct RoutineView: View {
                     section("Cool Down", steps: draftCooldown)
                 }
 
-                credit
-                    .padding(.top, 32)
-                    .padding(.bottom, 8)
             }
             .padding(.horizontal, 16)
             .padding(.top, 34)
@@ -162,27 +160,29 @@ struct RoutineView: View {
                     cancelRoutineEditing()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                        .glassEffect(.clear.interactive(), in: Circle())
+                        .frame(width: 48, height: 48)
+                        .glassEffect(.regular.interactive(), in: Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Cancel editing")
             }
+            .sharedBackgroundVisibility(.hidden)
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     commitRoutineEditing()
                 } label: {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                        .glassEffect(.clear.interactive(), in: Circle())
+                        .frame(width: 48, height: 48)
+                        .glassEffect(.regular.interactive(), in: Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Save edits")
             }
+            .sharedBackgroundVisibility(.hidden)
         } else {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Edit") {
@@ -543,7 +543,8 @@ struct RoutineView: View {
             muscles: muscles,
             frames: Exercise.tutorialFrames(for: slug),
             hints: hints,
-            hintSource: hintSource
+            hintSource: hintSource,
+            favoriteSlug: slug
         )
     }
 
@@ -604,14 +605,6 @@ struct RoutineView: View {
         return String(format: "%.1f lbs", value)
     }
 
-    private var credit: some View {
-        Text(.init("Drawings by Everkinetic, arranged by Bryl Lim. [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)"))
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .tint(.white.opacity(0.8))
-    }
 }
 
 private enum RoutineEditSection {
@@ -1140,6 +1133,7 @@ private struct ThumbnailFit {
     }
     .environment(SessionStore())
     .environment(RoutineOverridesStore())
+    .environment(FavoritesStore())
     .environment(WashTheme())
     .preferredColorScheme(.dark)
 }
