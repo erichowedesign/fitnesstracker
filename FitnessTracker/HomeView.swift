@@ -217,7 +217,7 @@ private struct UpNextCard: View {
         .frame(maxWidth: .infinity)
         .frame(height: 358)
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-        .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(routine.name), \(routine.focus), \(routine.workoutsLine)")
     }
@@ -269,7 +269,7 @@ private struct RoutineListCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 152)
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-        .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Routine \(routine.rotationIndex), \(routine.name), \(routine.focus)")
     }

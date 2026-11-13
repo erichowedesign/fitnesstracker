@@ -37,7 +37,7 @@ struct RoutineView: View {
                         .frame(height: 370)
                         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
                         .homeHeroMatch("hero-art-\(routine.id)", in: hero, isSource: false, enabled: heroMatchEnabled)
-                        .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+                        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
                         .padding(.top, 32)
 
                     glanceCard
@@ -140,7 +140,7 @@ struct RoutineView: View {
         .padding(.horizontal, 52)
         .frame(maxWidth: .infinity)
         .frame(height: 120)
-        .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(routine.exercises.count) exercises, \(routine.minutes) minutes, difficulty \(routine.difficulty) of five")
     }
@@ -346,7 +346,7 @@ private struct MainWorkoutRow: View {
                         .frame(width: buttonWidth, height: 152)
                 }
                 .buttonStyle(.plain)
-                .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+                .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
                 .allowsHitTesting(isOpen)
             }
 
@@ -441,7 +441,7 @@ private struct GuideRow: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 152)
-        .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
     }
 
     @ViewBuilder

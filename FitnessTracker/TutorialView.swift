@@ -108,7 +108,7 @@ struct ExerciseTutorialView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 370)
-        .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
     }
 
     private func hintCard(_ hint: String) -> some View {
@@ -125,6 +125,6 @@ struct ExerciseTutorialView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
     }
 }

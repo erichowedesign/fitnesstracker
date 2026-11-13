@@ -138,7 +138,7 @@ private struct LibraryTile: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 152)
-        .glassEffect(.clear.interactive(), in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(workout.name)
         .accessibilityHint("Opens the tutorial")
