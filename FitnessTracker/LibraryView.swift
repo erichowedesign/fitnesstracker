@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct LibraryView: View {
-    @Environment(WashTheme.self) private var wash
     @Binding var hidesFloatingTabBar: Bool
     @State private var path: [LibraryWorkout] = []
     @State private var query = ""
@@ -52,18 +51,13 @@ struct LibraryView: View {
                     }
                 }
                 .scrollDismissesKeyboard(.immediately)
+                .scrollContentBackground(.hidden)
                 .contentMargins(.bottom, 120, for: .scrollContent)
             }
             .padding(.horizontal, 16)
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background {
-                ZStack {
-                    Color.black
-                    WashBackground(grade: wash.grade)
-                }
-                .ignoresSafeArea()
-            }
+            .containerBackground(.clear, for: .navigation)
             .toolbarBackground(.hidden, for: .navigationBar)
             .navigationTitle("Library")
             .toolbarTitleDisplayMode(.inline)

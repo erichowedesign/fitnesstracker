@@ -97,13 +97,7 @@ struct HomeView: View {
         .scrollContentBackground(.hidden)
         .foregroundStyle(.white)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background {
-            ZStack {
-                Color.black
-                WashBackground(grade: wash.grade)
-            }
-            .ignoresSafeArea()
-        }
+        .containerBackground(.clear, for: .navigation)
         .toolbarBackground(.hidden, for: .navigationBar)
         .navigationTitle("Foundation")
         .toolbarTitleDisplayMode(.inline)

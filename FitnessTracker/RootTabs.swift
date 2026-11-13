@@ -22,7 +22,7 @@ struct RootTabs: View {
 
     var body: some View {
         ZStack(alignment: .bottom) {
-            Color.black.ignoresSafeArea()
+            WashBackground(grade: wash.grade)
 
             GeometryReader { proxy in
                 let width = proxy.size.width
@@ -159,7 +159,6 @@ struct RootTabs: View {
 }
 
 private struct PlaceholderScreen: View {
-    @Environment(WashTheme.self) private var wash
     let title: String
 
     var body: some View {
@@ -167,13 +166,7 @@ private struct PlaceholderScreen: View {
             .font(.title2)
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background {
-                ZStack {
-                    Color.black
-                    WashBackground(grade: wash.grade)
-                }
-                .ignoresSafeArea()
-            }
+            .containerBackground(.clear, for: .navigation)
             .navigationTitle(title)
             .toolbarTitleDisplayMode(.inline)
             .toolbarBackground(.hidden, for: .navigationBar)
