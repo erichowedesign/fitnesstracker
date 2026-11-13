@@ -99,11 +99,17 @@ struct RootTabs: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         let delta = page.order - tab.order
+        // Only the selected page and the one being revealed should paint. The old
+        // ±width clamp stacked every page on the same side, so Library flashed
+        // over History while settling Home → History.
         let sliding = page == tab || page == previousTab || page == dragNeighbor
-        let base: CGFloat = delta == 0 ? 0 : (delta > 0 ? width : -width)
+        let base = CGFloat(delta) * width
         return content()
             .frame(width: width, height: height)
+            .background(Color.black)
             .offset(x: base + dragOffset)
+            .opacity(sliding ? 1 : 0)
+            .zIndex(page == tab ? 2 : (sliding ? 1 : 0))
             .transaction { transaction in
                 if isTracking || !sliding {
                     transaction.disablesAnimations = true
