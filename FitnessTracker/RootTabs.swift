@@ -106,7 +106,7 @@ struct RootTabs: View {
         let base = CGFloat(delta) * width
         return content()
             .frame(width: width, height: height)
-            .background(Color.black)
+            .background(Color.clear)
             .offset(x: base + dragOffset)
             .opacity(sliding ? 1 : 0)
             .zIndex(page == tab ? 2 : (sliding ? 1 : 0))
