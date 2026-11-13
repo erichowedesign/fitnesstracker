@@ -70,8 +70,7 @@ struct RoutineView: View {
             }
             .ignoresSafeArea()
         }
-        .toolbarBackground(.hidden, for: .navigationBar)
-        .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+        .toolbarBackgroundVisibility(.visible, for: .navigationBar)
         .safeAreaInset(edge: .bottom) {
             ZStack {
                 if showCompleteButton {
