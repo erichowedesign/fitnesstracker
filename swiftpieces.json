@@ -1,9 +1,0 @@
-{
-  "$schema": "https://swiftpieces.com/schema/config.json",
-  "directory": "FitnessTracker/SwiftPieces",
-  "minIOSVersion": "17.0",
-  "registries": {
-    "free": "https://swiftpieces.com/r",
-    "pro": "https://pro.swiftpieces.com/r"
-  }
-}

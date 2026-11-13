@@ -6,7 +6,6 @@ struct HistoryView: View {
     @State private var expandedSessionID: UUID?
     @State private var draftWeights: [String: String] = [:]
     @State private var didResubmit = false
-    @State private var updatePhase: CommitButton.Phase = .idle
 
     private var stats: HistoryStats { store.stats }
 
@@ -31,18 +30,10 @@ struct HistoryView: View {
                         .padding(.top, 40)
 
                     if store.sessions.isEmpty {
-                        OutcomeScreen(
-                            outcome: .empty,
-                            title: "No sessions yet",
-                            message: "Complete a workout and it will show up here.",
-                            primaryTitle: "Got it",
-                            primaryAction: {},
-                            style: OutcomeScreen.Style(
-                                text: .white,
-                                muted: .white.opacity(0.75)
-                            )
-                        )
-                        .padding(.top, 12)
+                        Text("Complete a workout and it will show up here.")
+                            .font(.body)
+                            .foregroundStyle(.white.opacity(0.8))
+                            .padding(.top, 20)
                     } else {
                         VStack(spacing: 12) {
                             ForEach(store.sessions) { session in
@@ -76,35 +67,33 @@ struct HistoryView: View {
             .onAppear {
                 wash.grade = .grayscale
             }
-            .toast(
-                isPresented: $didResubmit,
-                message: "Workout updated",
-                detail: "Weights are saved for that session.",
-                style: .success,
-                position: .top
-            )
+            .alert("Workout updated", isPresented: $didResubmit) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Weights are saved for that session.")
+            }
         }
     }
 
     private var dashboard: some View {
         VStack(spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
-                LiveStat(
-                    label: "Workouts",
-                    value: Double(stats.workoutsCompleted),
-                    format: .number.precision(.fractionLength(0)),
-                    style: LiveStatStyle(
-                        background: .clear,
-                        text: .white,
-                        muted: .white.opacity(0.75),
-                        line: .white.opacity(0.85),
-                        accent: Color(red: 0, green: 0.569, blue: 1),
-                        up: Color(red: 0, green: 0.77, blue: 0.655),
-                        down: Color(red: 1, green: 0, blue: 0),
-                        chipInk: .white,
-                        numeralSize: 48
-                    )
-                )
+                glassModule {
+                    VStack(alignment: .leading, spacing: 10) {
+                        moduleLabel("Workouts")
+                        Text("\(stats.workoutsCompleted)")
+                            .font(.system(size: 56, weight: .semibold))
+                            .monospacedDigit()
+                            .minimumScaleFactor(0.7)
+                        Text("completed")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.75))
+                        Spacer(minLength: 0)
+                        Text(stats.totalSets > 0 ? "\(stats.totalSets) sets logged" : "No sets yet")
+                            .font(.footnote)
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                }
                 .frame(maxWidth: .infinity)
                 .frame(height: 188)
 
@@ -112,12 +101,9 @@ struct HistoryView: View {
                     glassModule {
                         VStack(alignment: .leading, spacing: 6) {
                             moduleLabel("This week")
-                            Odometer(
-                                value: Double(stats.thisWeek),
-                                showsDelta: false
-                            )
-                            .font(.system(size: 34, weight: .semibold))
-                            .foregroundStyle(.white)
+                            Text("\(stats.thisWeek)")
+                                .font(.system(size: 34, weight: .semibold))
+                                .monospacedDigit()
                             Text("sessions")
                                 .font(.footnote)
                                 .foregroundStyle(.white.opacity(0.7))
@@ -128,12 +114,9 @@ struct HistoryView: View {
                     glassModule {
                         VStack(alignment: .leading, spacing: 6) {
                             moduleLabel("This month")
-                            Odometer(
-                                value: Double(stats.thisMonth),
-                                showsDelta: false
-                            )
-                            .font(.system(size: 34, weight: .semibold))
-                            .foregroundStyle(.white)
+                            Text("\(stats.thisMonth)")
+                                .font(.system(size: 34, weight: .semibold))
+                                .monospacedDigit()
                             Text("sessions")
                                 .font(.footnote)
                                 .foregroundStyle(.white.opacity(0.7))
@@ -150,12 +133,9 @@ struct HistoryView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         moduleLabel("Streak")
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Odometer(
-                                value: Double(stats.currentStreak),
-                                showsDelta: false
-                            )
-                            .font(.system(size: 40, weight: .semibold))
-                            .foregroundStyle(.white)
+                            Text("\(stats.currentStreak)")
+                                .font(.system(size: 40, weight: .semibold))
+                                .monospacedDigit()
                             Text(stats.currentStreak == 1 ? "day" : "days")
                                 .font(.subheadline)
                                 .foregroundStyle(.white.opacity(0.75))
@@ -171,17 +151,10 @@ struct HistoryView: View {
                 glassModule {
                     VStack(alignment: .leading, spacing: 8) {
                         moduleLabel("Time logged")
-                        HStack(alignment: .firstTextBaseline, spacing: 2) {
-                            Odometer(
-                                value: Double(stats.totalMinutes) / 60,
-                                format: .number.precision(.fractionLength(stats.totalMinutes < 600 ? 1 : 0)),
-                                showsDelta: false
-                            )
-                            Text("h")
-                        }
-                        .font(.system(size: 34, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .minimumScaleFactor(0.75)
+                        Text(formatHours(stats.totalMinutes))
+                            .font(.system(size: 34, weight: .semibold))
+                            .monospacedDigit()
+                            .minimumScaleFactor(0.75)
                         Text("\(stats.totalMinutes) min total")
                             .font(.footnote)
                             .foregroundStyle(.white.opacity(0.7))
@@ -231,7 +204,7 @@ struct HistoryView: View {
         content()
             .padding(16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .glassSurface(.rect(cornerRadius: 28))
+            .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 
     private func routineMixRow(name: String, count: Int) -> some View {
@@ -327,22 +300,22 @@ struct HistoryView: View {
                                     .frame(width: 88)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 8)
-                                    .glassSurface(.rect(cornerRadius: 12))
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .fill(.white.opacity(0.08))
+                                    )
                             }
                         }
 
-                        CommitButton(
-                            "Update weights",
-                            phase: $updatePhase,
-                            tint: Color(red: 0, green: 0.569, blue: 1),
-                            tintInk: .white,
-                            successTitle: "Saved",
-                            collapses: false
-                        ) {
-                            updatePhase = .loading
+                        Button {
                             resubmit(session)
-                            updatePhase = .success
+                        } label: {
+                            Text("Update weights")
+                                .frame(maxWidth: .infinity)
                         }
+                        .buttonStyle(.glass)
+                        .controlSize(.large)
+                        .buttonBorderShape(.capsule)
                         .padding(.top, 4)
                     }
                 }
@@ -350,7 +323,7 @@ struct HistoryView: View {
                 .padding(.bottom, 16)
             }
         }
-        .glassSurface(.rect(cornerRadius: 28))
+        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .animation(.smooth(duration: 0.28), value: expanded)
     }
 
@@ -359,11 +332,9 @@ struct HistoryView: View {
             if expandedSessionID == session.id {
                 expandedSessionID = nil
                 draftWeights = [:]
-                updatePhase = .idle
             } else {
                 expandedSessionID = session.id
                 draftWeights = Dictionary(uniqueKeysWithValues: session.lifts.map { ($0.id, Self.poundsText(from: $0.weight)) })
-                updatePhase = .idle
             }
         }
     }
@@ -390,6 +361,14 @@ struct HistoryView: View {
             expandedSessionID = nil
             draftWeights = [:]
         }
+    }
+
+    private func formatHours(_ minutes: Int) -> String {
+        let hours = Double(minutes) / 60
+        if hours < 10 {
+            return String(format: "%.1fh", hours)
+        }
+        return String(format: "%.0fh", hours)
     }
 
     private static let dateLabel: DateFormatter = {
