@@ -1,12 +1,31 @@
 import SwiftUI
 
-struct ExerciseTutorial: Hashable {
+struct ExerciseTutorial: Hashable, Identifiable {
+    var id: String { "\(sectionTitle)-\(favoriteSlug ?? name)-\(dose?.itemID ?? "tips")" }
     let name: String
     let muscles: String
     let frames: [String]
     let hints: [String]
     let hintSource: String?
     let favoriteSlug: String?
+    /// Centered nav title from the routine section, or "Tutorial" from Library.
+    let sectionTitle: String
+    /// When set, show Weight / Reps / Sets ScrubSteppers and persist changes.
+    let dose: RoutineDoseFields?
+}
+
+struct RoutineDoseFields: Hashable {
+    enum Section: Hashable {
+        case warmup
+        case main
+        case cooldown
+    }
+
+    var itemID: String
+    var section: Section
+    var weightLbs: Int
+    var reps: Int
+    var sets: Int
 }
 
 struct ExerciseTutorialView: View {
@@ -19,12 +38,30 @@ struct ExerciseTutorialView: View {
     let hints: [String]
     let hintSource: String?
     var favoriteSlug: String? = nil
+    var sectionTitle: String = "Tutorial"
+    var initialDose: RoutineDoseFields? = nil
+    var onDoseChange: ((RoutineDoseFields) -> Void)? = nil
+
+    @State private var weightLbs = 0
+    @State private var reps = 10
+    @State private var sets = 3
+    @State private var didLoadDose = false
 
     private var canFavorite: Bool { favoriteSlug != nil }
+    private var showsDoseAdjusters: Bool { initialDose != nil }
     private var isLiked: Bool {
         guard let favoriteSlug else { return false }
         return favorites.isLiked(favoriteSlug)
     }
+
+    /// Colorless liquid glass — clear buttons/pill, light glyphs for the wash.
+    private static let clearStepperStyle = ScrubStepper.Style(
+        button: .clear,
+        glyph: .white,
+        block: .clear,
+        ink: .white,
+        height: 52
+    )
 
     var body: some View {
         ScrollView {
@@ -42,11 +79,16 @@ struct ExerciseTutorialView: View {
                 cyclingHero
                     .padding(.top, 24)
 
+                if showsDoseAdjusters {
+                    doseRows
+                        .padding(.top, 24)
+                }
+
                 Text("Tips & Hints")
                     .font(.title2)
                     .fontWeight(.bold)
                     .foregroundStyle(.white)
-                    .padding(.top, 48)
+                    .padding(.top, showsDoseAdjusters ? 48 : 48)
 
                 if let hintSource, !hints.isEmpty {
                     Text("Source: \(hintSource)")
@@ -77,7 +119,7 @@ struct ExerciseTutorialView: View {
         }
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
-        .navigationTitle("Tutorial")
+        .navigationTitle(sectionTitle)
         .toolbarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
         .toolbar {
@@ -132,6 +174,41 @@ struct ExerciseTutorialView: View {
         .background {
             DisableRoutineInteractivePop()
         }
+        .onAppear(perform: loadDoseIfNeeded)
+        .onChange(of: weightLbs) { _, _ in emitDoseChange() }
+        .onChange(of: reps) { _, _ in emitDoseChange() }
+        .onChange(of: sets) { _, _ in emitDoseChange() }
+    }
+
+    private var doseRows: some View {
+        VStack(spacing: 12) {
+            doseRow(label: "Weight") {
+                ScrubStepper(value: $weightLbs, in: 0...500, step: 5, style: Self.clearStepperStyle)
+                    .accessibilityLabel("Weight")
+            }
+            doseRow(label: "Reps") {
+                ScrubStepper(value: $reps, in: 1...50, step: 1, style: Self.clearStepperStyle)
+                    .accessibilityLabel("Reps")
+            }
+            doseRow(label: "Sets") {
+                ScrubStepper(value: $sets, in: 1...20, step: 1, style: Self.clearStepperStyle)
+                    .accessibilityLabel("Sets")
+            }
+        }
+    }
+
+    private func doseRow<Content: View>(label: String, @ViewBuilder control: () -> Content) -> some View {
+        HStack(spacing: 16) {
+            Text(label)
+                .font(.headline)
+                .foregroundStyle(.white)
+            Spacer(minLength: 0)
+            control()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
     }
 
     private var cyclingHero: some View {
@@ -162,5 +239,22 @@ struct ExerciseTutorialView: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+    }
+
+    private func loadDoseIfNeeded() {
+        guard !didLoadDose, let initialDose else { return }
+        weightLbs = initialDose.weightLbs
+        reps = max(initialDose.reps, 1)
+        sets = max(initialDose.sets, 1)
+        // Defer so onChange from seed values does not write immediately.
+        DispatchQueue.main.async { didLoadDose = true }
+    }
+
+    private func emitDoseChange() {
+        guard didLoadDose, var dose = initialDose else { return }
+        dose.weightLbs = weightLbs
+        dose.reps = reps
+        dose.sets = sets
+        onDoseChange?(dose)
     }
 }

@@ -40,7 +40,8 @@ struct LibraryView: View {
                     frames: workout.frames,
                     hints: workout.hints,
                     hintSource: workout.hintSource,
-                    favoriteSlug: workout.slug
+                    favoriteSlug: workout.slug,
+                    sectionTitle: "Tutorial"
                 )
             }
         }

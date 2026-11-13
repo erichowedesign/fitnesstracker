@@ -143,6 +143,42 @@ struct Exercise: Identifiable {
         return [work, "\(sets) sets", Self.restLabel(restSeconds)]
     }
 
+    var doseWeightLbs: Int {
+        Self.poundsValue(from: displayWeight)
+    }
+
+    var doseReps: Int {
+        max(targetReps ?? 10, 1)
+    }
+
+    func withDose(reps: Int, sets: Int, weightLbs: Int) -> Exercise {
+        let display: String? = weightLbs > 0 ? "\(weightLbs) lbs" : nil
+        return Exercise(
+            id: id,
+            hevyTemplateId: hevyTemplateId,
+            name: name,
+            equipment: equipment,
+            sets: max(sets, 1),
+            targetReps: max(reps, 1),
+            targetDurationSeconds: nil,
+            restSeconds: restSeconds,
+            notes: notes,
+            tracksAssistance: tracksAssistance,
+            slug: slug,
+            displayWeight: display
+        )
+    }
+
+    static func poundsValue(from display: String?) -> Int {
+        guard let display else { return 0 }
+        let cleaned = display
+            .replacingOccurrences(of: "lbs", with: "", options: .caseInsensitive)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let value = Int(cleaned) { return max(value, 0) }
+        if let value = Double(cleaned) { return max(Int(value.rounded()), 0) }
+        return 0
+    }
+
     static func fromLibrary(
         _ workout: LibraryWorkout,
         sets: Int,
@@ -196,20 +232,51 @@ struct GuideStep: Identifiable, Equatable {
     }
 
     static func fromLibrary(_ workout: LibraryWorkout, sets: Int, reps: Int, weight: String?) -> GuideStep {
-        var parts = ["\(max(reps, 1)) reps", "\(max(sets, 1)) sets"]
-        if let weight = weight?.trimmingCharacters(in: .whitespacesAndNewlines), !weight.isEmpty {
-            if weight.localizedCaseInsensitiveContains("lbs") {
-                parts.append(weight)
-            } else {
-                parts.append("\(weight) lbs")
-            }
-        }
-        return GuideStep(
+        GuideStep(
             id: "\(workout.slug)-\(UUID().uuidString.prefix(8))",
             title: workout.name,
-            metaParts: parts,
+            metaParts: doseMetaParts(reps: reps, sets: sets, weightLbs: Exercise.poundsValue(from: weight)),
             slug: workout.slug
         )
+    }
+
+    var doseReps: Int {
+        Self.firstInt(in: metaParts.first(where: { $0.localizedCaseInsensitiveContains("rep") })) ?? 10
+    }
+
+    var doseSets: Int {
+        Self.firstInt(in: metaParts.first(where: { $0.localizedCaseInsensitiveContains("set") })) ?? 2
+    }
+
+    var doseWeightLbs: Int {
+        if let part = metaParts.first(where: { $0.localizedCaseInsensitiveContains("lbs") }) {
+            return Exercise.poundsValue(from: part)
+        }
+        return 0
+    }
+
+    func withDose(reps: Int, sets: Int, weightLbs: Int) -> GuideStep {
+        GuideStep(
+            id: id,
+            title: title,
+            metaParts: Self.doseMetaParts(reps: reps, sets: sets, weightLbs: weightLbs),
+            slug: slug
+        )
+    }
+
+    private static func doseMetaParts(reps: Int, sets: Int, weightLbs: Int) -> [String] {
+        var parts = ["\(max(reps, 1)) reps", "\(max(sets, 1)) sets"]
+        if weightLbs > 0 {
+            parts.append("\(weightLbs) lbs")
+        }
+        return parts
+    }
+
+    private static func firstInt(in text: String?) -> Int? {
+        guard let text else { return nil }
+        let digits = text.split(whereSeparator: { !$0.isNumber }).first.map(String.init)
+        guard let digits, let value = Int(digits) else { return nil }
+        return value
     }
 }
 

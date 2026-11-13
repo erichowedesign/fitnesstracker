@@ -13,9 +13,6 @@ struct RoutineView: View {
     let routine: Routine
     @State private var didSave = false
     @State private var showCompleteButton = false
-    @State private var openWeightRowID: String?
-    @State private var editingWeightRowID: String?
-    @State private var weightDraft = ""
     @State private var weights: [String: String] = [:]
     @State private var tutorial: ExerciseTutorial?
     @State private var isEditingRoutine = false
@@ -69,7 +66,10 @@ struct RoutineView: View {
                     frames: item.frames,
                     hints: item.hints,
                     hintSource: item.hintSource,
-                    favoriteSlug: item.favoriteSlug
+                    favoriteSlug: item.favoriteSlug,
+                    sectionTitle: item.sectionTitle,
+                    initialDose: item.dose,
+                    onDoseChange: applyDoseChange
                 )
             }
             .modifier(RoutineEditSheets(
@@ -302,9 +302,9 @@ struct RoutineView: View {
                     ForEach(steps) { step in
                         GuideRow(title: step.title, metaParts: step.metaParts, slug: step.slug)
                             .contentShape(Rectangle())
-                            .onTapGesture { openTutorial(step) }
+                            .onTapGesture { openTutorial(step, sectionTitle: title) }
                             .accessibilityAddTraits(.isButton)
-                            .accessibilityHint("Opens the tutorial")
+                            .accessibilityHint("Opens the tutorial to adjust weight, reps, and sets")
                     }
                 }
             }
@@ -321,18 +321,16 @@ struct RoutineView: View {
             GlassEffectContainer(spacing: 12) {
                 VStack(spacing: 12) {
                     ForEach(draftExercises) { exercise in
-                        MainWorkoutRow(
-                            exercise: exercise,
-                            weight: weights[exercise.id] ?? exercise.displayWeight ?? "—",
-                            isOpen: openWeightRowID == exercise.id,
-                            isEditing: editingWeightRowID == exercise.id,
-                            weightDraft: $weightDraft,
-                            onOpen: { openWeightRow(exercise.id) },
-                            onClose: { closeWeightRow(exercise.id) },
-                            onEdit: { beginWeightEdit(exercise) },
-                            onCancel: { cancelWeightRow(exercise.id) },
-                            onSelect: { openTutorial(exercise) }
+                        GuideRow(
+                            title: exercise.name,
+                            metaParts: exercise.metaParts,
+                            slug: exercise.slug,
+                            weight: weights[exercise.id] ?? exercise.displayWeight ?? "—"
                         )
+                        .contentShape(Rectangle())
+                        .onTapGesture { openTutorial(exercise) }
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityHint("Opens the tutorial to adjust weight, reps, and sets")
                     }
                 }
             }
@@ -441,9 +439,6 @@ struct RoutineView: View {
     }
 
     private func beginRoutineEditing() {
-        if let id = openWeightRowID {
-            closeWeightRow(id)
-        }
         editSnapshotWarmup = draftWarmup
         editSnapshotExercises = draftExercises
         editSnapshotCooldown = draftCooldown
@@ -457,8 +452,6 @@ struct RoutineView: View {
 
     private func commitRoutineEditing() {
         persistDraft()
-        openWeightRowID = nil
-        editingWeightRowID = nil
         withAnimation(.smooth(duration: 0.28)) {
             isEditingRoutine = false
             editMode = .inactive
@@ -470,8 +463,6 @@ struct RoutineView: View {
         draftExercises = editSnapshotExercises
         draftCooldown = editSnapshotCooldown
         weights = editSnapshotWeights
-        openWeightRowID = nil
-        editingWeightRowID = nil
         showLibraryPicker = false
         stagedLibraryWorkout = nil
         pendingLibraryWorkout = nil
@@ -508,103 +499,78 @@ struct RoutineView: View {
     }
 
     private func openTutorial(_ exercise: Exercise) {
-        presentTutorial(
+        let weightLbs = Exercise.poundsValue(from: weights[exercise.id] ?? exercise.displayWeight)
+        tutorial = ExerciseTutorial(
             name: exercise.name,
             muscles: exercise.tutorialMuscles,
-            slug: exercise.slug,
+            frames: exercise.tutorialFrames,
             hints: exercise.tutorialHints,
-            hintSource: exercise.tutorialHintSource
+            hintSource: exercise.tutorialHintSource,
+            favoriteSlug: exercise.slug,
+            sectionTitle: "Main Workout",
+            dose: RoutineDoseFields(
+                itemID: exercise.id,
+                section: .main,
+                weightLbs: weightLbs,
+                reps: exercise.doseReps,
+                sets: exercise.sets
+            )
         )
     }
 
-    private func openTutorial(_ step: GuideStep) {
+    private func openTutorial(_ step: GuideStep, sectionTitle: String) {
         let tips = ExerciseTips.set(for: step.title, slug: step.slug)
-        presentTutorial(
+        let section: RoutineDoseFields.Section = sectionTitle == "Cool Down" ? .cooldown : .warmup
+        tutorial = ExerciseTutorial(
             name: step.title,
             muscles: LibraryCatalog.workout(slug: step.slug)?.muscle ?? "",
-            slug: step.slug,
+            frames: Exercise.tutorialFrames(for: step.slug),
             hints: tips.tips,
-            hintSource: tips.source
+            hintSource: tips.source,
+            favoriteSlug: step.slug,
+            sectionTitle: sectionTitle,
+            dose: RoutineDoseFields(
+                itemID: step.id,
+                section: section,
+                weightLbs: step.doseWeightLbs,
+                reps: step.doseReps,
+                sets: step.doseSets
+            )
         )
     }
 
-    private func presentTutorial(
-        name: String,
-        muscles: String,
-        slug: String,
-        hints: [String],
-        hintSource: String?
-    ) {
-        if let id = openWeightRowID {
-            closeWeightRow(id)
+    private func applyDoseChange(_ dose: RoutineDoseFields) {
+        switch dose.section {
+        case .main:
+            guard let index = draftExercises.firstIndex(where: { $0.id == dose.itemID }) else { return }
+            let updated = draftExercises[index].withDose(
+                reps: dose.reps,
+                sets: dose.sets,
+                weightLbs: dose.weightLbs
+            )
+            draftExercises[index] = updated
+            if dose.weightLbs > 0 {
+                weights[dose.itemID] = updated.displayWeight ?? "\(dose.weightLbs) lbs"
+            } else {
+                weights.removeValue(forKey: dose.itemID)
+            }
+        case .warmup:
+            guard let index = draftWarmup.firstIndex(where: { $0.id == dose.itemID }) else { return }
+            draftWarmup[index] = draftWarmup[index].withDose(
+                reps: dose.reps,
+                sets: dose.sets,
+                weightLbs: dose.weightLbs
+            )
+        case .cooldown:
+            guard let index = draftCooldown.firstIndex(where: { $0.id == dose.itemID }) else { return }
+            draftCooldown[index] = draftCooldown[index].withDose(
+                reps: dose.reps,
+                sets: dose.sets,
+                weightLbs: dose.weightLbs
+            )
         }
-        tutorial = ExerciseTutorial(
-            name: name,
-            muscles: muscles,
-            frames: Exercise.tutorialFrames(for: slug),
-            hints: hints,
-            hintSource: hintSource,
-            favoriteSlug: slug
-        )
+        persistDraft()
     }
-
-    private func openWeightRow(_ id: String) {
-        if openWeightRowID != id {
-            commitWeightEdit()
-        }
-        withAnimation(.smooth(duration: 0.32)) {
-            openWeightRowID = id
-        }
-    }
-
-    private func closeWeightRow(_ id: String) {
-        guard openWeightRowID == id else { return }
-        commitWeightEdit()
-        withAnimation(.smooth(duration: 0.32)) {
-            openWeightRowID = nil
-        }
-    }
-
-    /// Slide the open row shut without writing the draft.
-    private func cancelWeightRow(_ id: String) {
-        guard openWeightRowID == id else { return }
-        editingWeightRowID = nil
-        weightDraft = ""
-        withAnimation(.smooth(duration: 0.32)) {
-            openWeightRowID = nil
-        }
-    }
-
-    private func beginWeightEdit(_ exercise: Exercise) {
-        let display = weights[exercise.id] ?? exercise.displayWeight ?? ""
-        weightDraft = Self.poundsText(from: display)
-        editingWeightRowID = exercise.id
-        openWeightRow(exercise.id)
-    }
-
-    private func commitWeightEdit() {
-        guard let id = editingWeightRowID else { return }
-        if let formatted = Self.formattedWeight(from: weightDraft) {
-            weights[id] = formatted
-        }
-        editingWeightRowID = nil
-        weightDraft = ""
-    }
-
-    private static func poundsText(from display: String) -> String {
-        display.replacingOccurrences(of: "lbs", with: "", options: .caseInsensitive)
-            .trimmingCharacters(in: .whitespaces)
-    }
-
-    private static func formattedWeight(from draft: String) -> String? {
-        let cleaned = draft.trimmingCharacters(in: .whitespaces)
-        guard let value = Double(cleaned) else { return nil }
-        if value.rounded() == value {
-            return "\(Int(value)) lbs"
-        }
-        return String(format: "%.1f lbs", value)
-    }
-
 }
 
 private enum RoutineEditSection {
@@ -744,101 +710,11 @@ private struct AddLibraryExerciseSheet: View {
     }
 }
 
-private struct MainWorkoutRow: View {
-    let exercise: Exercise
-    let weight: String
-    let isOpen: Bool
-    let isEditing: Bool
-    @Binding var weightDraft: String
-    let onOpen: () -> Void
-    let onClose: () -> Void
-    let onEdit: () -> Void
-    let onCancel: () -> Void
-    var onSelect: (() -> Void)? = nil
-
-    @State private var dragTranslation: CGFloat = 0
-
-    private let buttonWidth: CGFloat = 141
-    private let gap: CGFloat = 12
-    private var revealWidth: CGFloat { buttonWidth + gap }
-
-    private var offsetX: CGFloat {
-        let base = isOpen ? -revealWidth : 0
-        return min(0, max(-revealWidth, base + dragTranslation))
-    }
-
-    var body: some View {
-        ZStack(alignment: .trailing) {
-            if offsetX < -4 {
-                Button(action: onEdit) {
-                    Text("Edit")
-                        .font(.title3)
-                        .foregroundStyle(Color(red: 0.90, green: 0.90, blue: 0.92))
-                        .frame(width: buttonWidth, height: 152)
-                }
-                .buttonStyle(.plain)
-                .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
-                .allowsHitTesting(isOpen)
-            }
-
-            GuideRow(
-                title: exercise.name,
-                metaParts: exercise.metaParts,
-                slug: exercise.slug,
-                weight: weight,
-                isEditingWeight: isEditing,
-                weightDraft: $weightDraft,
-                onKeyboardDone: onClose
-            )
-            .offset(x: offsetX)
-        }
-        .frame(height: 152)
-        .clipped()
-        .contentShape(Rectangle())
-        .onTapGesture {
-            guard !isOpen, abs(dragTranslation) < 4 else { return }
-            onSelect?()
-        }
-        .simultaneousGesture(swipeGesture)
-        .onChange(of: isOpen) { _, open in
-            if !open {
-                dragTranslation = 0
-            }
-        }
-    }
-
-    private var swipeGesture: some Gesture {
-        DragGesture(minimumDistance: 16, coordinateSpace: .local)
-            .onChanged { value in
-                let translation = value.translation
-                guard abs(translation.width) > abs(translation.height) * 0.65 else { return }
-                dragTranslation = translation.width
-            }
-            .onEnded { value in
-                let width = value.translation.width
-                let predicted = value.predictedEndTranslation.width
-                if isOpen && (width > 36 || predicted > 80) {
-                    onCancel()
-                } else if !isOpen && (width < -36 || predicted < -80) {
-                    dragTranslation = 0
-                    onOpen()
-                } else {
-                    withAnimation(.smooth(duration: 0.32)) {
-                        dragTranslation = 0
-                    }
-                }
-            }
-    }
-}
-
 private struct GuideRow: View {
     let title: String
     let metaParts: [String]
     let slug: String
     var weight: String? = nil
-    var isEditingWeight: Bool = false
-    var weightDraft: Binding<String>? = nil
-    var onKeyboardDone: (() -> Void)? = nil
 
     /// Rows keep their existing still. Workouts that only live in the library use that workout's first frame.
     private var thumbnailSlug: String {
@@ -857,11 +733,11 @@ private struct GuideRow: View {
                     .font(.headline)
                 MetaLine(parts: metaParts)
                     .padding(.top, 4)
-                if weight != nil {
+                if let weight {
                     Text("Weight")
                         .font(.headline)
                         .padding(.top, 20)
-                    weightValue
+                    Text(weight)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .padding(.top, 4)
@@ -873,61 +749,6 @@ private struct GuideRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 152)
         .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
-    }
-
-    @ViewBuilder
-    private var weightValue: some View {
-        if isEditingWeight, let weightDraft {
-            WeightField(
-                draft: weightDraft,
-                onDone: { onKeyboardDone?() }
-            )
-        } else if let weight {
-            Text(weight)
-        }
-    }
-}
-
-private struct WeightField: View {
-    @Binding var draft: String
-    let onDone: () -> Void
-    @FocusState private var focused: Bool
-
-    var body: some View {
-        TextField("lbs", text: $draft)
-            .keyboardType(.decimalPad)
-            .textFieldStyle(.plain)
-            .focused($focused)
-            .labelsHidden()
-            .onAppear { focused = true }
-            .onChange(of: draft) { _, newValue in
-                let filtered = Self.filterPounds(newValue)
-                if filtered != newValue {
-                    draft = filtered
-                }
-            }
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button("Done") {
-                        onDone()
-                    }
-                }
-            }
-    }
-
-    private static func filterPounds(_ raw: String) -> String {
-        var result = ""
-        var sawDecimal = false
-        for character in raw {
-            if character.isNumber {
-                result.append(character)
-            } else if character == ".", !sawDecimal {
-                result.append(character)
-                sawDecimal = true
-            }
-        }
-        return result
     }
 }
 
