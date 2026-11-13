@@ -622,7 +622,6 @@ private struct LibraryExercisePicker: View {
                 filter: $filter,
                 title: "Library",
                 showsCancel: true,
-                showsTopChrome: true,
                 bottomInset: 24,
                 onCancel: { dismiss() },
                 onSelect: onPick

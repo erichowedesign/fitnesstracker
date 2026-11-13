@@ -8,18 +8,12 @@ enum LibraryListFilter: Hashable {
 
 struct LibraryView: View {
     @Binding var hidesFloatingTabBar: Bool
-    @Binding var query: String
-    @Binding var filter: LibraryListFilter
     @State private var path: [LibraryWorkout] = []
+    @State private var query = ""
+    @State private var filter: LibraryListFilter = .all
 
-    init(
-        hidesFloatingTabBar: Binding<Bool> = .constant(false),
-        query: Binding<String> = .constant(""),
-        filter: Binding<LibraryListFilter> = .constant(.all)
-    ) {
+    init(hidesFloatingTabBar: Binding<Bool> = .constant(false)) {
         _hidesFloatingTabBar = hidesFloatingTabBar
-        _query = query
-        _filter = filter
     }
 
     var body: some View {
@@ -27,7 +21,6 @@ struct LibraryView: View {
             LibraryBrowser(
                 query: $query,
                 filter: $filter,
-                showsTopChrome: false,
                 showsIllustrationCredit: true,
                 bottomInset: max(WashPlayback.screenSize.height * 0.5, 400)
             ) { workout in
@@ -62,7 +55,7 @@ struct LibraryView: View {
     }
 }
 
-/// Shared Library chrome: search/filter + large glass tiles.
+/// Shared Library chrome: filter + search (top) + large glass tiles.
 struct LibraryBrowser: View {
     @Environment(FavoritesStore.self) private var favorites
 
@@ -71,12 +64,13 @@ struct LibraryBrowser: View {
 
     var title: String = "Library"
     var showsCancel: Bool = false
-    var showsTopChrome: Bool = true
     var showsIllustrationCredit: Bool = false
     var bottomInset: CGFloat = 24
     var onCancel: (() -> Void)? = nil
     var onSelect: (LibraryWorkout) -> Void
 
+    /// Matches the floating bottom tab bar width (`RootTabs.tabBar`).
+    private var chromeWidth: CGFloat { 302 }
     private var chromeHeight: CGFloat { 48 }
     private var chromeTopPadding: CGFloat { 8 }
     private var chromeBottomGap: CGFloat { 16 }
@@ -118,12 +112,7 @@ struct LibraryBrowser: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(
-                .top,
-                showsTopChrome
-                    ? chromeTopPadding + chromeHeight + chromeBottomGap
-                    : chromeTopPadding
-            )
+            .padding(.top, chromeTopPadding + chromeHeight + chromeBottomGap)
             .padding(.bottom, showsIllustrationCredit ? 8 : 24)
 
             if showsIllustrationCredit {
@@ -156,11 +145,10 @@ struct LibraryBrowser: View {
             .accessibilityHidden(true)
         }
         .overlay(alignment: .top) {
-            if showsTopChrome {
-                LibraryFilterSearchChrome(query: $query, filter: $filter)
-                    .padding(.horizontal, 16)
-                    .padding(.top, chromeTopPadding)
-            }
+            LibraryFilterSearchChrome(query: $query, filter: $filter)
+                .frame(width: chromeWidth)
+                .padding(.top, chromeTopPadding)
+                .frame(maxWidth: .infinity)
         }
         .navigationTitle(title)
         .toolbarTitleDisplayMode(.inline)
@@ -190,21 +178,15 @@ struct LibraryBrowser: View {
     }
 }
 
-/// Filter menu + search field used at the top (add-sheet) or bottom (Library tab).
+/// Filter (left) + search (right). Combined width matches the bottom tab bar (302).
 struct LibraryFilterSearchChrome: View {
     @Binding var query: String
     @Binding var filter: LibraryListFilter
-    var compact: Bool = false
 
     var body: some View {
-        HStack(spacing: compact ? 10 : 12) {
-            if !compact {
-                filterMenu
-                searchField
-            } else {
-                searchField
-                filterMenu
-            }
+        HStack(spacing: 12) {
+            filterMenu
+            searchField
         }
     }
 
@@ -219,9 +201,9 @@ struct LibraryFilterSearchChrome: View {
             }
         } label: {
             Image(systemName: "line.3.horizontal.decrease")
-                .font(.system(size: compact ? 17 : 15, weight: .semibold))
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: compact ? 44 : 48, height: compact ? 44 : 48)
+                .frame(width: 48, height: 48)
                 .glassEffect(.regular.interactive(), in: Circle())
         }
         .accessibilityLabel(filterAccessibilityLabel)
@@ -240,7 +222,7 @@ struct LibraryFilterSearchChrome: View {
         }
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
-        .frame(height: compact ? 44 : 48)
+        .frame(height: 48)
         .glassEffect(.regular.interactive(), in: Capsule())
     }
 

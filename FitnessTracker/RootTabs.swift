@@ -29,12 +29,6 @@ private enum AppTab: Hashable {
     }
 }
 
-private enum LibraryChromePhase: Equatable {
-    case collapsed
-    case expanded
-    case searching
-}
-
 struct RootTabs: View {
     @Environment(WashTheme.self) private var wash
     @State private var tab: AppTab = .home
@@ -44,10 +38,6 @@ struct RootTabs: View {
     @State private var isTracking = false
     @State private var pageWidth: CGFloat = 1
     @State private var settleID = UUID()
-    @State private var libraryQuery = ""
-    @State private var libraryFilter: LibraryListFilter = .all
-    @State private var libraryChromePhase: LibraryChromePhase = .collapsed
-    @FocusState private var librarySearchFocused: Bool
 
     private var pageSlide: Animation { .smooth(duration: 0.35) }
 
@@ -72,11 +62,7 @@ struct RootTabs: View {
                         HistoryView()
                     }
                     tabPage(.library, width: width, height: proxy.size.height) {
-                        LibraryView(
-                            hidesFloatingTabBar: $hidesFloatingTabBar,
-                            query: $libraryQuery,
-                            filter: $libraryFilter
-                        )
+                        LibraryView(hidesFloatingTabBar: $hidesFloatingTabBar)
                     }
                 }
                 .frame(width: width, height: proxy.size.height, alignment: .leading)
@@ -90,18 +76,11 @@ struct RootTabs: View {
 
             tabHeader
 
-            Group {
-                if tab == .library {
-                    libraryBottomChrome
-                } else {
-                    tabBar
-                }
-            }
-            .opacity(hidesFloatingTabBar ? 0 : 1)
-            .allowsHitTesting(!hidesFloatingTabBar)
-            .accessibilityHidden(hidesFloatingTabBar)
-            .animation(.smooth(duration: 0.35), value: hidesFloatingTabBar)
-            .animation(.smooth(duration: 0.28), value: tab)
+            tabBar
+                .opacity(hidesFloatingTabBar ? 0 : 1)
+                .allowsHitTesting(!hidesFloatingTabBar)
+                .accessibilityHidden(hidesFloatingTabBar)
+                .animation(.smooth(duration: 0.35), value: hidesFloatingTabBar)
         }
         .scrollIndicators(.hidden)
         .preferredColorScheme(.dark)
@@ -110,13 +89,6 @@ struct RootTabs: View {
         }
         .onAppear {
             wash.grade = .grayscale
-        }
-        .onChange(of: tab) { _, newTab in
-            guard newTab != .library else { return }
-            librarySearchFocused = false
-            withAnimation(.smooth(duration: 0.28)) {
-                libraryChromePhase = .collapsed
-            }
         }
     }
 
@@ -307,142 +279,6 @@ struct RootTabs: View {
         .glassEffect(.regular.interactive(), in: Capsule())
         .padding(.bottom, 8)
         .animation(.snappy(duration: 0.25), value: tab)
-    }
-
-    /// Apple Music–style Library chrome — separate glass circles + own search bar.
-    /// collapsed → expanded (Library + search icon) → searching (Library | bar | filter).
-    private var libraryBottomChrome: some View {
-        HStack(spacing: 12) {
-            libraryCircleButton
-
-            switch libraryChromePhase {
-            case .collapsed:
-                Spacer(minLength: 0)
-            case .expanded:
-                Spacer(minLength: 0)
-                librarySearchIconButton
-            case .searching:
-                librarySearchField
-                libraryFilterButton
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 8)
-        .animation(.smooth(duration: 0.28), value: libraryChromePhase)
-    }
-
-    private var libraryCircleButton: some View {
-        Button {
-            switch libraryChromePhase {
-            case .collapsed:
-                withAnimation(.smooth(duration: 0.28)) {
-                    libraryChromePhase = .expanded
-                }
-            case .expanded:
-                withAnimation(.smooth(duration: 0.28)) {
-                    libraryChromePhase = .collapsed
-                }
-            case .searching:
-                librarySearchFocused = false
-                withAnimation(.smooth(duration: 0.28)) {
-                    libraryChromePhase = .expanded
-                }
-            }
-        } label: {
-            Image(systemName: "book")
-                .symbolVariant(.none)
-                .environment(\.symbolVariants, .none)
-                .font(.system(size: 20, weight: .medium))
-                .foregroundStyle(Color(red: 0, green: 0.569, blue: 1))
-                .frame(width: 54, height: 54)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: Circle())
-        .accessibilityLabel("Library")
-        .accessibilityHint(libraryCircleAccessibilityHint)
-        .accessibilityAddTraits(.isSelected)
-    }
-
-    private var librarySearchIconButton: some View {
-        Button {
-            withAnimation(.smooth(duration: 0.28)) {
-                libraryChromePhase = .searching
-            }
-            librarySearchFocused = true
-        } label: {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 54, height: 54)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: Circle())
-        .accessibilityLabel("Search")
-    }
-
-    private var librarySearchField: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.8))
-            TextField("Search", text: $libraryQuery)
-                .textFieldStyle(.plain)
-                .font(.body)
-                .foregroundStyle(.white)
-                .autocorrectionDisabled()
-                .focused($librarySearchFocused)
-                .submitLabel(.search)
-        }
-        .padding(.horizontal, 16)
-        .frame(maxWidth: .infinity)
-        .frame(height: 54)
-        .glassEffect(.regular.interactive(), in: Capsule())
-        .accessibilityLabel("Search Library")
-    }
-
-    private var libraryFilterButton: some View {
-        Menu {
-            Picker("Filter", selection: $libraryFilter) {
-                Text("All").tag(LibraryListFilter.all)
-                Text("Favorites").tag(LibraryListFilter.favorites)
-                ForEach(LibraryCatalog.equipment, id: \.self) { item in
-                    Text(item).tag(LibraryListFilter.equipment(item))
-                }
-            }
-        } label: {
-            Image(systemName: "line.3.horizontal.decrease")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 54, height: 54)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: Circle())
-        .accessibilityLabel(libraryFilterAccessibilityLabel)
-    }
-
-    private var libraryCircleAccessibilityHint: String {
-        switch libraryChromePhase {
-        case .collapsed:
-            return "Expands Library controls"
-        case .expanded:
-            return "Collapses Library controls"
-        case .searching:
-            return "Closes search"
-        }
-    }
-
-    private var libraryFilterAccessibilityLabel: String {
-        switch libraryFilter {
-        case .all:
-            return "Filter, All"
-        case .favorites:
-            return "Filter, Favorites"
-        case .equipment(let item):
-            return "Filter by equipment, \(item)"
-        }
     }
 
     private func tabButton(
