@@ -44,6 +44,11 @@ struct Routine: Identifiable, Hashable {
     let cooldown: [GuideStep]
     let minutes: Int
     let difficulty: Int
+    /// When false, the section is omitted from browse + edit chrome.
+    var includesWarmup: Bool = true
+    var includesMain: Bool = true
+    var includesCooldown: Bool = true
+    var isCustom: Bool = false
 
     var exerciseCountLabel: String {
         String(format: "%02d", exercises.count)
@@ -73,7 +78,11 @@ struct Routine: Identifiable, Hashable {
             exercises: exercises ?? self.exercises,
             cooldown: cooldown ?? self.cooldown,
             minutes: minutes,
-            difficulty: difficulty
+            difficulty: difficulty,
+            includesWarmup: includesWarmup,
+            includesMain: includesMain,
+            includesCooldown: includesCooldown,
+            isCustom: isCustom
         )
     }
 

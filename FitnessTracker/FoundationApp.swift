@@ -16,6 +16,7 @@ private enum FoundationShippingReset {
 struct FoundationApp: App {
     @State private var store = SessionStore()
     @State private var routineOverrides = RoutineOverridesStore()
+    @State private var customRoutines = CustomRoutinesStore()
     @State private var favorites = FavoritesStore()
     @State private var glassModeStore = GlassModeStore()
     @State private var wash = WashTheme()
@@ -25,6 +26,7 @@ struct FoundationApp: App {
             RootTabs()
                 .environment(store)
                 .environment(routineOverrides)
+                .environment(customRoutines)
                 .environment(favorites)
                 .environment(glassModeStore)
                 .environment(wash)

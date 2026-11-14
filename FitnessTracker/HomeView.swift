@@ -1,27 +1,40 @@
 import SwiftUI
 
+private enum HomeRoute: Hashable {
+    case create
+    case routine(String)
+}
+
 struct HomeView: View {
     @Environment(SessionStore.self) private var store
     @Environment(RoutineOverridesStore.self) private var routineOverrides
+    @Environment(CustomRoutinesStore.self) private var customRoutines
     @Environment(WashTheme.self) private var wash
     @Environment(\.glassPalette) private var palette
     @Binding var hidesFloatingTabBar: Bool
-    @State private var path: [Routine] = []
+    @State private var path: [HomeRoute] = []
+    /// Routine ids that should open straight into edit mode (new custom creates).
+    @State private var startEditingIDs: Set<String> = []
 
     init(hidesFloatingTabBar: Binding<Bool> = .constant(false)) {
         _hidesFloatingTabBar = hidesFloatingTabBar
     }
 
-    private var routines: [Routine] {
+    /// Shipping A–D only — drives Up Next rotation without custom routines.
+    private var shippingRoutines: [Routine] {
         WorkoutPlan.all().map(routineOverrides.resolved)
     }
 
+    private var customList: [Routine] {
+        customRoutines.routines(startingRotationAt: shippingRoutines.count + 1)
+    }
+
     private var upNext: Routine {
-        store.nextRoutine(in: routines)
+        store.nextRoutine(in: shippingRoutines)
     }
 
     private var myRoutines: [Routine] {
-        store.remainingRoutines(after: upNext, in: routines)
+        store.remainingRoutines(after: upNext, in: shippingRoutines) + customList
     }
 
     /// Clears the floating tab bar; matches History’s bottom scroll inset.
@@ -74,6 +87,15 @@ struct HomeView: View {
                         }
                         .buttonStyle(.plain)
                     }
+
+                    Button {
+                        path.append(.create)
+                        hidesFloatingTabBar = true
+                    } label: {
+                        CreateRoutineRow()
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Create routine")
                 }
                 .padding(.top, 24)
             }
@@ -101,8 +123,29 @@ struct HomeView: View {
                     .accessibilityHidden(true)
             }
         }
-        .navigationDestination(for: Routine.self) { routine in
-            RoutineView(routine: routine)
+        .navigationDestination(for: HomeRoute.self) { route in
+            switch route {
+            case .create:
+                CreateRoutineView { routine in
+                    startEditingIDs.insert(routine.id)
+                    // Replace create with the new routine so Back from edit returns Home.
+                    path = [.routine(routine.id)]
+                }
+            case .routine(let id):
+                if let routine = resolvedRoutine(id: id) {
+                    RoutineView(
+                        routine: routine,
+                        startsInEditMode: startEditingIDs.contains(id)
+                    )
+                    .onDisappear {
+                        startEditingIDs.remove(id)
+                    }
+                } else {
+                    Text("Routine unavailable")
+                        .glassInk()
+                        .onAppear { path.removeAll() }
+                }
+            }
         }
         .onChange(of: path) { _, newPath in
             hidesFloatingTabBar = !newPath.isEmpty
@@ -129,7 +172,32 @@ struct HomeView: View {
 
     private func openRoutine(_ routine: Routine) {
         hidesFloatingTabBar = true
-        path.append(routine)
+        path.append(.routine(routine.id))
+    }
+
+    private func resolvedRoutine(id: String) -> Routine? {
+        if let custom = customRoutines.routine(id: id) {
+            return custom
+        }
+        return shippingRoutines.first { $0.id == id }
+    }
+}
+
+/// Light create affordance under the last routine tile — not a heavy card.
+private struct CreateRoutineRow: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "plus")
+                .font(.system(size: 17, weight: .semibold))
+            Text("Create routine")
+                .font(.headline)
+            Spacer(minLength: 0)
+        }
+        .glassInk()
+        .padding(.horizontal, 20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 56)
+        .foundationGlass(interactive: true, in: Capsule())
     }
 }
 
@@ -242,6 +310,7 @@ private struct RoutineListCard: View {
     HomeView()
     .environment(SessionStore())
     .environment(RoutineOverridesStore())
+    .environment(CustomRoutinesStore())
     .environment(WashTheme())
     .preferredColorScheme(.dark)
 }

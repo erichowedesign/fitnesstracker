@@ -11,14 +11,17 @@ struct UpperPushView: View {
 struct RoutineView: View {
     @Environment(SessionStore.self) private var store
     @Environment(RoutineOverridesStore.self) private var routineOverrides
+    @Environment(CustomRoutinesStore.self) private var customRoutines
     @Environment(\.glassPalette) private var palette
     @Environment(\.dismiss) private var dismiss
     let routine: Routine
+    var startsInEditMode: Bool = false
     @State private var didSave = false
     @State private var showCompleteButton = false
     @State private var weights: [String: String] = [:]
     @State private var tutorial: ExerciseTutorial?
     @State private var isEditingRoutine = false
+    @State private var didApplyStartEditing = false
     @State private var draftWarmup: [GuideStep] = []
     @State private var draftExercises: [Exercise] = []
     @State private var draftCooldown: [GuideStep] = []
@@ -85,7 +88,10 @@ struct RoutineView: View {
                 pendingLibraryWorkout: $pendingLibraryWorkout,
                 onAdd: addLibraryExercise
             ))
-            .onAppear(perform: loadDraft)
+            .onAppear {
+                loadDraft()
+                applyStartEditingIfNeeded()
+            }
     }
 
     private var routineScroll: some View {
@@ -111,22 +117,34 @@ struct RoutineView: View {
                 }
 
                 if isEditingRoutine {
-                    editableGuideSection(
-                        title: "Warm-up",
-                        steps: $draftWarmup,
-                        section: .warmup
-                    )
-                    editableMainSection
-                    editableGuideSection(
-                        title: "Cool Down",
-                        steps: $draftCooldown,
-                        section: .cooldown
-                    )
+                    if routine.includesWarmup {
+                        editableGuideSection(
+                            title: "Warm-up",
+                            steps: $draftWarmup,
+                            section: .warmup
+                        )
+                    }
+                    if routine.includesMain {
+                        editableMainSection
+                    }
+                    if routine.includesCooldown {
+                        editableGuideSection(
+                            title: "Cool Down",
+                            steps: $draftCooldown,
+                            section: .cooldown
+                        )
+                    }
                 } else {
                     // 48pt below hero block (summary description removed).
-                    section("Warm-up", steps: draftWarmup, revealsCompleteButton: true)
-                    mainWorkoutSection
-                    section("Cool Down", steps: draftCooldown)
+                    if routine.includesWarmup {
+                        section("Warm-up", steps: draftWarmup, revealsCompleteButton: true)
+                    }
+                    if routine.includesMain {
+                        mainWorkoutSection
+                    }
+                    if routine.includesCooldown {
+                        section("Cool Down", steps: draftCooldown)
+                    }
                 }
 
             }
@@ -191,13 +209,25 @@ struct RoutineView: View {
     }
 
     private func loadDraft() {
-        draftWarmup = routineOverrides.warmup(for: routine.id, fallback: routine.warmup)
-        draftExercises = routineOverrides.exercises(for: routine.id, fallback: routine.exercises)
-        draftCooldown = routineOverrides.cooldown(for: routine.id, fallback: routine.cooldown)
+        if routine.isCustom || customRoutines.contains(routine.id) {
+            draftWarmup = routine.includesWarmup ? routine.warmup : []
+            draftExercises = routine.includesMain ? routine.exercises : []
+            draftCooldown = routine.includesCooldown ? routine.cooldown : []
+        } else {
+            draftWarmup = routineOverrides.warmup(for: routine.id, fallback: routine.warmup)
+            draftExercises = routineOverrides.exercises(for: routine.id, fallback: routine.exercises)
+            draftCooldown = routineOverrides.cooldown(for: routine.id, fallback: routine.cooldown)
+        }
         for exercise in draftExercises {
             guard weights[exercise.id] == nil, let seed = exercise.displayWeight else { continue }
             weights[exercise.id] = seed
         }
+    }
+
+    private func applyStartEditingIfNeeded() {
+        guard startsInEditMode, !didApplyStartEditing else { return }
+        didApplyStartEditing = true
+        beginRoutineEditing()
     }
 
     private func addLibraryExercise(_ workout: LibraryWorkout, sets: Int, reps: Int, weight: String?) {
@@ -503,12 +533,21 @@ struct RoutineView: View {
     }
 
     private func persistDraft() {
-        routineOverrides.save(
-            warmup: draftWarmup,
-            exercises: draftExercises,
-            cooldown: draftCooldown,
-            for: routine.id
-        )
+        if routine.isCustom || customRoutines.contains(routine.id) {
+            customRoutines.save(
+                warmup: draftWarmup,
+                exercises: draftExercises,
+                cooldown: draftCooldown,
+                for: routine.id
+            )
+        } else {
+            routineOverrides.save(
+                warmup: draftWarmup,
+                exercises: draftExercises,
+                cooldown: draftCooldown,
+                for: routine.id
+            )
+        }
     }
 
     private func deleteExercises(at offsets: IndexSet) {
@@ -1027,6 +1066,7 @@ private struct ThumbnailFit {
     }
     .environment(SessionStore())
     .environment(RoutineOverridesStore())
+    .environment(CustomRoutinesStore())
     .environment(FavoritesStore())
     .environment(WashTheme())
     .preferredColorScheme(.dark)

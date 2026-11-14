@@ -29,7 +29,9 @@ enum WashGrade: Hashable {
         case "B": return .purpleOrange
         case "C": return .redYellow
         case "D": return .blackGreen
-        default: return .thermal
+        default:
+            // Custom routines share Home’s grayscale wash.
+            return id.hasPrefix("custom-") ? .grayscale : .thermal
         }
     }
 }
