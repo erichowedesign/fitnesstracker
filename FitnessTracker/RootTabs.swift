@@ -31,6 +31,7 @@ private enum AppTab: Hashable {
 
 struct RootTabs: View {
     @Environment(WashTheme.self) private var wash
+    @Environment(\.glassPalette) private var palette
     @State private var tab: AppTab = .home
     @State private var previousTab: AppTab = .home
     @State private var hidesFloatingTabBar = false
@@ -51,6 +52,10 @@ struct RootTabs: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             WashBackground(grade: wash.grade)
+            palette.washVeil
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .animation(.smooth(duration: 0.35), value: palette.mode)
 
             GeometryReader { proxy in
                 let width = proxy.size.width
@@ -85,13 +90,15 @@ struct RootTabs: View {
                 .animation(.smooth(duration: 0.35), value: hidesFloatingTabBar)
         }
         .scrollIndicators(.hidden)
-        .preferredColorScheme(.dark)
+        .foregroundStyle(palette.primary)
+        .preferredColorScheme(palette.colorScheme)
         .background {
             TabPanBridge(isEnabled: !hidesFloatingTabBar, onChanged: applyDrag, onEnded: endDrag)
         }
         .onAppear {
             wash.grade = .grayscale
         }
+        .animation(.smooth(duration: 0.3), value: palette.mode)
     }
 
     /// Leading: glass mode action menu. Trailing: extensible more menu. Tab header stays pass-through.
@@ -270,14 +277,18 @@ struct RootTabs: View {
     private var tabBar: some View {
         ZStack {
             Capsule()
-                .fill(Color.black.opacity(0.6))
+                .fill(palette.mode == .light ? Color.white.opacity(0.35) : Color.black.opacity(0.6))
             Capsule()
-                .fill(Color.white.opacity(0.06))
+                .fill(palette.dim.opacity(palette.mode == .light ? 0.5 : 0.5))
 
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(Color(red: 18 / 255, green: 18 / 255, blue: 18 / 255))
-                    .blendMode(.plusLighter)
+                    .fill(
+                        palette.mode == .light
+                            ? Color.white.opacity(0.55)
+                            : Color(red: 18 / 255, green: 18 / 255, blue: 18 / 255)
+                    )
+                    .blendMode(palette.mode == .light ? .normal : .plusLighter)
                     .frame(width: 106, height: 54)
                     .offset(x: selectedPillX)
 
@@ -294,6 +305,7 @@ struct RootTabs: View {
         .foundationGlass(interactive: true, in: Capsule())
         .padding(.bottom, 8)
         .animation(.snappy(duration: 0.25), value: tab)
+        .animation(.smooth(duration: 0.3), value: palette.mode)
     }
 
     private func tabButton(
@@ -316,12 +328,8 @@ struct RootTabs: View {
                     .font(.system(size: 10, weight: .medium))
                     .frame(height: 12)
             }
-            .foregroundStyle(
-                selected
-                    ? Color(red: 0, green: 0.569, blue: 1)
-                    : Color(red: 0.961, green: 0.961, blue: 0.961)
-            )
-            .blendMode(selected ? .normal : .plusLighter)
+            .foregroundStyle(selected ? palette.accent : palette.chrome)
+            .blendMode(selected || palette.mode == .light ? .normal : .plusLighter)
             .padding(.horizontal, 8)
             .padding(.top, 6)
             .frame(width: 102, height: 54, alignment: .top)

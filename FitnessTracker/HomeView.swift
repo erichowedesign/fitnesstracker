@@ -39,16 +39,16 @@ struct HomeView: View {
                 Text("Get to Work")
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                    .foregroundStyle(.white)
+                    .glassInk()
                 Text("You got a lot of shit to get done")
                     .font(.body)
-                    .foregroundStyle(.white)
+                    .glassInk()
                     .padding(.top, 8)
 
                 Text("Up Next")
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundStyle(.white)
+                    .glassInk()
                     .padding(.top, 48)
 
                 Button {
@@ -62,7 +62,7 @@ struct HomeView: View {
                 Text("My Routines")
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundStyle(.white)
+                    .glassInk()
                     .padding(.top, 48)
 
                 VStack(spacing: 12) {
@@ -81,7 +81,7 @@ struct HomeView: View {
                     showResetRoutinesConfirm = true
                 }
                 .font(.body.weight(.semibold))
-                .foregroundStyle(.white.opacity(0.72))
+                .glassInk(.tertiary)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 40)
                 .accessibilityHint("Restores stock warm-ups, main workouts, and cool-downs")
@@ -93,7 +93,7 @@ struct HomeView: View {
         .contentMargins(.bottom, homeScrollBottomInset, for: .scrollContent)
         .scrollContentBackground(.hidden)
         .scrollEdgeEffectHidden(true, for: .vertical)
-        .foregroundStyle(.white)
+        .glassInk()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(.clear, for: .navigation)
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
@@ -162,10 +162,10 @@ private struct UpNextCard: View {
                 IllustrationView(slug: routine.heroSlug, label: routine.name)
                     .frame(width: 192, height: 192)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .foregroundStyle(.white)
+                    .glassInk()
                 Text("Routine \(routine.rotationIndex)")
                     .font(.subheadline)
-                    .foregroundStyle(.white)
+                    .glassInk()
                     .padding(.top, 16)
                     .padding(.leading, 32)
             }
@@ -197,7 +197,7 @@ private struct UpNextCard: View {
             .padding(.top, 20)
             .padding(.bottom, 24)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .foregroundStyle(.white)
+            .glassInk()
         }
         .frame(maxWidth: .infinity)
         .frame(height: 358)
@@ -222,7 +222,7 @@ private struct RoutineListCard: View {
                 }
                 .frame(width: 120, height: 120)
                 .clipShape(homeIllustrationThumb(gap: 16))
-                .foregroundStyle(.white)
+                .glassInk()
                 VStack(alignment: .leading, spacing: 23) {
                     Text("Routine \(routine.rotationIndex)")
                         .font(.system(size: 15))
@@ -239,7 +239,7 @@ private struct RoutineListCard: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .foregroundStyle(.white)
+                .glassInk()
             }
             .padding(16)
         }

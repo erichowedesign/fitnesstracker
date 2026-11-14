@@ -2,16 +2,20 @@ import SwiftUI
 
 /// Top-trailing ellipsis menu. Sectioned shell for future preferences (glass lives on the leading control).
 struct RootMoreMenu: View {
+    @Environment(\.glassPalette) private var palette
+
     var body: some View {
         Menu {
             // Future sections land here.
         } label: {
             Image(systemName: "ellipsis")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(palette.chrome)
+                .frame(width: 48, height: 48)
+                .contentShape(Circle())
         }
+        .buttonStyle(.plain)
+        .foundationGlass(interactive: true, in: Circle())
         .accessibilityLabel("More")
     }
 }
@@ -19,6 +23,7 @@ struct RootMoreMenu: View {
 /// Top-leading glass mode control — SwiftPieces `GlassActionMenu` with Dark / Light / Clear.
 struct GlassModeActionMenu: View {
     @Environment(GlassModeStore.self) private var glassModeStore
+    @Environment(\.glassPalette) private var palette
 
     private var triggerSymbol: String {
         switch glassModeStore.mode {
@@ -31,11 +36,11 @@ struct GlassModeActionMenu: View {
     private var menuStyle: GlassActionMenu.Style {
         GlassActionMenu.Style(
             trigger: .clear,
-            ink: .white,
-            labelInk: .white,
+            ink: palette.chrome,
+            labelInk: palette.primary,
             triggerSize: 48,
             itemSize: 48,
-            scrimOpacity: 0.32,
+            scrimOpacity: glassModeStore.mode == .light ? 0.18 : 0.32,
             confirmsAction: true
         )
     }

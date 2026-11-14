@@ -11,16 +11,15 @@ struct FoundationApp: App {
     var body: some Scene {
         WindowGroup {
             RootTabs()
-                // Inject stores first so chrome / pieces can resolve them.
                 .environment(store)
                 .environment(routineOverrides)
                 .environment(favorites)
                 .environment(glassModeStore)
                 .environment(wash)
-                // Mirror mode into the glassMode key (tracks Observable updates).
                 .environment(\.glassMode, glassModeStore.mode)
-                .background(Color.black)
-                .preferredColorScheme(.dark)
+                .environment(\.glassPalette, glassModeStore.palette)
+                .preferredColorScheme(glassModeStore.palette.colorScheme)
+                .background(glassModeStore.mode == .light ? Color(white: 0.92) : Color.black)
         }
     }
 }

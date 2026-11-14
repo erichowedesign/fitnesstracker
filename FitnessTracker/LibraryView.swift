@@ -100,7 +100,7 @@ struct LibraryBrowser: View {
                 if results.isEmpty {
                     Text(emptyMessage)
                         .font(.body)
-                        .foregroundStyle(.white.opacity(0.8))
+                        .glassInk(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 } else {
                     LazyVStack(spacing: 12) {
@@ -126,24 +126,12 @@ struct LibraryBrowser: View {
         .scrollContentBackground(.hidden)
         .scrollEdgeEffectHidden(true, for: .vertical)
         .contentMargins(.bottom, bottomInset, for: .scrollContent)
-        .foregroundStyle(.white)
+        .glassInk()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(.clear, for: .navigation)
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .overlay(alignment: .top) {
-            LinearGradient(
-                stops: [
-                    .init(color: .black.opacity(0.28), location: 0),
-                    .init(color: .black.opacity(0.12), location: 0.45),
-                    .init(color: .clear, location: 1),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 120)
-            .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+            LibraryTopScrim()
         }
         .overlay(alignment: .top) {
             LibraryFilterSearchChrome(
@@ -178,7 +166,33 @@ struct LibraryBrowser: View {
             .foregroundStyle(.secondary)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
-            .tint(.white.opacity(0.8))
+            .tint(Color.primary.opacity(0.8))
+    }
+}
+
+private struct LibraryTopScrim: View {
+    @Environment(\.glassPalette) private var palette
+
+    var body: some View {
+        LinearGradient(
+            stops: [
+                .init(
+                    color: palette.mode == .light ? Color.white.opacity(0.45) : Color.black.opacity(0.28),
+                    location: 0
+                ),
+                .init(
+                    color: palette.mode == .light ? Color.white.opacity(0.18) : Color.black.opacity(0.12),
+                    location: 0.45
+                ),
+                .init(color: .clear, location: 1),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .frame(height: 120)
+        .ignoresSafeArea(edges: .top)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -218,7 +232,7 @@ struct LibraryFilterSearchChrome: View {
         } label: {
             Image(systemName: "line.3.horizontal.decrease")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.white)
+                .glassInk()
                 .frame(width: 48, height: 48)
                 .foundationGlass(interactive: true, in: Circle())
         }
@@ -229,11 +243,11 @@ struct LibraryFilterSearchChrome: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.8))
+                .glassInk(.secondary)
             TextField("Search", text: $query)
                 .textFieldStyle(.plain)
                 .font(.body)
-                .foregroundStyle(.white)
+                .glassInk()
                 .autocorrectionDisabled()
                 .focused($searchFocused)
                 .submitLabel(.search)
@@ -250,7 +264,7 @@ struct LibraryFilterSearchChrome: View {
         } label: {
             Image(systemName: favoritesOnly ? "heart.fill" : "heart")
                 .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(favoritesOnly ? Color.red : .white)
+                .foregroundStyle(favoritesOnly ? Color.red : Color.primary)
                 .frame(width: 48, height: 48)
                 .contentShape(Circle())
         }
@@ -267,7 +281,7 @@ struct LibraryFilterSearchChrome: View {
         } label: {
             Image(systemName: "xmark")
                 .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.white)
+                .glassInk()
                 .frame(width: 48, height: 48)
                 .contentShape(Circle())
         }
@@ -302,7 +316,7 @@ struct LibraryTile: View {
                         .accessibilityHidden(true)
                     Text(workout.name)
                         .font(.headline)
-                        .foregroundStyle(.white)
+                        .glassInk()
                         .multilineTextAlignment(.leading)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
@@ -319,7 +333,7 @@ struct LibraryTile: View {
             } label: {
                 Image(systemName: isLiked ? "heart.fill" : "heart")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(isLiked ? Color.pink : .white)
+                    .foregroundStyle(isLiked ? Color.pink : Color.primary)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }

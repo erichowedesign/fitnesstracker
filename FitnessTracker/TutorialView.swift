@@ -31,6 +31,7 @@ struct RoutineDoseFields: Hashable {
 struct ExerciseTutorialView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(FavoritesStore.self) private var favorites
+    @Environment(\.glassPalette) private var palette
     let exerciseName: String
     let muscles: String
     let grade: WashGrade
@@ -54,14 +55,16 @@ struct ExerciseTutorialView: View {
         return favorites.isLiked(favoriteSlug)
     }
 
-    /// Colorless liquid glass — clear buttons/pill, light glyphs for the wash.
-    private static let clearStepperStyle = ScrubStepper.Style(
-        button: .clear,
-        glyph: .white,
-        block: .clear,
-        ink: .white,
-        height: 52
-    )
+    /// Colorless liquid glass — glyphs/ink follow the active glass palette.
+    private var clearStepperStyle: ScrubStepper.Style {
+        ScrubStepper.Style(
+            button: .clear,
+            glyph: palette.primary,
+            block: .clear,
+            ink: palette.primary,
+            height: 52
+        )
+    }
 
     var body: some View {
         ScrollView {
@@ -69,11 +72,11 @@ struct ExerciseTutorialView: View {
                 Text(exerciseName)
                     .font(.largeTitle)
                     .fontWeight(.bold)
-                    .foregroundStyle(.white)
+                    .glassInk()
                     .fixedSize(horizontal: false, vertical: true)
                 Text(muscles)
                     .font(.body)
-                    .foregroundStyle(.white)
+                    .glassInk()
                     .padding(.top, 8)
 
                 cyclingHero
@@ -87,13 +90,13 @@ struct ExerciseTutorialView: View {
                 Text("Tips & Hints")
                     .font(.title2)
                     .fontWeight(.bold)
-                    .foregroundStyle(.white)
+                    .glassInk()
                     .padding(.top, showsDoseAdjusters ? 48 : 48)
 
                 if let hintSource, !hints.isEmpty {
                     Text("Source: \(hintSource)")
                         .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.72))
+                        .glassInk(.tertiary)
                         .padding(.top, 8)
                 }
 
@@ -109,7 +112,7 @@ struct ExerciseTutorialView: View {
             .padding(.top, 42)
         }
         .scrollContentBackground(.hidden)
-        .foregroundStyle(.white)
+        .glassInk()
         .background {
             ZStack {
                 Color.black
@@ -129,7 +132,7 @@ struct ExerciseTutorialView: View {
                 } label: {
                     Image(systemName: "chevron.backward")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .glassInk()
                         .frame(width: 48, height: 48)
                         .foundationGlass(interactive: true, in: Circle())
                 }
@@ -146,7 +149,7 @@ struct ExerciseTutorialView: View {
                     } label: {
                         Image(systemName: isLiked ? "heart.fill" : "heart")
                             .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(isLiked ? Color.pink : .white)
+                            .foregroundStyle(isLiked ? Color.pink : Color.primary)
                             .frame(width: 48, height: 48)
                             .foundationGlass(interactive: true, in: Circle())
                     }
@@ -183,15 +186,15 @@ struct ExerciseTutorialView: View {
     private var doseRows: some View {
         VStack(spacing: 12) {
             doseRow(label: "Weight") {
-                ScrubStepper(value: $weightLbs, in: 0...500, step: 5, style: Self.clearStepperStyle)
+                ScrubStepper(value: $weightLbs, in: 0...500, step: 5, style: clearStepperStyle)
                     .accessibilityLabel("Weight")
             }
             doseRow(label: "Reps") {
-                ScrubStepper(value: $reps, in: 1...50, step: 1, style: Self.clearStepperStyle)
+                ScrubStepper(value: $reps, in: 1...50, step: 1, style: clearStepperStyle)
                     .accessibilityLabel("Reps")
             }
             doseRow(label: "Sets") {
-                ScrubStepper(value: $sets, in: 1...20, step: 1, style: Self.clearStepperStyle)
+                ScrubStepper(value: $sets, in: 1...20, step: 1, style: clearStepperStyle)
                     .accessibilityLabel("Sets")
             }
         }
@@ -201,7 +204,7 @@ struct ExerciseTutorialView: View {
         HStack(spacing: 12) {
             Text(label)
                 .font(.headline)
-                .foregroundStyle(.white)
+                .glassInk()
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
                 .foundationGlass(interactive: false, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
@@ -228,11 +231,11 @@ struct ExerciseTutorialView: View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "checkmark")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
+                .glassInk()
                 .frame(width: 22, height: 22)
             Text(hint)
                 .font(.body)
-                .foregroundStyle(.white)
+                .glassInk()
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 0)
         }

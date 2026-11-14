@@ -10,6 +10,7 @@ struct UpperPushView: View {
 struct RoutineView: View {
     @Environment(SessionStore.self) private var store
     @Environment(RoutineOverridesStore.self) private var routineOverrides
+    @Environment(\.glassPalette) private var palette
     let routine: Routine
     @State private var didSave = false
     @State private var showCompleteButton = false
@@ -42,7 +43,7 @@ struct RoutineView: View {
             .scrollDismissesKeyboard(.immediately)
             .scrollContentBackground(.hidden)
             .scrollEdgeEffectHidden(true, for: .vertical)
-            .foregroundStyle(.white)
+            .glassInk()
             .background { routineWashBackground }
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
@@ -161,7 +162,7 @@ struct RoutineView: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .glassInk()
                         .frame(width: 48, height: 48)
                         .foundationGlass(interactive: true, in: Circle())
                 }
@@ -175,7 +176,7 @@ struct RoutineView: View {
                 } label: {
                     Image(systemName: "checkmark")
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(.white)
+                        .glassInk()
                         .frame(width: 48, height: 48)
                         .foundationGlass(interactive: true, in: Circle())
                 }
@@ -278,7 +279,7 @@ struct RoutineView: View {
         } label: {
             Text("Complete Workout")
                 .font(.title3.weight(.semibold))
-                .foregroundStyle(.white)
+                .glassInk()
                 .frame(maxWidth: .infinity)
                 .frame(height: 64)
         }
@@ -427,7 +428,7 @@ struct RoutineView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.headline)
-                    .foregroundStyle(.white)
+                    .glassInk()
                 MetaLine(parts: metaParts)
             }
             Spacer(minLength: 0)
@@ -436,7 +437,7 @@ struct RoutineView: View {
         .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
         .listRowBackground(
             RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(.white.opacity(0.08))
+                .fill(palette.dim.opacity(0.7))
                 .padding(.vertical, 4)
         )
         .listRowSeparator(.hidden)
@@ -636,7 +637,6 @@ private struct LibraryExercisePicker: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
         .presentationBackground {
             ZStack {
                 Color.black
@@ -716,7 +716,6 @@ private struct AddLibraryExerciseSheet: View {
                 }
             }
         }
-        .preferredColorScheme(.dark)
     }
 }
 

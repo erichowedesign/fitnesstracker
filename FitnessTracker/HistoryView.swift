@@ -3,13 +3,14 @@ import SwiftUI
 struct HistoryView: View {
     @Environment(SessionStore.self) private var store
     @Environment(WashTheme.self) private var wash
+    @Environment(\.glassPalette) private var palette
     @State private var expandedSessionID: UUID?
     @State private var draftWeights: [String: String] = [:]
     @State private var didResubmit = false
     @State private var volumeRange: ClosedRange<Date> = Date()...Date()
 
     private var stats: HistoryStats { store.stats }
-    private let accent = Color(red: 0, green: 0.569, blue: 1)
+    private var accent: Color { palette.accent }
 
     var body: some View {
         NavigationStack {
@@ -20,7 +21,7 @@ struct HistoryView: View {
                         .fontWeight(.bold)
                     Text("What you’ve logged on this iPhone")
                         .font(.body)
-                        .foregroundStyle(.white.opacity(0.85))
+                        .glassInk(.secondary)
                         .padding(.top, 8)
 
                     liveStatRow
@@ -40,7 +41,7 @@ struct HistoryView: View {
                     if store.sessions.isEmpty {
                         Text("Complete a workout and it will show up here.")
                             .font(.body)
-                            .foregroundStyle(.white.opacity(0.8))
+                            .glassInk(.secondary)
                             .padding(.top, 20)
                     } else {
                         VStack(spacing: 12) {
@@ -58,7 +59,7 @@ struct HistoryView: View {
             .scrollContentBackground(.hidden)
             .scrollEdgeEffectHidden(true, for: .vertical)
             .contentMargins(.bottom, 120, for: .scrollContent)
-            .foregroundStyle(.white)
+            .glassInk()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .containerBackground(.clear, for: .navigation)
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
@@ -149,7 +150,7 @@ struct HistoryView: View {
                 .fontWeight(.semibold)
             Text("Minutes trained by day")
                 .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.7))
+                .glassInk(.tertiary)
 
             if volumeSamples.count < 2 {
                 chartEmpty("Finish a couple of workouts to chart volume over time.")
@@ -163,13 +164,13 @@ struct HistoryView: View {
                     showsAverage: true,
                     style: RangeLens.Style(
                         accent: accent,
-                        accentInk: .white,
-                        text: .white,
-                        secondary: .white.opacity(0.75),
-                        tertiary: .white.opacity(0.55),
-                        dim: Color.white.opacity(0.18),
-                        grid: Color.white.opacity(0.12),
-                        track: Color.white.opacity(0.08),
+                        accentInk: palette.mode == .light ? palette.primary : .white,
+                        text: palette.primary,
+                        secondary: palette.secondary,
+                        tertiary: palette.tertiary,
+                        dim: palette.dim.opacity(1.5),
+                        grid: palette.dim,
+                        track: palette.dim.opacity(0.7),
                         chartHeight: 150,
                         numeralSize: 30
                     )
@@ -200,7 +201,7 @@ struct HistoryView: View {
                 .fontWeight(.semibold)
             Text("Share of completed sessions")
                 .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.7))
+                .glassInk(.tertiary)
 
             if stats.routineMix.isEmpty {
                 chartEmpty("Finish a few workouts to see the split.")
@@ -222,7 +223,7 @@ struct HistoryView: View {
     private func chartEmpty(_ message: String) -> some View {
         Text(message)
             .font(.body)
-            .foregroundStyle(.white.opacity(0.75))
+            .glassInk(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(20)
             .glassSurface(.rect(cornerRadius: 28))
@@ -340,27 +341,27 @@ struct HistoryView: View {
     private func liveStatStyle(numeral: CGFloat) -> LiveStatStyle {
         LiveStatStyle(
             background: .clear,
-            text: .white,
-            muted: .white.opacity(0.7),
+            text: palette.primary,
+            muted: palette.tertiary,
             line: accent,
             accent: accent,
             up: Color(red: 0, green: 0.77, blue: 0.655),
             down: Color(red: 1, green: 0.35, blue: 0.35),
-            chipInk: .white,
+            chipInk: palette.mode == .light ? palette.primary : .white,
             numeralSize: numeral
         )
     }
 
     private var scrubStyle: ScrubChartStyle {
         ScrubChartStyle(
-            line: .white.opacity(0.9),
+            line: palette.primary.opacity(0.9),
             accent: accent,
             up: Color(red: 0, green: 0.77, blue: 0.655),
             down: Color(red: 1, green: 0.35, blue: 0.35),
-            ink: .white,
-            muted: .white.opacity(0.65),
-            band: Color.white.opacity(0.12),
-            ground: Color.black.opacity(0.35),
+            ink: palette.primary,
+            muted: palette.tertiary,
+            band: palette.dim,
+            ground: palette.mode == .light ? Color.white.opacity(0.35) : Color.black.opacity(0.35),
             numeralSize: 36
         )
     }
@@ -375,10 +376,10 @@ struct HistoryView: View {
                 Color(red: 0.55, green: 0.75, blue: 1),
                 Color(red: 0.95, green: 0.95, blue: 0.95),
             ],
-            rest: Color.white.opacity(0.16),
-            ink: Color(red: 0.08, green: 0.08, blue: 0.08),
-            text: .white,
-            muted: .white.opacity(0.7)
+            rest: palette.dim.opacity(1.3),
+            ink: palette.mode == .light ? .white : Color(red: 0.08, green: 0.08, blue: 0.08),
+            text: palette.primary,
+            muted: palette.tertiary
         )
     }
 
@@ -394,24 +395,24 @@ struct HistoryView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(session.routineName)
                             .font(.headline)
-                            .foregroundStyle(.white)
+                            .glassInk()
                         Text(Self.dateLabel.string(from: session.finishedAt))
                             .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.75))
+                            .glassInk(.secondary)
                     }
                     Spacer(minLength: 8)
                     VStack(alignment: .trailing, spacing: 6) {
                         Text("\(session.durationMinutes) min")
                             .font(.subheadline)
                             .monospacedDigit()
-                            .foregroundStyle(.white.opacity(0.85))
+                            .glassInk(.secondary)
                         Text("\(session.totalSets) sets")
                             .font(.footnote)
-                            .foregroundStyle(.white.opacity(0.65))
+                            .glassInk(.tertiary)
                     }
                     Image(systemName: expanded ? "chevron.up" : "chevron.down")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .glassInk(.tertiary)
                         .padding(.top, 4)
                 }
                 .padding(16)
@@ -422,12 +423,12 @@ struct HistoryView: View {
             if expanded {
                 VStack(alignment: .leading, spacing: 14) {
                     Divider()
-                        .overlay(Color.white.opacity(0.18))
+                        .overlay(palette.dim)
 
                     if session.lifts.isEmpty {
                         Text("No lifts were saved for this session.")
                             .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.75))
+                            .glassInk(.secondary)
                     } else {
                         ForEach(session.lifts) { lift in
                             HStack(alignment: .firstTextBaseline) {
@@ -437,7 +438,7 @@ struct HistoryView: View {
                                         .fontWeight(.semibold)
                                     Text("\(lift.sets) sets")
                                         .font(.footnote)
-                                        .foregroundStyle(.white.opacity(0.65))
+                                        .glassInk(.tertiary)
                                 }
                                 Spacer(minLength: 12)
                                 TextField("lbs", text: weightBinding(for: lift.id, fallback: lift.weight))
@@ -451,7 +452,7 @@ struct HistoryView: View {
                                     .padding(.vertical, 8)
                                     .background(
                                         RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                            .fill(.white.opacity(0.08))
+                                            .fill(palette.dim.opacity(0.7))
                                     )
                             }
                         }
