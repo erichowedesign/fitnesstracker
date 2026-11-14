@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 private enum HomeRoute: Hashable {
     case create
@@ -9,18 +10,25 @@ struct HomeView: View {
     @Environment(SessionStore.self) private var store
     @Environment(RoutineOverridesStore.self) private var routineOverrides
     @Environment(CustomRoutinesStore.self) private var customRoutines
+    @Environment(RoutineOrderStore.self) private var routineOrder
     @Environment(WashTheme.self) private var wash
     @Environment(\.glassPalette) private var palette
     @Binding var hidesFloatingTabBar: Bool
     @State private var path: [HomeRoute] = []
     /// Routine ids that should open straight into edit mode (new custom creates).
     @State private var startEditingIDs: Set<String> = []
+    @State private var isReordering = false
+    @State private var draftOrder: [Routine] = []
+    @State private var orderSnapshot: [Routine] = []
+    @State private var draggingRoutineID: String?
+    @State private var pendingDelete: Routine?
+    @State private var showDeleteConfirm = false
 
     init(hidesFloatingTabBar: Binding<Bool> = .constant(false)) {
         _hidesFloatingTabBar = hidesFloatingTabBar
     }
 
-    /// Shipping A–D only — drives Up Next rotation without custom routines.
+    /// Shipping A–D only — drives Up Next rotation (unchanged by list reorder).
     private var shippingRoutines: [Routine] {
         WorkoutPlan.all().map(routineOverrides.resolved)
     }
@@ -33,8 +41,17 @@ struct HomeView: View {
         store.nextRoutine(in: shippingRoutines)
     }
 
-    private var myRoutines: [Routine] {
-        store.remainingRoutines(after: upNext, in: shippingRoutines) + customList
+    /// Full My Routines list in persisted order (shipping + customs).
+    private var orderedRoutines: [Routine] {
+        routineOrder.ordered(shipping: shippingRoutines, customs: customList)
+    }
+
+    private var displayedRoutines: [Routine] {
+        isReordering ? draftOrder : orderedRoutines
+    }
+
+    private var upNextListNumber: Int {
+        (orderedRoutines.firstIndex { $0.id == upNext.id } ?? 0) + 1
     }
 
     /// Clears the floating tab bar; matches History’s bottom scroll inset.
@@ -65,11 +82,13 @@ struct HomeView: View {
                     .padding(.top, 48)
 
                 Button {
+                    guard !isReordering else { return }
                     openRoutine(upNext)
                 } label: {
-                    UpNextCard(routine: upNext)
+                    UpNextCard(routine: upNext, listNumber: upNextListNumber)
                 }
                 .buttonStyle(.plain)
+                .disabled(isReordering)
                 .padding(.top, 24)
 
                 Text("My Routines")
@@ -79,23 +98,20 @@ struct HomeView: View {
                     .padding(.top, 48)
 
                 VStack(spacing: 12) {
-                    ForEach(myRoutines) { routine in
-                        Button {
-                            openRoutine(routine)
-                        } label: {
-                            RoutineListCard(routine: routine)
-                        }
-                        .buttonStyle(.plain)
+                    ForEach(Array(displayedRoutines.enumerated()), id: \.element.id) { index, routine in
+                        routineTile(routine, listNumber: index + 1)
                     }
 
-                    Button {
-                        path.append(.create)
-                        hidesFloatingTabBar = true
-                    } label: {
-                        CreateRoutineRow()
+                    if !isReordering {
+                        Button {
+                            path.append(.create)
+                            hidesFloatingTabBar = true
+                        } label: {
+                            CreateRoutineRow()
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Create routine")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Create routine")
                 }
                 .padding(.top, 24)
             }
@@ -113,16 +129,12 @@ struct HomeView: View {
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .preferredColorScheme(palette.colorScheme)
         .animation(.smooth(duration: 0.3), value: palette.mode)
+        .animation(.smooth(duration: 0.28), value: isReordering)
         .background { LockRootPopGesture() }
         .navigationTitle("Foundation")
         .toolbarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("Foundation")
-                    .opacity(0)
-                    .accessibilityHidden(true)
-            }
-        }
+        .navigationBarBackButtonHidden(isReordering)
+        .toolbar { homeToolbar }
         .navigationDestination(for: HomeRoute.self) { route in
             switch route {
             case .create:
@@ -153,6 +165,20 @@ struct HomeView: View {
         .onAppear {
             wash.grade = .grayscale
         }
+        .alert(
+            "Delete routine?",
+            isPresented: $showDeleteConfirm,
+            presenting: pendingDelete
+        ) { routine in
+            Button("Cancel", role: .cancel) {
+                pendingDelete = nil
+            }
+            Button("Delete", role: .destructive) {
+                deleteCustom(routine)
+            }
+        } message: { routine in
+            Text("“\(routine.name)” will be removed from My Routines. This can’t be undone.")
+        }
         .overlay(alignment: .top) {
             LinearGradient(
                 stops: [
@@ -170,6 +196,107 @@ struct HomeView: View {
         }
     }
 
+    @ToolbarContentBuilder
+    private var homeToolbar: some ToolbarContent {
+        if isReordering {
+            ToolbarItem(placement: .topBarLeading) {
+                GlassChromeIconButton(
+                    systemName: "xmark",
+                    accessibilityLabel: "Cancel reorder",
+                    action: cancelReorder
+                )
+            }
+            .sharedBackgroundVisibility(.hidden)
+            ToolbarItem(placement: .topBarTrailing) {
+                GlassChromeIconButton(
+                    systemName: "checkmark",
+                    accessibilityLabel: "Save order",
+                    action: commitReorder
+                )
+            }
+            .sharedBackgroundVisibility(.hidden)
+        } else {
+            ToolbarItem(placement: .principal) {
+                Text("Foundation")
+                    .opacity(0)
+                    .accessibilityHidden(true)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func routineTile(_ routine: Routine, listNumber: Int) -> some View {
+        let card = RoutineListCard(
+            routine: routine,
+            listNumber: listNumber,
+            showsDragHandle: isReordering
+        )
+
+        if isReordering {
+            card
+                .onDrag {
+                    draggingRoutineID = routine.id
+                    return NSItemProvider(object: routine.id as NSString)
+                }
+                .onDrop(
+                    of: [UTType.text],
+                    delegate: HomeReorderDropDelegate(
+                        itemID: routine.id,
+                        items: $draftOrder,
+                        draggingID: $draggingRoutineID
+                    )
+                )
+        } else {
+            Button {
+                openRoutine(routine)
+            } label: {
+                card
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                if routine.isCustom || customRoutines.contains(routine.id) {
+                    Button("Delete", role: .destructive) {
+                        pendingDelete = routine
+                        showDeleteConfirm = true
+                    }
+                }
+                Button("Reorder") {
+                    beginReorder()
+                }
+            }
+        }
+    }
+
+    private func beginReorder() {
+        orderSnapshot = orderedRoutines
+        draftOrder = orderedRoutines
+        withAnimation(.smooth(duration: 0.28)) {
+            isReordering = true
+        }
+    }
+
+    private func commitReorder() {
+        routineOrder.save(draftOrder.map(\.id))
+        draggingRoutineID = nil
+        withAnimation(.smooth(duration: 0.28)) {
+            isReordering = false
+        }
+    }
+
+    private func cancelReorder() {
+        draftOrder = orderSnapshot
+        draggingRoutineID = nil
+        withAnimation(.smooth(duration: 0.28)) {
+            isReordering = false
+        }
+    }
+
+    private func deleteCustom(_ routine: Routine) {
+        customRoutines.delete(id: routine.id)
+        routineOrder.remove(id: routine.id)
+        pendingDelete = nil
+    }
+
     private func openRoutine(_ routine: Routine) {
         hidesFloatingTabBar = true
         path.append(.routine(routine.id))
@@ -180,6 +307,32 @@ struct HomeView: View {
             return custom
         }
         return shippingRoutines.first { $0.id == id }
+    }
+}
+
+/// Reorders Home tiles while a glass drag handle is dragged across neighbors.
+private struct HomeReorderDropDelegate: DropDelegate {
+    let itemID: String
+    @Binding var items: [Routine]
+    @Binding var draggingID: String?
+
+    func dropEntered(info: DropInfo) {
+        guard let draggingID, draggingID != itemID,
+              let from = items.firstIndex(where: { $0.id == draggingID }),
+              let to = items.firstIndex(where: { $0.id == itemID })
+        else { return }
+        withAnimation(.snappy(duration: 0.2)) {
+            items.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggingID = nil
+        return true
     }
 }
 
@@ -208,6 +361,7 @@ private func homeIllustrationThumb(gap: CGFloat) -> RoundedRectangle {
 
 private struct UpNextCard: View {
     let routine: Routine
+    var listNumber: Int
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -217,7 +371,7 @@ private struct UpNextCard: View {
                     .frame(width: 192, height: 192)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .glassInk()
-                Text("Routine \(routine.rotationIndex)")
+                Text("Routine \(listNumber)")
                     .font(.subheadline)
                     .glassInk()
                     .padding(.top, 16)
@@ -264,9 +418,11 @@ private struct UpNextCard: View {
 
 private struct RoutineListCard: View {
     let routine: Routine
+    var listNumber: Int
+    var showsDragHandle: Bool = false
 
     var body: some View {
-        ZStack(alignment: .leading) {
+        HStack(alignment: .center, spacing: 12) {
             HStack(alignment: .top, spacing: 20) {
                 ZStack {
                     WashWindow(grade: WashGrade.forRoutine(routine.id))
@@ -278,7 +434,7 @@ private struct RoutineListCard: View {
                 .clipShape(homeIllustrationThumb(gap: 16))
                 .glassInk()
                 VStack(alignment: .leading, spacing: 23) {
-                    Text("Routine \(routine.rotationIndex)")
+                    Text("Routine \(listNumber)")
                         .font(.system(size: 15))
                         .frame(height: 18, alignment: .leading)
                     VStack(alignment: .leading, spacing: 6) {
@@ -295,14 +451,22 @@ private struct RoutineListCard: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .glassInk()
             }
-            .padding(16)
+
+            if showsDragHandle {
+                GlassChromeSymbolCircle(
+                    systemName: "line.3.horizontal",
+                    accessibilityLabel: "Reorder",
+                    size: 32
+                )
+            }
         }
+        .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 152)
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .foundationGlass(interactive: false, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Routine \(routine.rotationIndex), \(routine.name), \(routine.focus)")
+        .accessibilityLabel("Routine \(listNumber), \(routine.name), \(routine.focus)")
     }
 }
 
@@ -311,6 +475,7 @@ private struct RoutineListCard: View {
     .environment(SessionStore())
     .environment(RoutineOverridesStore())
     .environment(CustomRoutinesStore())
+    .environment(RoutineOrderStore())
     .environment(WashTheme())
     .preferredColorScheme(.dark)
 }

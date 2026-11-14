@@ -91,6 +91,12 @@ final class CustomRoutinesStore {
         persist()
     }
 
+    func delete(id: String) {
+        guard customs.contains(where: { $0.id == id }) else { return }
+        customs.removeAll { $0.id == id }
+        persist()
+    }
+
     private func persist() {
         Self.write(customs, to: url)
     }
