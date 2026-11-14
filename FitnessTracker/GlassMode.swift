@@ -1,9 +1,12 @@
 import SwiftUI
 
 /// User-facing Liquid Glass appearance. Persisted; drives glass material + ink palette.
-/// Clear = untinted clear glass. Dark = dark-tinted clear glass (still clear — not opaque regular).
+/// - Clear → true untinted clear everywhere (no densifying tray fills)
+/// - Dark → dark-tinted clear
+/// - Light → denser frosted light material (the milky tab-bar look Eric captured)
 enum GlassMode: String, CaseIterable, Identifiable, Codable, Hashable {
     case dark
+    case light
     case clear
 
     var id: String { rawValue }
@@ -11,34 +14,38 @@ enum GlassMode: String, CaseIterable, Identifiable, Codable, Hashable {
     var title: String {
         switch self {
         case .dark: return "Dark"
+        case .light: return "Light"
         case .clear: return "Clear"
         }
     }
 
     /// Maps to SwiftUI `Glass` (iOS 26/27 Liquid Glass).
     /// Public Glass: `regular` / `clear` + `tint` / `interactive`.
-    /// Both modes stay on the **clear** path — Dark is dark-tinted clear, not opaque regular.
-    /// - Clear → untinted clear
-    /// - Dark → clear + subtle black tint (+ light underlay); denser than Clear, still see-through
     @available(iOS 26, *)
     func glass(interactive: Bool) -> Glass {
         let base: Glass
         switch self {
-        case .dark:
-            base = .clear.tint(Color.black.opacity(0.38))
         case .clear:
             base = .clear
+        case .dark:
+            // Dark-tinted clear — still see-through, denser than Clear.
+            base = .clear.tint(Color.black.opacity(0.38))
+        case .light:
+            // Denser frosted light material (former Clear tab-bar mismatch look).
+            base = .regular.tint(Color.white)
         }
         return interactive ? base.interactive() : base
     }
 
-    /// Soft fill under Dark clear glass only — keep it light so the wash still reads through.
+    /// Extra fill under glass. Clear stays empty; Light/Dark get soft density.
     var glassUnderlay: Color? {
         switch self {
-        case .dark:
-            return Color.black.opacity(0.12)
         case .clear:
             return nil
+        case .dark:
+            return Color.black.opacity(0.12)
+        case .light:
+            return Color.white.opacity(0.28)
         }
     }
 
@@ -63,11 +70,11 @@ struct GlassPalette: Equatable {
     var dim: Color
     /// Favorites heart (on).
     var heart: Color
-    /// Color scheme for Liquid Glass / system materials — flips with Clear vs Dark.
+    /// Color scheme for Liquid Glass / system materials.
     var colorScheme: ColorScheme
-    /// Veil over the wash (unused for Clear/Dark; both keep wash visible).
+    /// Veil over the wash (Light only — keeps dark ink readable).
     var washVeil: Color
-    /// Soft tray fill under chrome glass (tab bar, etc.).
+    /// Soft tray fill under chrome glass (tab bar, etc.). Clear = none.
     var chromeTray: Color
     /// Selected tab / chrome pill fill.
     var chromePill: Color
@@ -78,26 +85,42 @@ struct GlassPalette: Equatable {
         self.mode = mode
         accent = Color(red: 0, green: 0.569, blue: 1)
         heart = .pink
-        // Content sits on the wash with light ink in both modes.
-        primary = Color(red: 0.961, green: 0.961, blue: 0.961)
-        secondary = Color.white.opacity(0.85)
-        tertiary = Color.white.opacity(0.72)
-        chrome = Color(red: 0.961, green: 0.961, blue: 0.961)
-        dim = Color.white.opacity(0.12)
-        washVeil = .clear
         switch mode {
         case .clear:
-            // Light scheme → buttons / tiles / nav resolve the clear path.
-            colorScheme = .light
-            chromeTray = Color.white.opacity(0.18)
-            chromePill = Color.white.opacity(0.42)
-            chromePlusLighter = false
-        case .dark:
-            // Dark scheme + soft dark tray — still translucent under clear glass.
+            // True clear: dark scheme so Liquid Glass stays clear; no milky tray.
+            primary = Color(red: 0.961, green: 0.961, blue: 0.961)
+            secondary = Color.white.opacity(0.85)
+            tertiary = Color.white.opacity(0.72)
+            chrome = Color(red: 0.961, green: 0.961, blue: 0.961)
+            dim = Color.white.opacity(0.12)
             colorScheme = .dark
-            chromeTray = Color.black.opacity(0.28)
-            chromePill = Color.black.opacity(0.4)
+            washVeil = .clear
+            chromeTray = .clear
+            chromePill = Color.white.opacity(0.14)
             chromePlusLighter = true
+        case .dark:
+            primary = Color(red: 0.961, green: 0.961, blue: 0.961)
+            secondary = Color.white.opacity(0.85)
+            tertiary = Color.white.opacity(0.72)
+            chrome = Color(red: 0.961, green: 0.961, blue: 0.961)
+            dim = Color.white.opacity(0.12)
+            colorScheme = .dark
+            washVeil = .clear
+            chromeTray = Color.black.opacity(0.22)
+            chromePill = Color.black.opacity(0.36)
+            chromePlusLighter = true
+        case .light:
+            // Denser light material — matches the milky Clear tab-bar screenshot look.
+            primary = Color(red: 0.078, green: 0.078, blue: 0.078)
+            secondary = Color.black.opacity(0.72)
+            tertiary = Color.black.opacity(0.55)
+            chrome = Color(red: 0.078, green: 0.078, blue: 0.078)
+            dim = Color.black.opacity(0.1)
+            colorScheme = .light
+            washVeil = Color.white.opacity(0.16)
+            chromeTray = Color.white.opacity(0.18)
+            chromePill = Color.white.opacity(0.5)
+            chromePlusLighter = false
         }
     }
 
@@ -119,15 +142,9 @@ final class GlassModeStore {
     var palette: GlassPalette { mode.palette }
 
     init() {
-        if let raw = UserDefaults.standard.string(forKey: Self.defaultsKey) {
-            if let saved = GlassMode(rawValue: raw) {
-                mode = saved
-            } else if raw == "light" {
-                // Former Light option removed — land on Clear.
-                mode = .clear
-            } else {
-                mode = .clear
-            }
+        if let raw = UserDefaults.standard.string(forKey: Self.defaultsKey),
+           let saved = GlassMode(rawValue: raw) {
+            mode = saved
         } else {
             mode = .clear
         }
@@ -173,12 +190,19 @@ struct FoundationGlassModifier<S: Shape>: ViewModifier {
         } else {
             content
                 .background {
-                    shape.fill(
-                        glassMode == .dark
-                            ? AnyShapeStyle(Color.black.opacity(0.28))
-                            : AnyShapeStyle(Color.white.opacity(0.12))
-                    )
+                    shape.fill(fallbackFill)
                 }
+        }
+    }
+
+    private var fallbackFill: AnyShapeStyle {
+        switch glassMode {
+        case .clear:
+            return AnyShapeStyle(Color.white.opacity(0.08))
+        case .dark:
+            return AnyShapeStyle(Color.black.opacity(0.28))
+        case .light:
+            return AnyShapeStyle(Color.white.opacity(0.82))
         }
     }
 }
@@ -213,7 +237,7 @@ extension View {
     }
 }
 
-/// Nav / toolbar circle control — always uses `foundationGlass` + palette ink (Clear/Dark).
+/// Nav / toolbar circle control — always uses `foundationGlass` + palette ink.
 struct GlassChromeIconButton: View {
     var systemName: String
     var accessibilityLabel: String

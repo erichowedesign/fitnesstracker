@@ -73,7 +73,7 @@ struct LibraryBrowser: View {
     var onSelect: (LibraryWorkout) -> Void
 
     private var chromeHeight: CGFloat { 48 }
-    private var chromeTopPadding: CGFloat { 8 }
+    private var chromeTopPadding: CGFloat { 16 }
     private var chromeBottomGap: CGFloat { 16 }
 
     private var results: [LibraryWorkout] {

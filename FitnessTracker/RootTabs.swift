@@ -276,12 +276,17 @@ struct RootTabs: View {
         return min(max(base - progress * 94, 0), 188)
     }
 
+    /// Same Clear/Dark/Light glass as tiles via `foundationGlass`. Tray/pill fills come from the palette
+    /// (Clear = no milky tray; Light keeps the denser frosted tray that mismatched Clear before).
     private var tabBar: some View {
         ZStack {
-            Capsule()
-                .fill(palette.chromeTray)
-            Capsule()
-                .fill(palette.dim.opacity(0.5))
+            // Clear: no tray fills — glass alone matches tiles. Light/Dark keep densifying trays.
+            if palette.mode != .clear {
+                Capsule()
+                    .fill(palette.chromeTray)
+                Capsule()
+                    .fill(palette.dim.opacity(0.5))
+            }
 
             ZStack(alignment: .leading) {
                 Capsule()

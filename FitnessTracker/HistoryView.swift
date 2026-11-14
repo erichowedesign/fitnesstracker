@@ -53,7 +53,7 @@ struct HistoryView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 8)
+                .padding(.top, 16)
                 .padding(.bottom, 24)
             }
             .scrollContentBackground(.hidden)
@@ -363,7 +363,7 @@ struct HistoryView: View {
             ink: palette.primary,
             muted: palette.tertiary,
             band: palette.dim,
-            ground: palette.mode == .dark ? Color.black.opacity(0.35) : Color.white.opacity(0.18),
+            ground: palette.mode == .light ? Color.white.opacity(0.35) : Color.black.opacity(0.35),
             numeralSize: 36
         )
     }

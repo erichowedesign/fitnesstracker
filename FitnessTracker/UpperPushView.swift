@@ -106,11 +106,6 @@ struct RoutineView: View {
 
                     glanceCard
                         .padding(.top, 16)
-
-                    Text(routine.summary)
-                        .font(.body)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 48)
                 }
 
                 if isEditingRoutine {
@@ -126,6 +121,7 @@ struct RoutineView: View {
                         section: .cooldown
                     )
                 } else {
+                    // 48pt below hero block (summary description removed).
                     section("Warm-up", steps: draftWarmup, revealsCompleteButton: true)
                     mainWorkoutSection
                     section("Cool Down", steps: draftCooldown)

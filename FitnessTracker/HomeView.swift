@@ -7,7 +7,6 @@ struct HomeView: View {
     @Environment(\.glassPalette) private var palette
     @Binding var hidesFloatingTabBar: Bool
     @State private var path: [Routine] = []
-    @State private var showResetRoutinesConfirm = false
 
     init(hidesFloatingTabBar: Binding<Bool> = .constant(false)) {
         _hidesFloatingTabBar = hidesFloatingTabBar
@@ -77,18 +76,9 @@ struct HomeView: View {
                     }
                 }
                 .padding(.top, 24)
-
-                Button("Reset Routines") {
-                    showResetRoutinesConfirm = true
-                }
-                .font(.body.weight(.semibold))
-                .glassInk(.tertiary)
-                .frame(maxWidth: .infinity)
-                .padding(.top, 40)
-                .accessibilityHint("Restores stock warm-ups, main workouts, and cool-downs")
             }
             .padding(.horizontal, 16)
-            .padding(.top, 8)
+            .padding(.top, 16)
             .padding(.bottom, 24)
         }
         .contentMargins(.bottom, homeScrollBottomInset, for: .scrollContent)
@@ -112,14 +102,6 @@ struct HomeView: View {
         }
         .navigationDestination(for: Routine.self) { routine in
             RoutineView(routine: routine)
-        }
-        .alert("Reset routines?", isPresented: $showResetRoutinesConfirm) {
-            Button("Reset", role: .destructive) {
-                routineOverrides.clearAll()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Restores stock warm-ups, main workouts, and cool-downs for every routine on this iPhone. Workout history is kept.")
         }
         .onChange(of: path) { _, newPath in
             hidesFloatingTabBar = !newPath.isEmpty
