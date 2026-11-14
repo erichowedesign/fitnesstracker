@@ -379,10 +379,11 @@ private struct TabPanBridge: UIViewRepresentable {
             super.init()
             pan.addTarget(self, action: #selector(handlePan))
             pan.delegate = self
-            // A tile press must not see the touch until this pan fails. If the
-            // pan begins, cancel that press so the drag is not a hold.
+            // When the pan begins, cancel in-flight presses so a sideways drag
+            // is not a hold. Do NOT delay touches began — that starves context-menu
+            // long-press timers until the pan fails (often only on finger-up).
             pan.cancelsTouchesInView = true
-            pan.delaysTouchesBegan = true
+            pan.delaysTouchesBegan = false
         }
 
         func install(from anchor: UIView) {
@@ -427,9 +428,15 @@ private struct TabPanBridge: UIViewRepresentable {
             _ gestureRecognizer: UIGestureRecognizer,
             shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
         ) -> Bool {
-            // Tile presses and scroll pans wait. A horizontal drag wins; a tap
-            // runs only after this pan fails.
-            isEnabled && otherGestureRecognizer !== pan
+            guard isEnabled, otherGestureRecognizer !== pan else { return false }
+            // Context-menu long-press must run on a stationary hold without waiting
+            // for the tab pan to fail.
+            if otherGestureRecognizer is UILongPressGestureRecognizer {
+                return false
+            }
+            // Tile taps and scroll pans wait. A horizontal drag wins; a tap runs
+            // only after this pan fails.
+            return true
         }
 
         @objc private func handlePan(_ pan: UIPanGestureRecognizer) {
@@ -453,6 +460,10 @@ private struct TabPanBridge: UIViewRepresentable {
             }
             for recognizer in view.gestureRecognizers ?? [] where recognizer !== pan {
                 if let scroll = view as? UIScrollView, recognizer === scroll.panGestureRecognizer {
+                    continue
+                }
+                // Long-press (context menus) must not wait on the tab pan.
+                if recognizer is UILongPressGestureRecognizer {
                     continue
                 }
                 recognizer.require(toFail: pan)

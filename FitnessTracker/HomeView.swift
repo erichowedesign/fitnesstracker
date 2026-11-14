@@ -247,23 +247,24 @@ struct HomeView: View {
                     )
                 )
         } else {
-            Button {
-                openRoutine(routine)
-            } label: {
-                card
-            }
-            .buttonStyle(.plain)
-            .contextMenu {
-                if routine.isCustom || customRoutines.contains(routine.id) {
-                    Button("Delete", role: .destructive) {
-                        pendingDelete = routine
-                        showDeleteConfirm = true
+            // contextMenu on the card (not inside Button) so long-press owns the hold;
+            // tap still opens the routine.
+            card
+                .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
+                .onTapGesture {
+                    openRoutine(routine)
+                }
+                .contextMenu {
+                    if routine.isCustom || customRoutines.contains(routine.id) {
+                        Button("Delete", role: .destructive) {
+                            pendingDelete = routine
+                            showDeleteConfirm = true
+                        }
+                    }
+                    Button("Reorder") {
+                        beginReorder()
                     }
                 }
-                Button("Reorder") {
-                    beginReorder()
-                }
-            }
         }
     }
 
