@@ -47,6 +47,8 @@ final class CustomRoutinesStore {
             main: includesMain,
             cooldown: includesCooldown
         )
+        let usedGrades = customs.compactMap(\.washGrade)
+        let grade = WashGrade.nextCustomGrade(used: usedGrades)
         let persisted = PersistedCustomRoutine(
             id: id,
             name: trimmed,
@@ -54,6 +56,7 @@ final class CustomRoutinesStore {
             includesWarmup: includesWarmup,
             includesMain: includesMain,
             includesCooldown: includesCooldown,
+            washGradeRaw: grade.rawValue,
             warmup: includesWarmup ? [] : nil,
             exercises: includesMain ? [] : nil,
             cooldown: includesCooldown ? [] : nil
@@ -130,21 +133,75 @@ struct PersistedCustomRoutine: Codable, Equatable {
     var includesWarmup: Bool
     var includesMain: Bool
     var includesCooldown: Bool
+    /// `WashGrade.rawValue` from the custom library.
+    var washGradeRaw: String
     var warmup: [PersistedGuideStep]?
     var exercises: [PersistedExercise]?
     var cooldown: [PersistedGuideStep]?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name, focus, includesWarmup, includesMain, includesCooldown
+        case washGradeRaw, warmup, exercises, cooldown
+    }
+
+    init(
+        id: String,
+        name: String,
+        focus: String,
+        includesWarmup: Bool,
+        includesMain: Bool,
+        includesCooldown: Bool,
+        washGradeRaw: String,
+        warmup: [PersistedGuideStep]?,
+        exercises: [PersistedExercise]?,
+        cooldown: [PersistedGuideStep]?
+    ) {
+        self.id = id
+        self.name = name
+        self.focus = focus
+        self.includesWarmup = includesWarmup
+        self.includesMain = includesMain
+        self.includesCooldown = includesCooldown
+        self.washGradeRaw = washGradeRaw
+        self.warmup = warmup
+        self.exercises = exercises
+        self.cooldown = cooldown
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        focus = try container.decode(String.self, forKey: .focus)
+        includesWarmup = try container.decode(Bool.self, forKey: .includesWarmup)
+        includesMain = try container.decode(Bool.self, forKey: .includesMain)
+        includesCooldown = try container.decode(Bool.self, forKey: .includesCooldown)
+        washGradeRaw = try container.decodeIfPresent(String.self, forKey: .washGradeRaw)
+            ?? WashGrade.tealCoral.rawValue
+        warmup = try container.decodeIfPresent([PersistedGuideStep].self, forKey: .warmup)
+        exercises = try container.decodeIfPresent([PersistedExercise].self, forKey: .exercises)
+        cooldown = try container.decodeIfPresent([PersistedGuideStep].self, forKey: .cooldown)
+    }
+
+    var washGrade: WashGrade {
+        WashGrade(rawValue: washGradeRaw) ?? .tealCoral
+    }
 
     func asRoutine(rotationIndex: Int) -> Routine {
         let warmupSteps = includesWarmup ? (warmup ?? []).map(\.asGuideStep) : []
         let main = includesMain ? (exercises ?? []).map(\.asExercise) : []
         let cooldownSteps = includesCooldown ? (cooldown ?? []).map(\.asGuideStep) : []
         let minutes = max(20, main.count * 8 + (includesWarmup ? 8 : 0) + (includesCooldown ? 5 : 0))
+        let thumb = warmupSteps.first?.slug
+            ?? main.first?.slug
+            ?? cooldownSteps.first?.slug
+            ?? "bodyweight-squat"
         return Routine(
             id: id,
             name: name,
             focus: focus,
             summary: focus,
-            heroSlug: main.first?.slug ?? "bodyweight-squat",
+            heroSlug: thumb,
             rotationIndex: rotationIndex,
             warmup: warmupSteps,
             exercises: main,
@@ -154,7 +211,8 @@ struct PersistedCustomRoutine: Codable, Equatable {
             includesWarmup: includesWarmup,
             includesMain: includesMain,
             includesCooldown: includesCooldown,
-            isCustom: true
+            isCustom: true,
+            washGrade: washGrade
         )
     }
 }

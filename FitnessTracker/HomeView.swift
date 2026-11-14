@@ -218,8 +218,8 @@ private struct UpNextCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
-                WashWindow(grade: WashGrade.forRoutine(routine.id))
-                IllustrationView(slug: routine.heroSlug, label: routine.name)
+                WashWindow(grade: routine.washGrade)
+                IllustrationView(slug: routine.thumbnailSlug, label: routine.name)
                     .frame(width: 192, height: 192)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                     .glassInk()
@@ -275,10 +275,10 @@ private struct RoutineListCard: View {
     var body: some View {
         HStack(alignment: .top, spacing: 20) {
             ZStack {
-                WashWindow(grade: WashGrade.forRoutine(routine.id))
+                WashWindow(grade: routine.washGrade)
                     .clipShape(homeIllustrationThumb(gap: 16))
-                IllustrationView(slug: routine.heroSlug, label: routine.name)
-                    .frame(width: 120, height: 120)
+                IllustrationView(slug: routine.thumbnailSlug, label: routine.name)
+                        .frame(width: 120, height: 120)
             }
             .frame(width: 120, height: 120)
             .clipShape(homeIllustrationThumb(gap: 16))

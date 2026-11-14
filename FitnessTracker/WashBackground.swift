@@ -16,23 +16,57 @@ enum WashPlayback {
     }
 }
 
-enum WashGrade: Hashable {
+/// Wash color grades: shipping A–D are locked; `customLibrary` is for new customs.
+enum WashGrade: String, Hashable, Codable, CaseIterable {
+    /// Home wash — black / gray / white.
     case grayscale
+    /// Upper Push — blue / lime / white.
     case thermal
+    /// Lower Stability — deep purple / orange / white.
     case purpleOrange
+    /// Upper Pull — red / yellow / white.
     case redYellow
+    /// Lower Strength + Core — black / green / white.
     case blackGreen
 
-    static func forRoutine(_ id: String) -> WashGrade {
+    // Custom library (3-color: primary / secondary / white).
+    case tealCoral
+    case indigoGold
+    case magentaCyan
+    case forestAmber
+    case slateRose
+    case midnightMint
+
+    /// Grades assignable to custom routines (not the locked shipping four or Home gray).
+    static let customLibrary: [WashGrade] = [
+        .tealCoral,
+        .indigoGold,
+        .magentaCyan,
+        .forestAmber,
+        .slateRose,
+        .midnightMint,
+    ]
+
+    static func forShippingRoutine(_ id: String) -> WashGrade {
         switch id {
         case "A": return .thermal
         case "B": return .purpleOrange
         case "C": return .redYellow
         case "D": return .blackGreen
-        default:
-            // Custom routines share Home’s grayscale wash.
-            return id.hasPrefix("custom-") ? .grayscale : .thermal
+        default: return .thermal
         }
+    }
+
+    /// Prefer an unused library grade; otherwise pick at random.
+    static func nextCustomGrade(used: [WashGrade]) -> WashGrade {
+        let unused = customLibrary.filter { grade in !used.contains(grade) }
+        if let next = unused.first { return next }
+        return customLibrary.randomElement() ?? .tealCoral
+    }
+
+    /// Legacy helper — shipping ids only; customs should use `Routine.washGrade`.
+    static func forRoutine(_ id: String) -> WashGrade {
+        forShippingRoutine(id)
     }
 }
 
@@ -273,6 +307,12 @@ private enum WashLook {
         case .purpleOrange: return purpleOrangeMap
         case .redYellow: return redYellowMap
         case .blackGreen: return blackGreenMap
+        case .tealCoral: return tealCoralMap
+        case .indigoGold: return indigoGoldMap
+        case .magentaCyan: return magentaCyanMap
+        case .forestAmber: return forestAmberMap
+        case .slateRose: return slateRoseMap
+        case .midnightMint: return midnightMintMap
         }
     }
 
@@ -281,6 +321,12 @@ private enum WashLook {
     private static let purpleOrangeMap = makeColorMap(samplePurpleOrange)
     private static let redYellowMap = makeColorMap(sampleRedYellow)
     private static let blackGreenMap = makeColorMap(sampleBlackGreen)
+    private static let tealCoralMap = makeColorMap(sampleTealCoral)
+    private static let indigoGoldMap = makeColorMap(sampleIndigoGold)
+    private static let magentaCyanMap = makeColorMap(sampleMagentaCyan)
+    private static let forestAmberMap = makeColorMap(sampleForestAmber)
+    private static let slateRoseMap = makeColorMap(sampleSlateRose)
+    private static let midnightMintMap = makeColorMap(sampleMidnightMint)
 
     private static func channel(_ value: Double) -> UInt8 {
         UInt8(clamping: Int((min(max(value, 0), 1) * 255).rounded()))
@@ -374,5 +420,35 @@ private enum WashLook {
     /// Black primary, green secondary, white tertiary.
     private static func sampleBlackGreen(_ t: Double) -> (Double, Double, Double) {
         triple(primary: (0.00, 0.00, 0.00), secondary: (0.12, 1.00, 0.18))(t)
+    }
+
+    /// Teal primary, coral secondary, white tertiary.
+    private static func sampleTealCoral(_ t: Double) -> (Double, Double, Double) {
+        triple(primary: (0.00, 0.45, 0.48), secondary: (1.00, 0.42, 0.32))(t)
+    }
+
+    /// Indigo primary, gold secondary, white tertiary.
+    private static func sampleIndigoGold(_ t: Double) -> (Double, Double, Double) {
+        triple(primary: (0.18, 0.12, 0.58), secondary: (1.00, 0.78, 0.16))(t)
+    }
+
+    /// Magenta primary, cyan secondary, white tertiary.
+    private static func sampleMagentaCyan(_ t: Double) -> (Double, Double, Double) {
+        triple(primary: (0.78, 0.08, 0.42), secondary: (0.10, 0.88, 0.92))(t)
+    }
+
+    /// Forest primary, amber secondary, white tertiary.
+    private static func sampleForestAmber(_ t: Double) -> (Double, Double, Double) {
+        triple(primary: (0.06, 0.28, 0.12), secondary: (1.00, 0.62, 0.10))(t)
+    }
+
+    /// Slate primary, rose secondary, white tertiary.
+    private static func sampleSlateRose(_ t: Double) -> (Double, Double, Double) {
+        triple(primary: (0.22, 0.26, 0.32), secondary: (0.96, 0.42, 0.55))(t)
+    }
+
+    /// Midnight primary, mint secondary, white tertiary.
+    private static func sampleMidnightMint(_ t: Double) -> (Double, Double, Double) {
+        triple(primary: (0.04, 0.06, 0.18), secondary: (0.35, 0.95, 0.72))(t)
     }
 }

@@ -101,7 +101,7 @@ struct RoutineView: View {
                 ExerciseTutorialView(
                     exerciseName: item.name,
                     muscles: item.muscles,
-                    grade: WashGrade.forRoutine(routine.id),
+                    grade: routine.washGrade,
                     frames: item.frames,
                     hints: item.hints,
                     hintSource: item.hintSource,
@@ -134,7 +134,7 @@ struct RoutineView: View {
                     .padding(.top, 8)
 
                 if !isEditingRoutine {
-                    RoutineHeroCycle(exercises: draftExercises)
+                    RoutineHeroCycle(frames: heroCycleFrames)
                         .frame(maxWidth: .infinity)
                         .frame(height: 370)
                         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
@@ -209,9 +209,22 @@ struct RoutineView: View {
     private var routineWashBackground: some View {
         ZStack {
             Color.black
-            WashBackground(grade: WashGrade.forRoutine(routine.id))
+            WashBackground(grade: routine.washGrade)
         }
         .ignoresSafeArea()
+    }
+
+    /// Main-workout images when present; otherwise warmup/cooldown stills.
+    private var heroCycleFrames: [RoutineHeroFrame] {
+        if !draftExercises.isEmpty {
+            return draftExercises.map {
+                RoutineHeroFrame(id: $0.id, slug: $0.slug, name: $0.name)
+            }
+        }
+        let guides = draftWarmup + draftCooldown
+        return guides.map {
+            RoutineHeroFrame(id: $0.id, slug: $0.slug, name: $0.title)
+        }
     }
 
     private var completeInset: some View {
@@ -1074,21 +1087,26 @@ struct DisableRoutineInteractivePop: UIViewControllerRepresentable {
     }
 }
 
-/// Cycles the main-exercise thumbnails inside the routine hero.
-/// Each drawing is the same asset as that row, fitted to one centered square.
+private struct RoutineHeroFrame: Identifiable {
+    var id: String
+    var slug: String
+    var name: String
+}
+
+/// Cycles workout stills inside the routine hero (main first; else guide steps).
 private struct RoutineHeroCycle: View {
-    let exercises: [Exercise]
+    let frames: [RoutineHeroFrame]
     private let interval: TimeInterval = 1.6
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: interval)) { context in
-            if exercises.isEmpty {
+            if frames.isEmpty {
                 Color.clear
             } else {
-                let index = Int(context.date.timeIntervalSinceReferenceDate / interval) % exercises.count
-                let exercise = exercises[index]
-                FittedThumbnail(slug: exercise.slug, label: exercise.name)
-                    .id(index)
+                let index = Int(context.date.timeIntervalSinceReferenceDate / interval) % frames.count
+                let frame = frames[index]
+                FittedThumbnail(slug: frame.slug, label: frame.name)
+                    .id(frame.id)
                     .transition(.identity)
                     .transaction { $0.disablesAnimations = true }
             }

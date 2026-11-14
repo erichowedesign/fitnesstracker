@@ -49,6 +49,8 @@ struct Routine: Identifiable, Hashable {
     var includesMain: Bool = true
     var includesCooldown: Bool = true
     var isCustom: Bool = false
+    /// Wash / tile grade. Shipping A–D locked; customs pick from `WashGrade.customLibrary`.
+    var washGrade: WashGrade = .thermal
 
     var exerciseCountLabel: String {
         String(format: "%02d", exercises.count)
@@ -56,6 +58,14 @@ struct Routine: Identifiable, Hashable {
 
     var workoutsLine: String {
         "\(exerciseCountLabel) workouts / \(minutes) minutes"
+    }
+
+    /// First workout image across Warm-up → Main → Cool Down.
+    var thumbnailSlug: String {
+        if let step = warmup.first { return step.slug }
+        if let exercise = exercises.first { return exercise.slug }
+        if let step = cooldown.first { return step.slug }
+        return heroSlug
     }
 
     func withExercises(_ exercises: [Exercise]) -> Routine {
@@ -67,22 +77,32 @@ struct Routine: Identifiable, Hashable {
         exercises: [Exercise]? = nil,
         cooldown: [GuideStep]? = nil
     ) -> Routine {
-        Routine(
+        let nextWarmup = warmup ?? self.warmup
+        let nextExercises = exercises ?? self.exercises
+        let nextCooldown = cooldown ?? self.cooldown
+        let thumb: String = {
+            if let step = nextWarmup.first { return step.slug }
+            if let exercise = nextExercises.first { return exercise.slug }
+            if let step = nextCooldown.first { return step.slug }
+            return heroSlug
+        }()
+        return Routine(
             id: id,
             name: name,
             focus: focus,
             summary: summary,
-            heroSlug: heroSlug,
+            heroSlug: thumb,
             rotationIndex: rotationIndex,
-            warmup: warmup ?? self.warmup,
-            exercises: exercises ?? self.exercises,
-            cooldown: cooldown ?? self.cooldown,
+            warmup: nextWarmup,
+            exercises: nextExercises,
+            cooldown: nextCooldown,
             minutes: minutes,
             difficulty: difficulty,
             includesWarmup: includesWarmup,
             includesMain: includesMain,
             includesCooldown: includesCooldown,
-            isCustom: isCustom
+            isCustom: isCustom,
+            washGrade: washGrade
         )
     }
 
@@ -315,34 +335,42 @@ enum WorkoutPlan {
     }
 
     private static func makeRoutine(_ seed: SeedRoutine, rotationIndex: Int) -> Routine {
-        Routine(
+        let warmup = guideSteps(routineId: seed.id, phase: .warmup, instructions: seed.warmup.instructions)
+        let exercises = seed.exercises.map { exercise in
+            Exercise(
+                id: "\(seed.id)-\(exercise.hevyTemplateId)",
+                hevyTemplateId: exercise.hevyTemplateId,
+                name: exercise.name,
+                equipment: exercise.equipment,
+                sets: exercise.sets,
+                targetReps: exercise.targetReps,
+                targetDurationSeconds: exercise.targetDurationSeconds,
+                restSeconds: exercise.restSeconds,
+                notes: exercise.notes,
+                tracksAssistance: exercise.equipment.lowercased().contains("assisted")
+                    || exercise.name.range(of: "assisted pull-?up", options: .regularExpression) != nil,
+                slug: illustrationSlug(for: exercise.name),
+                displayWeight: displayWeight(for: exercise.name)
+            )
+        }
+        let cooldown = guideSteps(routineId: seed.id, phase: .cooldown, instructions: seed.cooldown.instructions)
+        let thumb = warmup.first?.slug
+            ?? exercises.first?.slug
+            ?? cooldown.first?.slug
+            ?? heroSlug(for: seed.id, name: seed.name)
+        return Routine(
             id: seed.id,
             name: seed.name,
             focus: seed.focus,
             summary: summary(for: seed.id, focus: seed.focus),
-            heroSlug: heroSlug(for: seed.id, name: seed.name),
+            heroSlug: thumb,
             rotationIndex: rotationIndex,
-            warmup: guideSteps(routineId: seed.id, phase: .warmup, instructions: seed.warmup.instructions),
-            exercises: seed.exercises.map { exercise in
-                Exercise(
-                    id: "\(seed.id)-\(exercise.hevyTemplateId)",
-                    hevyTemplateId: exercise.hevyTemplateId,
-                    name: exercise.name,
-                    equipment: exercise.equipment,
-                    sets: exercise.sets,
-                    targetReps: exercise.targetReps,
-                    targetDurationSeconds: exercise.targetDurationSeconds,
-                    restSeconds: exercise.restSeconds,
-                    notes: exercise.notes,
-                    tracksAssistance: exercise.equipment.lowercased().contains("assisted")
-                        || exercise.name.range(of: "assisted pull-?up", options: .regularExpression) != nil,
-                    slug: illustrationSlug(for: exercise.name),
-                    displayWeight: displayWeight(for: exercise.name)
-                )
-            },
-            cooldown: guideSteps(routineId: seed.id, phase: .cooldown, instructions: seed.cooldown.instructions),
+            warmup: warmup,
+            exercises: exercises,
+            cooldown: cooldown,
             minutes: 60,
-            difficulty: 3
+            difficulty: 3,
+            washGrade: WashGrade.forShippingRoutine(seed.id)
         )
     }
 
