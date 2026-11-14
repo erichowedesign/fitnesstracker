@@ -79,6 +79,8 @@ public struct GlassActionMenu: View {
         public var triggerSize: CGFloat
         /// Diameter of each item.
         public var itemSize: CGFloat
+        /// Edge gap between open items (and between trigger and first item). Default `PieceLiquid.apart`.
+        public var itemSpacing: CGFloat
         /// Opacity of the black scrim while open.
         public var scrimOpacity: Double
         /// When true, the trigger shows a checkmark for a moment after an action fires.
@@ -95,6 +97,7 @@ public struct GlassActionMenu: View {
                 : UIColor(red: 0.078, green: 0.078, blue: 0.078, alpha: 1) }),
             triggerSize: CGFloat = 64,
             itemSize: CGFloat = 60,
+            itemSpacing: CGFloat = PieceLiquid.apart,
             scrimOpacity: Double = 0.28,
             confirmsAction: Bool = true
         ) {
@@ -104,6 +107,7 @@ public struct GlassActionMenu: View {
             self.labelInk = labelInk
             self.triggerSize = triggerSize
             self.itemSize = itemSize
+            self.itemSpacing = itemSpacing
             self.scrimOpacity = scrimOpacity
             self.confirmsAction = confirmsAction
         }
@@ -140,8 +144,8 @@ public struct GlassActionMenu: View {
     private let style: Style
     private var triggerSize: CGFloat { style.triggerSize }
     private var itemSize: CGFloat { style.itemSize }
-    /// Separate actions rest apart, outside the merge distance, so each is its own bubble and only goos while it buds.
-    private let spacing = PieceLiquid.apart
+    /// Separate actions rest this far apart (edge gap). Defaults to `PieceLiquid.apart`.
+    private var spacing: CGFloat { style.itemSpacing }
     private static let space = "GlassActionMenu"
 
     public init(items: [Item], triggerSymbol: String = "plus", arrangement: Arrangement = .linear, tint: Color? = nil, isExpanded: Binding<Bool>? = nil, style: Style = .standard) {
