@@ -41,7 +41,6 @@ struct LibraryView: View {
                 ExerciseTutorialView(
                     exerciseName: workout.name,
                     muscles: workout.muscle,
-                    grade: workout.grade,
                     frames: workout.frames,
                     hints: workout.hints,
                     hintSource: workout.hintSource,

@@ -103,7 +103,6 @@ struct RoutineView: View {
                 ExerciseTutorialView(
                     exerciseName: item.name,
                     muscles: item.muscles,
-                    grade: draftWashGrade,
                     frames: item.frames,
                     hints: item.hints,
                     hintSource: item.hintSource,

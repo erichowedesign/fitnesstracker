@@ -34,7 +34,6 @@ struct ExerciseTutorialView: View {
     @Environment(\.glassPalette) private var palette
     let exerciseName: String
     let muscles: String
-    let grade: WashGrade
     let frames: [String]
     let hints: [String]
     let hintSource: String?
@@ -117,7 +116,8 @@ struct ExerciseTutorialView: View {
         .background {
             ZStack {
                 Color.black
-                WashBackground(grade: grade)
+                // All tutorials share Library’s black wash (grayscale map on the shared wash mp4).
+                WashBackground(grade: .grayscale)
             }
             .ignoresSafeArea()
         }
