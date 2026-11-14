@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// User-facing Liquid Glass appearance. Persisted; drives glass material + ink palette.
-/// Clear = fully clear glass. Dark = regular / dark material (clearly denser than Clear).
+/// Clear = untinted clear glass. Dark = dark-tinted clear glass (still clear — not opaque regular).
 enum GlassMode: String, CaseIterable, Identifiable, Codable, Hashable {
     case dark
     case clear
@@ -17,26 +17,26 @@ enum GlassMode: String, CaseIterable, Identifiable, Codable, Hashable {
 
     /// Maps to SwiftUI `Glass` (iOS 26/27 Liquid Glass).
     /// Public Glass: `regular` / `clear` + `tint` / `interactive`.
-    /// - Clear → fully clear
-    /// - Dark → regular glass with black tint + underlay (not almost-clear)
+    /// Both modes stay on the **clear** path — Dark is dark-tinted clear, not opaque regular.
+    /// - Clear → untinted clear
+    /// - Dark → clear + subtle black tint (+ light underlay); denser than Clear, still see-through
     @available(iOS 26, *)
     func glass(interactive: Bool) -> Glass {
         let base: Glass
         switch self {
         case .dark:
-            // Regular liquid glass tinted dark so it reads clearly denser than Clear.
-            base = .regular.tint(Color.black.opacity(0.78))
+            base = .clear.tint(Color.black.opacity(0.38))
         case .clear:
             base = .clear
         }
         return interactive ? base.interactive() : base
     }
 
-    /// Extra fill under glass — Dark only, so Clear stays transparent.
+    /// Soft fill under Dark clear glass only — keep it light so the wash still reads through.
     var glassUnderlay: Color? {
         switch self {
         case .dark:
-            return Color.black.opacity(0.32)
+            return Color.black.opacity(0.12)
         case .clear:
             return nil
         }
@@ -63,23 +63,42 @@ struct GlassPalette: Equatable {
     var dim: Color
     /// Favorites heart (on).
     var heart: Color
-    /// Color scheme for system materials / ScrubStepper adaptive bits.
+    /// Color scheme for Liquid Glass / system materials — flips with Clear vs Dark.
     var colorScheme: ColorScheme
     /// Veil over the wash (unused for Clear/Dark; both keep wash visible).
     var washVeil: Color
+    /// Soft tray fill under chrome glass (tab bar, etc.).
+    var chromeTray: Color
+    /// Selected tab / chrome pill fill.
+    var chromePill: Color
+    /// Unselected chrome glyphs use plusLighter in Dark.
+    var chromePlusLighter: Bool
 
     init(mode: GlassMode) {
         self.mode = mode
         accent = Color(red: 0, green: 0.569, blue: 1)
         heart = .pink
-        // Clear + Dark both sit on the wash with light ink.
+        // Content sits on the wash with light ink in both modes.
         primary = Color(red: 0.961, green: 0.961, blue: 0.961)
         secondary = Color.white.opacity(0.85)
         tertiary = Color.white.opacity(0.72)
         chrome = Color(red: 0.961, green: 0.961, blue: 0.961)
         dim = Color.white.opacity(0.12)
-        colorScheme = .dark
         washVeil = .clear
+        switch mode {
+        case .clear:
+            // Light scheme → buttons / tiles / nav resolve the clear path.
+            colorScheme = .light
+            chromeTray = Color.white.opacity(0.18)
+            chromePill = Color.white.opacity(0.42)
+            chromePlusLighter = false
+        case .dark:
+            // Dark scheme + soft dark tray — still translucent under clear glass.
+            colorScheme = .dark
+            chromeTray = Color.black.opacity(0.28)
+            chromePill = Color.black.opacity(0.4)
+            chromePlusLighter = true
+        }
     }
 
     static let clear = GlassPalette(mode: .clear)
@@ -156,7 +175,7 @@ struct FoundationGlassModifier<S: Shape>: ViewModifier {
                 .background {
                     shape.fill(
                         glassMode == .dark
-                            ? AnyShapeStyle(Color.black.opacity(0.72))
+                            ? AnyShapeStyle(Color.black.opacity(0.28))
                             : AnyShapeStyle(Color.white.opacity(0.12))
                     )
                 }
