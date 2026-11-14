@@ -148,9 +148,6 @@ struct RoutineView: View {
                 }
 
                 if isEditingRoutine {
-                    washThemePicker
-                        .padding(.top, 32)
-
                     if routine.includesWarmup {
                         editableGuideSection(
                             title: "Warm-up",
@@ -168,6 +165,10 @@ struct RoutineView: View {
                             section: .cooldown
                         )
                     }
+
+                    washThemePicker
+                        .padding(.top, 32)
+
                     if canDeleteRoutine {
                         deleteRoutineButton
                             .padding(.top, 48)
@@ -529,7 +530,11 @@ struct RoutineView: View {
     }
 
     private var editableMainSection: some View {
-        editableSectionChrome(title: "Main Workout", section: .main) {
+        editableSectionChrome(
+            title: "Main Workout",
+            section: .main,
+            isEmpty: draftExercises.isEmpty
+        ) {
             editableReorderList(items: $draftExercises) { exercise in
                 if let index = draftExercises.firstIndex(where: { $0.id == exercise.id }) {
                     deleteExercises(at: IndexSet(integer: index))
@@ -549,7 +554,11 @@ struct RoutineView: View {
         steps: Binding<[GuideStep]>,
         section: RoutineEditSection
     ) -> some View {
-        editableSectionChrome(title: title, section: section) {
+        editableSectionChrome(
+            title: title,
+            section: section,
+            isEmpty: steps.wrappedValue.isEmpty
+        ) {
             editableReorderList(items: steps) { step in
                 steps.wrappedValue.removeAll { $0.id == step.id }
             } content: { step in
@@ -561,9 +570,10 @@ struct RoutineView: View {
     private func editableSectionChrome<Content: View>(
         title: String,
         section: RoutineEditSection,
+        isEmpty: Bool,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: isEmpty ? 0 : 16) {
             HStack {
                 Text(title)
                     .font(.title2)
@@ -583,9 +593,11 @@ struct RoutineView: View {
                 .foundationGlass(interactive: true, in: Capsule())
                 .accessibilityLabel("Add to \(title)")
             }
-            content()
+            if !isEmpty {
+                content()
+            }
         }
-        .padding(.top, 24)
+        .padding(.top, isEmpty ? 16 : 24)
     }
 
     /// Custom edit rows: small liquid-glass minus + drag-handle; tiles use Clear/Dark/Light `foundationGlass` (not a flat dim fill).
@@ -638,7 +650,10 @@ struct RoutineView: View {
                 )
             }
         }
-        .frame(minHeight: max(CGFloat(count) * 104, 120), alignment: .top)
+        .frame(
+            minHeight: count == 0 ? 0 : CGFloat(count) * 104,
+            alignment: .top
+        )
         .preferredColorScheme(palette.colorScheme)
     }
 
