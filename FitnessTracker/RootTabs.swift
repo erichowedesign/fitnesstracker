@@ -101,16 +101,15 @@ struct RootTabs: View {
         .animation(.smooth(duration: 0.3), value: palette.mode)
     }
 
-    /// Leading theme control + trailing more — same size, equal HIG toolbar edge insets.
+    /// Trailing theme GlassActionMenu — icons share the content trailing edge (16pt).
     /// Avoid clip/compositing on this layer so GlassActionMenu’s full-page scrim can paint over the wash.
     private var chromeMenusOverlay: some View {
         VStack {
             HStack(alignment: .center, spacing: 0) {
-                GlassModeActionMenu()
                 Spacer(minLength: 0)
-                RootMoreMenu()
+                GlassModeActionMenu()
             }
-            // Standard toolbar leading/trailing margin (matched pair, not asymmetric).
+            // Match Home / History / Library content trailing inset.
             .padding(.horizontal, 16)
             Spacer(minLength: 0)
         }
@@ -119,7 +118,7 @@ struct RootTabs: View {
         .allowsHitTesting(!hidesFloatingTabBar)
         .accessibilityHidden(hidesFloatingTabBar)
         .animation(.smooth(duration: 0.35), value: hidesFloatingTabBar)
-        // Above pages + wash so GlassActionMenu / more control stay a floating layer.
+        // Above pages + wash so GlassActionMenu stays a floating layer.
         .zIndex(100)
     }
 

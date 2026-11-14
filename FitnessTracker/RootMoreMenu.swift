@@ -1,26 +1,7 @@
 import SwiftUI
 
-/// Top-trailing ellipsis menu. Sectioned shell for future preferences (glass lives on the leading control).
-struct RootMoreMenu: View {
-    @Environment(\.glassPalette) private var palette
-
-    var body: some View {
-        Menu {
-            // Future sections land here.
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(palette.chrome)
-                .frame(width: 48, height: 48)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .foundationGlass(interactive: true, in: Circle())
-        .accessibilityLabel("More")
-    }
-}
-
-/// Top-leading glass mode control — Clear / Dark / Light.
+/// Top-trailing glass mode control — Clear / Dark / Light.
+/// Icons sit on the content trailing edge; open labels bud inward (leading of each icon).
 struct GlassModeActionMenu: View {
     @Environment(GlassModeStore.self) private var glassModeStore
     @Environment(\.glassPalette) private var palette
@@ -40,7 +21,6 @@ struct GlassModeActionMenu: View {
             trigger: .clear,
             ink: palette.chrome,
             labelInk: palette.primary,
-            // Match RootMoreMenu 48pt circle — HIG toolbar leading/trailing pair.
             triggerSize: 48,
             itemSize: 48,
             itemSpacing: 4,
@@ -62,8 +42,8 @@ struct GlassModeActionMenu: View {
                 },
             ],
             triggerSymbol: triggerSymbol,
-            // Top-leading: stack options straight down the page.
-            arrangement: .linearDownward,
+            // Top-trailing: stack down; names sit leading so icons stay on the content trailing edge.
+            arrangement: .linearDownwardFromTrailing,
             tint: nil,
             style: menuStyle
         )

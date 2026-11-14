@@ -35,7 +35,7 @@ import SwiftUI
 /// - Parameters:
 ///   - items: Actions in emergence order (nearest to the trigger first). Give an item a `tint` to tint its glass.
 ///   - triggerSymbol: SF Symbol on the collapsed trigger. Rotates 45° while open (under Reduce Motion it swaps to a close mark instead).
-///   - arrangement: `.linear` stacks items upward; `.arc` fans up→leading (bottom-trailing). `.linearDownward` / `.arcDownTrailing` for top-leading.
+///   - arrangement: `.linear` stacks items upward; `.arc` fans up→leading (bottom-trailing). `.linearDownward` / `.arcDownTrailing` for top-leading. `.linearDownwardFromTrailing` for top-trailing (names bud leading so icons stay on the trailing edge).
 ///   - tint: Trigger glass tint. `nil` uses `style.trigger`, the house signal red. Items keep their own tints so the trigger reads as the anchor.
 ///   - isExpanded: Optional binding to open or close the menu programmatically; it is written back when the user toggles it.
 ///   - style: Trigger tint, inks, sizes, scrim strength and the confirmation check.
@@ -61,7 +61,7 @@ public struct GlassActionMenu: View {
         }
     }
 
-    public enum Arrangement { case linear, arc, linearDownward, arcDownTrailing }
+    public enum Arrangement { case linear, arc, linearDownward, arcDownTrailing, linearDownwardFromTrailing }
     public enum Phase { case collapsed, expanding, open, hovering, firing, collapsing }
 
     /// Visual tuning. `standard` uses the house palette: a signal trigger with the house ink, and neutral glass names.
@@ -261,6 +261,7 @@ public struct GlassActionMenu: View {
         let snug = itemSize * 0.66
         let home = !out && !reduceMotion
         // Capture before `visualEffect` — that closure is Sendable / nonisolated.
+        // Top-leading fans put names trailing of icons; top-trailing (`.linearDownwardFromTrailing`) puts names leading so icons stay flush to the content edge.
         let namesPreferTrailing = arrangement == .linearDownward || arrangement == .arcDownTrailing
         return Text(text)
             .font(.body.weight(.semibold))
@@ -413,7 +414,7 @@ public struct GlassActionMenu: View {
         switch arrangement {
         case .linear:
             return CGSize(width: 0, height: -(reach + CGFloat(index) * (itemSize + spacing)))
-        case .linearDownward:
+        case .linearDownward, .linearDownwardFromTrailing:
             return CGSize(width: 0, height: reach + CGFloat(index) * (itemSize + spacing))
         case .arc:
             let steps = max(items.count - 1, 1)
