@@ -12,12 +12,14 @@ struct RoutineView: View {
     @Environment(SessionStore.self) private var store
     @Environment(RoutineOverridesStore.self) private var routineOverrides
     @Environment(CustomRoutinesStore.self) private var customRoutines
+    @Environment(RoutineOrderStore.self) private var routineOrder
     @Environment(\.glassPalette) private var palette
     @Environment(\.dismiss) private var dismiss
     let routine: Routine
     var startsInEditMode: Bool = false
     @State private var didSave = false
     @State private var showCompleteButton = false
+    @State private var showDeleteConfirm = false
     @State private var weights: [String: String] = [:]
     @State private var tutorial: ExerciseTutorial?
     @State private var isEditingRoutine = false
@@ -35,6 +37,27 @@ struct RoutineView: View {
     @State private var editSnapshotCooldown: [GuideStep] = []
     @State private var editSnapshotWeights: [String: String] = [:]
     @State private var draggingEditID: String?
+    /// 1-based My Routines list position while editing.
+    @State private var draftListPosition = 1
+
+    private var canDeleteRoutine: Bool {
+        routine.isCustom || customRoutines.contains(routine.id)
+    }
+
+    private var shippingRoutines: [Routine] {
+        WorkoutPlan.all().map(routineOverrides.resolved)
+    }
+
+    private var orderedCatalog: [Routine] {
+        routineOrder.ordered(
+            shipping: shippingRoutines,
+            customs: customRoutines.routines(startingRotationAt: shippingRoutines.count + 1)
+        )
+    }
+
+    private var currentListNumber: Int {
+        (orderedCatalog.firstIndex { $0.id == routine.id } ?? 0) + 1
+    }
 
     private var activeRoutine: Routine {
         routine.withSections(
@@ -54,7 +77,7 @@ struct RoutineView: View {
             .toolbarBackground(.hidden, for: .navigationBar)
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
             .safeAreaInset(edge: .bottom) { completeInset }
-            .navigationTitle("Routine \(routine.rotationIndex)")
+            .navigationTitle(isEditingRoutine ? "" : "Routine \(currentListNumber)")
             .toolbarTitleDisplayMode(.inline)
             // Custom glass chrome — system back / plain Edit ignore Clear–Dark.
             .navigationBarBackButtonHidden(true)
@@ -66,6 +89,12 @@ struct RoutineView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text("\(routine.name) is stored on this iPhone.")
+            }
+            .alert("Delete routine?", isPresented: $showDeleteConfirm) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive, action: deleteCustomRoutine)
+            } message: {
+                Text("“\(routine.name)” will be removed from My Routines. This can’t be undone.")
             }
             .background { DisableRoutineInteractivePop(allowsEdgeBack: !isEditingRoutine) }
             .navigationDestination(item: $tutorial) { item in
@@ -134,6 +163,10 @@ struct RoutineView: View {
                             section: .cooldown
                         )
                     }
+                    if canDeleteRoutine {
+                        deleteRoutineButton
+                            .padding(.top, 48)
+                    }
                 } else {
                     // 48pt below hero block (summary description removed).
                     if routine.includesWarmup {
@@ -152,6 +185,25 @@ struct RoutineView: View {
             .padding(.top, 34)
             .padding(.bottom, 88)
         }
+    }
+
+    private var deleteRoutineButton: some View {
+        Button {
+            showDeleteConfirm = true
+        } label: {
+            Label("Delete", systemImage: "trash")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 64)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .background {
+            Capsule().fill(Color(red: 1, green: 0.14, blue: 0.12).opacity(0.58))
+        }
+        .foundationGlass(interactive: true, in: Capsule())
+        .accessibilityLabel("Delete routine")
     }
 
     private var routineWashBackground: some View {
@@ -184,6 +236,10 @@ struct RoutineView: View {
                 )
             }
             .sharedBackgroundVisibility(.hidden)
+            ToolbarItem(placement: .principal) {
+                listPositionMenu
+            }
+            .sharedBackgroundVisibility(.hidden)
             ToolbarItem(placement: .topBarTrailing) {
                 GlassChromeIconButton(
                     systemName: "checkmark",
@@ -206,6 +262,38 @@ struct RoutineView: View {
             }
             .sharedBackgroundVisibility(.hidden)
         }
+    }
+
+    private var listPositionMenu: some View {
+        Menu {
+            ForEach(1...max(orderedCatalog.count, 1), id: \.self) { position in
+                Button {
+                    draftListPosition = position
+                } label: {
+                    if position == draftListPosition {
+                        Label("Routine \(position)", systemImage: "checkmark")
+                    } else {
+                        Text("Routine \(position)")
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text("Routine \(draftListPosition)")
+                    .font(.headline)
+                    .glassInk()
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 12, weight: .semibold))
+                    .glassInk(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .frame(height: 36)
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .foundationGlass(interactive: true, in: Capsule())
+        .accessibilityLabel("Routine list position")
+        .accessibilityValue("\(draftListPosition)")
     }
 
     private func loadDraft() {
@@ -503,6 +591,7 @@ struct RoutineView: View {
         editSnapshotExercises = draftExercises
         editSnapshotCooldown = draftCooldown
         editSnapshotWeights = weights
+        draftListPosition = currentListNumber
         withAnimation(.smooth(duration: 0.28)) {
             isEditingRoutine = true
             editMode = .active
@@ -512,6 +601,13 @@ struct RoutineView: View {
 
     private func commitRoutineEditing() {
         persistDraft()
+        if draftListPosition != currentListNumber {
+            routineOrder.move(
+                id: routine.id,
+                toPosition: draftListPosition,
+                inOrderedCatalog: orderedCatalog
+            )
+        }
         withAnimation(.smooth(duration: 0.28)) {
             isEditingRoutine = false
             editMode = .inactive
@@ -523,6 +619,7 @@ struct RoutineView: View {
         draftExercises = editSnapshotExercises
         draftCooldown = editSnapshotCooldown
         weights = editSnapshotWeights
+        draftListPosition = currentListNumber
         showLibraryPicker = false
         stagedLibraryWorkout = nil
         pendingLibraryWorkout = nil
@@ -548,6 +645,13 @@ struct RoutineView: View {
                 for: routine.id
             )
         }
+    }
+
+    private func deleteCustomRoutine() {
+        guard canDeleteRoutine else { return }
+        customRoutines.delete(id: routine.id)
+        routineOrder.remove(id: routine.id)
+        dismiss()
     }
 
     private func deleteExercises(at offsets: IndexSet) {
@@ -1067,6 +1171,7 @@ private struct ThumbnailFit {
     .environment(SessionStore())
     .environment(RoutineOverridesStore())
     .environment(CustomRoutinesStore())
+    .environment(RoutineOrderStore())
     .environment(FavoritesStore())
     .environment(WashTheme())
     .preferredColorScheme(.dark)

@@ -38,4 +38,14 @@ final class RoutineOrderStore {
         orderedIDs.removeAll { $0 == id }
         UserDefaults.standard.set(orderedIDs, forKey: Self.defaultsKey)
     }
+
+    /// Moves `id` to a 1-based list position. `catalog` should be the current Home order.
+    func move(id: String, toPosition position: Int, inOrderedCatalog catalog: [Routine]) {
+        var ids = catalog.map(\.id)
+        guard let from = ids.firstIndex(of: id) else { return }
+        ids.remove(at: from)
+        let clamped = min(max(position - 1, 0), ids.count)
+        ids.insert(id, at: clamped)
+        save(ids)
+    }
 }
