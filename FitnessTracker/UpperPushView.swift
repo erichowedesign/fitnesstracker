@@ -106,13 +106,13 @@ struct RoutineView: View {
             .alert("Workout saved", isPresented: $didSave) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("\(routine.name) is stored on this iPhone.")
+                Text("\(draftName.isEmpty ? routine.name : draftName) is stored on this iPhone.")
             }
             .alert("Delete routine?", isPresented: $showDeleteConfirm) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive, action: deleteCustomRoutine)
             } message: {
-                Text("“\(routine.name)” will be removed from My Routines. This can’t be undone.")
+                Text("“\(draftName.isEmpty ? routine.name : draftName)” will be removed from My Routines. This can’t be undone.")
             }
             .background { DisableRoutineInteractivePop(allowsEdgeBack: !isEditingRoutine) }
             .navigationDestination(item: $tutorial) { item in
