@@ -36,11 +36,13 @@ final class CustomRoutinesStore {
     @discardableResult
     func create(
         name: String,
+        detail: String = "",
         includesWarmup: Bool,
         includesMain: Bool,
         includesCooldown: Bool
     ) -> Routine {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedDetail = detail.trimmingCharacters(in: .whitespacesAndNewlines)
         let id = "custom-\(UUID().uuidString.lowercased())"
         let focus = Self.focusLabel(
             warmup: includesWarmup,
@@ -53,6 +55,7 @@ final class CustomRoutinesStore {
             id: id,
             name: trimmed,
             focus: focus,
+            detail: trimmedDetail.isEmpty ? nil : trimmedDetail,
             includesWarmup: includesWarmup,
             includesMain: includesMain,
             includesCooldown: includesCooldown,
@@ -94,6 +97,12 @@ final class CustomRoutinesStore {
         persist()
     }
 
+    func setWashGrade(_ grade: WashGrade, for routineID: String) {
+        guard let index = customs.firstIndex(where: { $0.id == routineID }) else { return }
+        customs[index].washGradeRaw = grade.rawValue
+        persist()
+    }
+
     func delete(id: String) {
         guard customs.contains(where: { $0.id == id }) else { return }
         customs.removeAll { $0.id == id }
@@ -129,7 +138,10 @@ final class CustomRoutinesStore {
 struct PersistedCustomRoutine: Codable, Equatable {
     var id: String
     var name: String
+    /// Section chip label (Warm-up · Main · Cool Down).
     var focus: String
+    /// Optional user description — shown as routine subtitle when set.
+    var detail: String?
     var includesWarmup: Bool
     var includesMain: Bool
     var includesCooldown: Bool
@@ -140,7 +152,7 @@ struct PersistedCustomRoutine: Codable, Equatable {
     var cooldown: [PersistedGuideStep]?
 
     enum CodingKeys: String, CodingKey {
-        case id, name, focus, includesWarmup, includesMain, includesCooldown
+        case id, name, focus, detail, includesWarmup, includesMain, includesCooldown
         case washGradeRaw, warmup, exercises, cooldown
     }
 
@@ -148,6 +160,7 @@ struct PersistedCustomRoutine: Codable, Equatable {
         id: String,
         name: String,
         focus: String,
+        detail: String? = nil,
         includesWarmup: Bool,
         includesMain: Bool,
         includesCooldown: Bool,
@@ -159,6 +172,7 @@ struct PersistedCustomRoutine: Codable, Equatable {
         self.id = id
         self.name = name
         self.focus = focus
+        self.detail = detail
         self.includesWarmup = includesWarmup
         self.includesMain = includesMain
         self.includesCooldown = includesCooldown
@@ -173,6 +187,7 @@ struct PersistedCustomRoutine: Codable, Equatable {
         id = try container.decode(String.self, forKey: .id)
         name = try container.decode(String.self, forKey: .name)
         focus = try container.decode(String.self, forKey: .focus)
+        detail = try container.decodeIfPresent(String.self, forKey: .detail)
         includesWarmup = try container.decode(Bool.self, forKey: .includesWarmup)
         includesMain = try container.decode(Bool.self, forKey: .includesMain)
         includesCooldown = try container.decode(Bool.self, forKey: .includesCooldown)
@@ -187,6 +202,14 @@ struct PersistedCustomRoutine: Codable, Equatable {
         WashGrade(rawValue: washGradeRaw) ?? .tealCoral
     }
 
+    /// Subtitle under the title: user description, else section label.
+    var displayFocus: String {
+        if let detail, !detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return detail
+        }
+        return focus
+    }
+
     func asRoutine(rotationIndex: Int) -> Routine {
         let warmupSteps = includesWarmup ? (warmup ?? []).map(\.asGuideStep) : []
         let main = includesMain ? (exercises ?? []).map(\.asExercise) : []
@@ -199,7 +222,7 @@ struct PersistedCustomRoutine: Codable, Equatable {
         return Routine(
             id: id,
             name: name,
-            focus: focus,
+            focus: displayFocus,
             summary: focus,
             heroSlug: thumb,
             rotationIndex: rotationIndex,

@@ -47,6 +47,58 @@ enum WashGrade: String, Hashable, Codable, CaseIterable {
         .midnightMint,
     ]
 
+    /// Edit-mode theme picker: shipping A–D grades + custom library (not Home gray).
+    static let themeLibrary: [WashGrade] = [
+        .thermal,
+        .purpleOrange,
+        .redYellow,
+        .blackGreen,
+    ] + customLibrary
+
+    var themeTitle: String {
+        switch self {
+        case .grayscale: return "Grayscale"
+        case .thermal: return "Thermal"
+        case .purpleOrange: return "Purple Orange"
+        case .redYellow: return "Red Yellow"
+        case .blackGreen: return "Black Green"
+        case .tealCoral: return "Teal Coral"
+        case .indigoGold: return "Indigo Gold"
+        case .magentaCyan: return "Magenta Cyan"
+        case .forestAmber: return "Forest Amber"
+        case .slateRose: return "Slate Rose"
+        case .midnightMint: return "Midnight Mint"
+        }
+    }
+
+    /// Primary / secondary swatch colors for the theme picker.
+    var themeSwatch: (primary: Color, secondary: Color) {
+        switch self {
+        case .grayscale:
+            return (Color(white: 0.12), Color(white: 0.55))
+        case .thermal:
+            return (Color(red: 0.02, green: 0.38, blue: 1.00), Color(red: 1.00, green: 0.95, blue: 0.05))
+        case .purpleOrange:
+            return (Color(red: 0.36, green: 0.00, blue: 0.62), Color(red: 1.00, green: 0.48, blue: 0.00))
+        case .redYellow:
+            return (Color(red: 0.92, green: 0.04, blue: 0.04), Color(red: 1.00, green: 0.92, blue: 0.05))
+        case .blackGreen:
+            return (Color(white: 0.05), Color(red: 0.12, green: 1.00, blue: 0.18))
+        case .tealCoral:
+            return (Color(red: 0.00, green: 0.45, blue: 0.48), Color(red: 1.00, green: 0.42, blue: 0.32))
+        case .indigoGold:
+            return (Color(red: 0.18, green: 0.12, blue: 0.58), Color(red: 1.00, green: 0.78, blue: 0.16))
+        case .magentaCyan:
+            return (Color(red: 0.78, green: 0.08, blue: 0.42), Color(red: 0.10, green: 0.88, blue: 0.92))
+        case .forestAmber:
+            return (Color(red: 0.06, green: 0.28, blue: 0.12), Color(red: 1.00, green: 0.62, blue: 0.10))
+        case .slateRose:
+            return (Color(red: 0.22, green: 0.26, blue: 0.32), Color(red: 0.96, green: 0.42, blue: 0.55))
+        case .midnightMint:
+            return (Color(red: 0.04, green: 0.06, blue: 0.18), Color(red: 0.35, green: 0.95, blue: 0.72))
+        }
+    }
+
     static func forShippingRoutine(_ id: String) -> WashGrade {
         switch id {
         case "A": return .thermal

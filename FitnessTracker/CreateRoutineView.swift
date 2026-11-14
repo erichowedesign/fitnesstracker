@@ -9,12 +9,17 @@ struct CreateRoutineView: View {
     var onCreated: (Routine) -> Void
 
     @State private var title = ""
+    @State private var detail = ""
     @State private var includeWarmup = true
     @State private var includeMain = true
     @State private var includeCooldown = true
 
     private var trimmedTitle: String {
         title.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var trimmedDetail: String {
+        detail.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private var canContinue: Bool {
@@ -42,6 +47,22 @@ struct CreateRoutineView: View {
                 TextField("Routine name", text: $title)
                     .font(.headline)
                     .glassInk()
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .foundationGlass(interactive: true, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+                    .padding(.top, 24)
+                    .submitLabel(.next)
+
+                Text("Description")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .glassInk()
+                    .padding(.top, 48)
+
+                TextField("Optional — shown under the title", text: $detail, axis: .vertical)
+                    .font(.body)
+                    .glassInk()
+                    .lineLimit(3...6)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
                     .foundationGlass(interactive: true, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
@@ -124,6 +145,7 @@ struct CreateRoutineView: View {
         guard canContinue else { return }
         let routine = customRoutines.create(
             name: trimmedTitle,
+            detail: trimmedDetail,
             includesWarmup: includeWarmup,
             includesMain: includeMain,
             includesCooldown: includeCooldown

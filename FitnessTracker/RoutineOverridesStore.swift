@@ -17,11 +17,22 @@ final class RoutineOverridesStore {
 
     func resolved(_ routine: Routine) -> Routine {
         guard let saved = overrides[routine.id] else { return routine }
-        return routine.withSections(
+        var next = routine.withSections(
             warmup: saved.warmup?.map(\.asGuideStep),
             exercises: saved.exercises?.map(\.asExercise),
             cooldown: saved.cooldown?.map(\.asGuideStep)
         )
+        if let raw = saved.washGradeRaw, let grade = WashGrade(rawValue: raw) {
+            next.washGrade = grade
+        }
+        return next
+    }
+
+    func washGrade(for routineID: String, fallback: WashGrade) -> WashGrade {
+        if let raw = overrides[routineID]?.washGradeRaw, let grade = WashGrade(rawValue: raw) {
+            return grade
+        }
+        return fallback
     }
 
     func exercises(for routineID: String, fallback: [Exercise]) -> [Exercise] {
@@ -51,11 +62,11 @@ final class RoutineOverridesStore {
         cooldown: [GuideStep],
         for routineID: String
     ) {
-        overrides[routineID] = PersistedRoutineOverride(
-            warmup: warmup.map(PersistedGuideStep.init),
-            exercises: exercises.map(PersistedExercise.init),
-            cooldown: cooldown.map(PersistedGuideStep.init)
-        )
+        var current = overrides[routineID] ?? PersistedRoutineOverride()
+        current.warmup = warmup.map(PersistedGuideStep.init)
+        current.exercises = exercises.map(PersistedExercise.init)
+        current.cooldown = cooldown.map(PersistedGuideStep.init)
+        overrides[routineID] = current
         persist()
     }
 
@@ -63,6 +74,13 @@ final class RoutineOverridesStore {
     func save(exercises: [Exercise], for routineID: String) {
         var current = overrides[routineID] ?? PersistedRoutineOverride()
         current.exercises = exercises.map(PersistedExercise.init)
+        overrides[routineID] = current
+        persist()
+    }
+
+    func setWashGrade(_ grade: WashGrade, for routineID: String) {
+        var current = overrides[routineID] ?? PersistedRoutineOverride()
+        current.washGradeRaw = grade.rawValue
         overrides[routineID] = current
         persist()
     }
@@ -108,6 +126,8 @@ struct PersistedRoutineOverride: Codable, Equatable {
     var warmup: [PersistedGuideStep]?
     var exercises: [PersistedExercise]?
     var cooldown: [PersistedGuideStep]?
+    /// Optional wash theme override (`WashGrade.rawValue`).
+    var washGradeRaw: String?
 }
 
 struct PersistedGuideStep: Codable, Equatable {

@@ -39,6 +39,8 @@ struct RoutineView: View {
     @State private var draggingEditID: String?
     /// 1-based My Routines list position while editing.
     @State private var draftListPosition = 1
+    @State private var draftWashGrade: WashGrade = .thermal
+    @State private var editSnapshotWashGrade: WashGrade = .thermal
 
     private var canDeleteRoutine: Bool {
         routine.isCustom || customRoutines.contains(routine.id)
@@ -101,7 +103,7 @@ struct RoutineView: View {
                 ExerciseTutorialView(
                     exerciseName: item.name,
                     muscles: item.muscles,
-                    grade: routine.washGrade,
+                    grade: draftWashGrade,
                     frames: item.frames,
                     hints: item.hints,
                     hintSource: item.hintSource,
@@ -146,6 +148,9 @@ struct RoutineView: View {
                 }
 
                 if isEditingRoutine {
+                    washThemePicker
+                        .padding(.top, 32)
+
                     if routine.includesWarmup {
                         editableGuideSection(
                             title: "Warm-up",
@@ -209,9 +214,60 @@ struct RoutineView: View {
     private var routineWashBackground: some View {
         ZStack {
             Color.black
-            WashBackground(grade: routine.washGrade)
+            WashBackground(grade: draftWashGrade)
         }
         .ignoresSafeArea()
+        .animation(.smooth(duration: 0.35), value: draftWashGrade)
+    }
+
+    private var washThemePicker: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Color theme")
+                .font(.title2)
+                .fontWeight(.bold)
+                .glassInk()
+            Text(draftWashGrade.themeTitle)
+                .font(.body)
+                .glassInk(.secondary)
+                .padding(.top, 8)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(WashGrade.themeLibrary, id: \.self) { grade in
+                        Button {
+                            draftWashGrade = grade
+                        } label: {
+                            washThemeSwatch(grade: grade, selected: grade == draftWashGrade)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(grade.themeTitle)
+                        .accessibilityAddTraits(grade == draftWashGrade ? .isSelected : [])
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+            .padding(.top, 24)
+        }
+    }
+
+    private func washThemeSwatch(grade: WashGrade, selected: Bool) -> some View {
+        let swatch = grade.themeSwatch
+        return ZStack {
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [swatch.primary, swatch.secondary, .white.opacity(0.92)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            if selected {
+                Circle()
+                    .strokeBorder(Color.white.opacity(0.95), lineWidth: 3)
+            }
+        }
+        .frame(width: 48, height: 48)
+        .foundationGlass(interactive: true, in: Circle())
     }
 
     /// Main-workout images when present; otherwise warmup/cooldown stills.
@@ -314,10 +370,12 @@ struct RoutineView: View {
             draftWarmup = routine.includesWarmup ? routine.warmup : []
             draftExercises = routine.includesMain ? routine.exercises : []
             draftCooldown = routine.includesCooldown ? routine.cooldown : []
+            draftWashGrade = routine.washGrade
         } else {
             draftWarmup = routineOverrides.warmup(for: routine.id, fallback: routine.warmup)
             draftExercises = routineOverrides.exercises(for: routine.id, fallback: routine.exercises)
             draftCooldown = routineOverrides.cooldown(for: routine.id, fallback: routine.cooldown)
+            draftWashGrade = routineOverrides.washGrade(for: routine.id, fallback: routine.washGrade)
         }
         for exercise in draftExercises {
             guard weights[exercise.id] == nil, let seed = exercise.displayWeight else { continue }
@@ -604,6 +662,7 @@ struct RoutineView: View {
         editSnapshotExercises = draftExercises
         editSnapshotCooldown = draftCooldown
         editSnapshotWeights = weights
+        editSnapshotWashGrade = draftWashGrade
         draftListPosition = currentListNumber
         withAnimation(.smooth(duration: 0.28)) {
             isEditingRoutine = true
@@ -632,6 +691,7 @@ struct RoutineView: View {
         draftExercises = editSnapshotExercises
         draftCooldown = editSnapshotCooldown
         weights = editSnapshotWeights
+        draftWashGrade = editSnapshotWashGrade
         draftListPosition = currentListNumber
         showLibraryPicker = false
         stagedLibraryWorkout = nil
@@ -650,6 +710,7 @@ struct RoutineView: View {
                 cooldown: draftCooldown,
                 for: routine.id
             )
+            customRoutines.setWashGrade(draftWashGrade, for: routine.id)
         } else {
             routineOverrides.save(
                 warmup: draftWarmup,
@@ -657,6 +718,7 @@ struct RoutineView: View {
                 cooldown: draftCooldown,
                 for: routine.id
             )
+            routineOverrides.setWashGrade(draftWashGrade, for: routine.id)
         }
     }
 

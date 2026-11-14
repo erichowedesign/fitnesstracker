@@ -49,7 +49,7 @@ struct Routine: Identifiable, Hashable {
     var includesMain: Bool = true
     var includesCooldown: Bool = true
     var isCustom: Bool = false
-    /// Wash / tile grade. Shipping A–D locked; customs pick from `WashGrade.customLibrary`.
+    /// Wash / tile grade. Defaults from shipping map / custom library; editable via theme picker.
     var washGrade: WashGrade = .thermal
 
     var exerciseCountLabel: String {
