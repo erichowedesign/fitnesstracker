@@ -85,7 +85,8 @@ struct GlassPalette: Equatable {
 
     init(mode: GlassMode) {
         self.mode = mode
-        accent = Color(red: 0, green: 0.569, blue: 1)
+        // App accent / tab selection / chart highlights — pink (was system blue).
+        accent = Color(red: 1, green: 0.176, blue: 0.333)
         heart = .pink
         switch mode {
         case .clear:
