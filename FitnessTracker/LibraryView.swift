@@ -334,10 +334,12 @@ struct LibraryTile: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            .padding(.trailing, -8)
             .accessibilityLabel(isLiked ? "Remove from favorites" : "Add to favorites")
         }
-        .padding(16)
+        .padding(.leading, 16)
+        .padding(.vertical, 16)
+        // Extra trailing inset so hearts sit inward from the glass edge.
+        .padding(.trailing, 24)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 152)
         .foundationGlass(interactive: false, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
