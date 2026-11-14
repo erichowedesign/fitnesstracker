@@ -244,19 +244,40 @@ struct GlassChromeIconButton: View {
     var systemName: String
     var accessibilityLabel: String
     var ink: Color? = nil
+    var size: CGFloat = 48
     var action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 18, weight: .semibold))
-                .frame(width: 48, height: 48)
+                .font(.system(size: size >= 56 ? 22 : 18, weight: .semibold))
+                .frame(width: size, height: size)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
         .modifier(GlassChromeInkModifier(ink: ink))
         .foundationGlass(interactive: true, in: Circle())
         .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+/// Non-button glass symbol circle (e.g. edit-mode drag handle).
+struct GlassChromeSymbolCircle: View {
+    var systemName: String
+    var accessibilityLabel: String
+    var size: CGFloat = 56
+
+    @Environment(\.glassPalette) private var palette
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: size >= 56 ? 22 : 18, weight: .semibold))
+            .foregroundStyle(palette.chrome)
+            .frame(width: size, height: size)
+            .contentShape(Circle())
+            .foundationGlass(interactive: true, in: Circle())
+            .accessibilityLabel(accessibilityLabel)
+            .accessibilityAddTraits(.isButton)
     }
 }
 

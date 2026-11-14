@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct UpperPushView: View {
     var body: some View {
@@ -30,6 +31,7 @@ struct RoutineView: View {
     @State private var editSnapshotExercises: [Exercise] = []
     @State private var editSnapshotCooldown: [GuideStep] = []
     @State private var editSnapshotWeights: [String: String] = [:]
+    @State private var draggingEditID: String?
 
     private var activeRoutine: Routine {
         routine.withSections(
@@ -339,16 +341,16 @@ struct RoutineView: View {
 
     private var editableMainSection: some View {
         editableSectionChrome(title: "Main Workout", section: .main) {
-            editableList(count: draftExercises.count) {
-                ForEach(draftExercises) { exercise in
-                    editableRow(
-                        title: exercise.name,
-                        metaParts: exercise.metaParts,
-                        slug: exercise.slug
-                    )
+            editableReorderList(items: $draftExercises) { exercise in
+                if let index = draftExercises.firstIndex(where: { $0.id == exercise.id }) {
+                    deleteExercises(at: IndexSet(integer: index))
                 }
-                .onMove(perform: moveExercises)
-                .onDelete(perform: deleteExercises)
+            } content: { exercise in
+                editableRowContent(
+                    title: exercise.name,
+                    metaParts: exercise.metaParts,
+                    slug: exercise.slug
+                )
             }
         }
     }
@@ -359,16 +361,10 @@ struct RoutineView: View {
         section: RoutineEditSection
     ) -> some View {
         editableSectionChrome(title: title, section: section) {
-            editableList(count: steps.wrappedValue.count) {
-                ForEach(steps.wrappedValue) { step in
-                    editableRow(title: step.title, metaParts: step.metaParts, slug: step.slug)
-                }
-                .onMove { source, destination in
-                    steps.wrappedValue.move(fromOffsets: source, toOffset: destination)
-                }
-                .onDelete { offsets in
-                    steps.wrappedValue.remove(atOffsets: offsets)
-                }
+            editableReorderList(items: steps) { step in
+                steps.wrappedValue.removeAll { $0.id == step.id }
+            } content: { step in
+                editableRowContent(title: step.title, metaParts: step.metaParts, slug: step.slug)
             }
         }
     }
@@ -403,25 +399,60 @@ struct RoutineView: View {
         .padding(.top, 24)
     }
 
-    private func editableList<Content: View>(
-        count: Int,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        List {
-            content()
+    /// Custom edit rows: large liquid-glass minus + drag-handle circles (not system List chrome).
+    private func editableReorderList<Item: Identifiable>(
+        items: Binding<[Item]>,
+        onDelete: @escaping (Item) -> Void,
+        @ViewBuilder content: @escaping (Item) -> some View
+    ) -> some View where Item.ID == String {
+        let count = items.wrappedValue.count
+        return VStack(spacing: 8) {
+            ForEach(items.wrappedValue) { item in
+                HStack(spacing: 10) {
+                    GlassChromeIconButton(
+                        systemName: "minus",
+                        accessibilityLabel: "Remove",
+                        size: 56
+                    ) {
+                        onDelete(item)
+                    }
+
+                    content(item)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    GlassChromeSymbolCircle(
+                        systemName: "line.3.horizontal",
+                        accessibilityLabel: "Reorder",
+                        size: 56
+                    )
+                }
+                .padding(.horizontal, 4)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .fill(palette.dim.opacity(0.7))
+                )
+                .onDrag {
+                    draggingEditID = item.id
+                    return NSItemProvider(object: item.id as NSString)
+                }
+                .onDrop(
+                    of: [UTType.text],
+                    delegate: EditReorderDropDelegate(
+                        itemID: item.id,
+                        items: items,
+                        draggingID: $draggingEditID
+                    )
+                )
+            }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .scrollDisabled(true)
-        .environment(\.editMode, .constant(.active))
-        .frame(height: max(CGFloat(count) * 104, 120))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .frame(minHeight: max(CGFloat(count) * 112, 120), alignment: .top)
     }
 
-    private func editableRow(title: String, metaParts: [String], slug: String) -> some View {
-        HStack(spacing: 16) {
+    private func editableRowContent(title: String, metaParts: [String], slug: String) -> some View {
+        HStack(spacing: 14) {
             IllustrationView(slug: editThumbSlug(slug), label: title)
-                .frame(width: 72, height: 72)
+                .frame(width: 64, height: 64)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
@@ -431,14 +462,6 @@ struct RoutineView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 8)
-        .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
-        .listRowBackground(
-            RoundedRectangle(cornerRadius: 28, style: .continuous)
-                .fill(palette.dim.opacity(0.7))
-                .padding(.vertical, 4)
-        )
-        .listRowSeparator(.hidden)
     }
 
     private func beginRoutineEditing() {
@@ -482,10 +505,6 @@ struct RoutineView: View {
             cooldown: draftCooldown,
             for: routine.id
         )
-    }
-
-    private func moveExercises(from source: IndexSet, to destination: Int) {
-        draftExercises.move(fromOffsets: source, toOffset: destination)
     }
 
     private func deleteExercises(at offsets: IndexSet) {
@@ -578,6 +597,32 @@ struct RoutineView: View {
 
 private enum RoutineEditSection {
     case warmup, main, cooldown
+}
+
+/// Reorders edit-mode rows while a glass drag handle is dragged across neighbors.
+private struct EditReorderDropDelegate<Item: Identifiable>: DropDelegate where Item.ID == String {
+    let itemID: String
+    @Binding var items: [Item]
+    @Binding var draggingID: String?
+
+    func dropEntered(info: DropInfo) {
+        guard let draggingID, draggingID != itemID,
+              let from = items.firstIndex(where: { $0.id == draggingID }),
+              let to = items.firstIndex(where: { $0.id == itemID })
+        else { return }
+        withAnimation(.snappy(duration: 0.2)) {
+            items.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggingID = nil
+        return true
+    }
 }
 
 private struct RoutineEditSheets: ViewModifier {
