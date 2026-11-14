@@ -35,14 +35,14 @@ struct GlassModeActionMenu: View {
 
     private var menuStyle: GlassActionMenu.Style {
         // Piece default scrim (0.28) — do not zero/customize; outer shadows clip the full-page scrim.
-        // Tighter itemSpacing than PieceLiquid.apart so Dark/Light/Clear stack snug when open.
+        // itemSpacing inside PieceLiquid.merge (20) / near joined (4) so open items share liquid necks.
         GlassActionMenu.Style(
             trigger: .clear,
             ink: palette.chrome,
             labelInk: palette.primary,
             triggerSize: 52,
             itemSize: 52,
-            itemSpacing: 10,
+            itemSpacing: 4,
             confirmsAction: true
         )
     }
