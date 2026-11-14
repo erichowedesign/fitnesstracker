@@ -97,7 +97,8 @@ public struct GlassActionMenu: View {
                 : UIColor(red: 0.078, green: 0.078, blue: 0.078, alpha: 1) }),
             triggerSize: CGFloat = 64,
             itemSize: CGFloat = 60,
-            itemSpacing: CGFloat = PieceLiquid.apart,
+            /// Default matches `PieceLiquid.apart` (26).
+            itemSpacing: CGFloat = 26,
             scrimOpacity: Double = 0.28,
             confirmsAction: Bool = true
         ) {
