@@ -25,6 +25,12 @@ final class RoutineOverridesStore {
         if let raw = saved.washGradeRaw, let grade = WashGrade(rawValue: raw) {
             next.washGrade = grade
         }
+        if let name = saved.name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
+            next.name = name
+        }
+        if let detail = saved.detail?.trimmingCharacters(in: .whitespacesAndNewlines), !detail.isEmpty {
+            next.focus = detail
+        }
         return next
     }
 
@@ -33,6 +39,18 @@ final class RoutineOverridesStore {
             return grade
         }
         return fallback
+    }
+
+    func name(for routineID: String, fallback: String) -> String {
+        if let name = overrides[routineID]?.name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty {
+            return name
+        }
+        return fallback
+    }
+
+    /// User description override only (empty when unset).
+    func detail(for routineID: String) -> String {
+        overrides[routineID]?.detail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
     func exercises(for routineID: String, fallback: [Exercise]) -> [Exercise] {
@@ -89,6 +107,18 @@ final class RoutineOverridesStore {
         persist()
     }
 
+    func setIdentity(name: String, detail: String, for routineID: String) {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedDetail = detail.trimmingCharacters(in: .whitespacesAndNewlines)
+        var next = overrides
+        var current = next[routineID] ?? PersistedRoutineOverride()
+        current.name = trimmedName.isEmpty ? nil : trimmedName
+        current.detail = trimmedDetail.isEmpty ? nil : trimmedDetail
+        next[routineID] = current
+        overrides = next
+        persist()
+    }
+
     func clear(routineID: String) {
         overrides.removeValue(forKey: routineID)
         persist()
@@ -132,6 +162,10 @@ struct PersistedRoutineOverride: Codable, Equatable {
     var cooldown: [PersistedGuideStep]?
     /// Optional wash theme override (`WashGrade.rawValue`).
     var washGradeRaw: String?
+    /// Optional display name override.
+    var name: String?
+    /// Optional description shown under the title.
+    var detail: String?
 }
 
 struct PersistedGuideStep: Codable, Equatable {

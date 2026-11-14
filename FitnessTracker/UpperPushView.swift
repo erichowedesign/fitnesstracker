@@ -41,9 +41,25 @@ struct RoutineView: View {
     @State private var draftListPosition = 1
     @State private var draftWashGrade: WashGrade = .thermal
     @State private var editSnapshotWashGrade: WashGrade = .thermal
+    @State private var draftName = ""
+    @State private var draftDetail = ""
+    @State private var editSnapshotName = ""
+    @State private var editSnapshotDetail = ""
+    /// Subtitle when description is empty (shipping seed focus / custom section label).
+    @State private var focusFallback = ""
 
     private var canDeleteRoutine: Bool {
         routine.isCustom || customRoutines.contains(routine.id)
+    }
+
+    private var headerSubtitle: String {
+        let trimmed = draftDetail.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { return trimmed }
+        return focusFallback
+    }
+
+    private var canSaveEdits: Bool {
+        !draftName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var shippingRoutines: [Routine] {
@@ -127,14 +143,16 @@ struct RoutineView: View {
     private var routineScroll: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                Text(routine.name)
-                    .font(.largeTitle)
-                    .fontWeight(.bold)
-                Text(routine.focus)
-                    .font(.body)
-                    .padding(.top, 8)
+                if isEditingRoutine {
+                    editIdentityFields
+                } else {
+                    Text(draftName.isEmpty ? routine.name : draftName)
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                    Text(headerSubtitle.isEmpty ? routine.focus : headerSubtitle)
+                        .font(.body)
+                        .padding(.top, 8)
 
-                if !isEditingRoutine {
                     RoutineHeroCycle(frames: heroCycleFrames)
                         .frame(maxWidth: .infinity)
                         .frame(height: 370)
@@ -218,6 +236,40 @@ struct RoutineView: View {
         }
         .ignoresSafeArea()
         .animation(.smooth(duration: 0.35), value: draftWashGrade)
+    }
+
+    private var editIdentityFields: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Title")
+                .font(.title2)
+                .fontWeight(.bold)
+                .glassInk()
+
+            TextField("Routine name", text: $draftName)
+                .font(.headline)
+                .glassInk()
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .foundationGlass(interactive: true, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+                .padding(.top, 24)
+                .submitLabel(.next)
+
+            Text("Description")
+                .font(.title2)
+                .fontWeight(.bold)
+                .glassInk()
+                .padding(.top, 48)
+
+            TextField("Optional — shown under the title", text: $draftDetail, axis: .vertical)
+                .font(.body)
+                .glassInk()
+                .lineLimit(3...6)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 16)
+                .foundationGlass(interactive: true, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+                .padding(.top, 24)
+                .submitLabel(.done)
+        }
     }
 
     private var washThemePicker: some View {
@@ -315,6 +367,8 @@ struct RoutineView: View {
                     accessibilityLabel: "Save edits",
                     action: commitRoutineEditing
                 )
+                .opacity(canSaveEdits ? 1 : 0.45)
+                .allowsHitTesting(canSaveEdits)
             }
             .sharedBackgroundVisibility(.hidden)
         } else {
@@ -371,11 +425,17 @@ struct RoutineView: View {
             draftExercises = routine.includesMain ? routine.exercises : []
             draftCooldown = routine.includesCooldown ? routine.cooldown : []
             draftWashGrade = routine.washGrade
+            draftName = customRoutines.name(for: routine.id, fallback: routine.name)
+            draftDetail = customRoutines.detail(for: routine.id)
+            focusFallback = customRoutines.sectionFocus(for: routine.id, fallback: routine.summary)
         } else {
             draftWarmup = routineOverrides.warmup(for: routine.id, fallback: routine.warmup)
             draftExercises = routineOverrides.exercises(for: routine.id, fallback: routine.exercises)
             draftCooldown = routineOverrides.cooldown(for: routine.id, fallback: routine.cooldown)
             draftWashGrade = routineOverrides.washGrade(for: routine.id, fallback: routine.washGrade)
+            draftName = routineOverrides.name(for: routine.id, fallback: routine.name)
+            draftDetail = routineOverrides.detail(for: routine.id)
+            focusFallback = WorkoutPlan.all().first(where: { $0.id == routine.id })?.focus ?? routine.focus
         }
         for exercise in draftExercises {
             guard weights[exercise.id] == nil, let seed = exercise.displayWeight else { continue }
@@ -677,6 +737,8 @@ struct RoutineView: View {
         editSnapshotCooldown = draftCooldown
         editSnapshotWeights = weights
         editSnapshotWashGrade = draftWashGrade
+        editSnapshotName = draftName
+        editSnapshotDetail = draftDetail
         draftListPosition = currentListNumber
         withAnimation(.smooth(duration: 0.28)) {
             isEditingRoutine = true
@@ -686,6 +748,7 @@ struct RoutineView: View {
     }
 
     private func commitRoutineEditing() {
+        guard canSaveEdits else { return }
         persistDraft()
         if draftListPosition != currentListNumber {
             routineOrder.move(
@@ -706,6 +769,8 @@ struct RoutineView: View {
         draftCooldown = editSnapshotCooldown
         weights = editSnapshotWeights
         draftWashGrade = editSnapshotWashGrade
+        draftName = editSnapshotName
+        draftDetail = editSnapshotDetail
         draftListPosition = currentListNumber
         showLibraryPicker = false
         stagedLibraryWorkout = nil
@@ -717,6 +782,11 @@ struct RoutineView: View {
     }
 
     private func persistDraft() {
+        let trimmedName = draftName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedName.isEmpty {
+            draftName = trimmedName
+        }
+        draftDetail = draftDetail.trimmingCharacters(in: .whitespacesAndNewlines)
         if routine.isCustom || customRoutines.contains(routine.id) {
             customRoutines.save(
                 warmup: draftWarmup,
@@ -725,6 +795,7 @@ struct RoutineView: View {
                 for: routine.id
             )
             customRoutines.setWashGrade(draftWashGrade, for: routine.id)
+            customRoutines.setIdentity(name: draftName, detail: draftDetail, for: routine.id)
         } else {
             routineOverrides.save(
                 warmup: draftWarmup,
@@ -733,6 +804,7 @@ struct RoutineView: View {
                 for: routine.id
             )
             routineOverrides.setWashGrade(draftWashGrade, for: routine.id)
+            routineOverrides.setIdentity(name: draftName, detail: draftDetail, for: routine.id)
         }
     }
 

@@ -34,8 +34,8 @@ struct SeedExercise: Codable {
 
 struct Routine: Identifiable, Hashable {
     let id: String
-    let name: String
-    let focus: String
+    var name: String
+    var focus: String
     let summary: String
     let heroSlug: String
     let rotationIndex: Int

@@ -105,6 +105,36 @@ final class CustomRoutinesStore {
         persist()
     }
 
+    func setIdentity(name: String, detail: String, for routineID: String) {
+        guard let index = customs.firstIndex(where: { $0.id == routineID }) else { return }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedDetail = detail.trimmingCharacters(in: .whitespacesAndNewlines)
+        var current = customs[index]
+        if !trimmedName.isEmpty {
+            current.name = trimmedName
+        }
+        current.detail = trimmedDetail.isEmpty ? nil : trimmedDetail
+        customs[index] = current
+        persist()
+    }
+
+    /// User description only (not the section-label fallback).
+    func detail(for routineID: String) -> String {
+        guard let custom = customs.first(where: { $0.id == routineID }) else { return "" }
+        return custom.detail?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
+    func name(for routineID: String, fallback: String) -> String {
+        guard let custom = customs.first(where: { $0.id == routineID }) else { return fallback }
+        let trimmed = custom.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? fallback : trimmed
+    }
+
+    /// Warm-up · Main · Cool Down chip (not the optional description).
+    func sectionFocus(for routineID: String, fallback: String) -> String {
+        customs.first(where: { $0.id == routineID })?.focus ?? fallback
+    }
+
     func delete(id: String) {
         guard customs.contains(where: { $0.id == id }) else { return }
         customs.removeAll { $0.id == id }
