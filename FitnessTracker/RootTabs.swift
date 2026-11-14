@@ -102,6 +102,7 @@ struct RootTabs: View {
     }
 
     /// Leading: glass mode action menu. Trailing: extensible more menu. Tab header stays pass-through.
+    /// Avoid clip/compositing on this layer so GlassActionMenu’s full-page scrim can paint over the wash.
     private var chromeMenusOverlay: some View {
         VStack {
             HStack(alignment: .top) {
@@ -118,7 +119,8 @@ struct RootTabs: View {
         .allowsHitTesting(!hidesFloatingTabBar)
         .accessibilityHidden(hidesFloatingTabBar)
         .animation(.smooth(duration: 0.35), value: hidesFloatingTabBar)
-        .zIndex(20)
+        // Above pages + wash so GlassActionMenu / more control stay a floating layer.
+        .zIndex(100)
     }
 
     private func tabPage<Content: View>(

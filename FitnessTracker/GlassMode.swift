@@ -16,7 +16,11 @@ enum GlassMode: String, CaseIterable, Identifiable, Codable, Hashable {
         }
     }
 
-    /// Maps to SwiftUI `Glass` (iOS 26 Liquid Glass).
+    /// Maps to SwiftUI `Glass` (iOS 26/27 Liquid Glass).
+    /// Public Glass has no density API — solidity is `regular` vs `clear`, plus tint / underlay.
+    /// - Light → least clear / most solid (`regular` + white tint)
+    /// - Clear → fully clear (`clear`)
+    /// - Dark → dark glass (`regular`, untinted)
     @available(iOS 26, *)
     func glass(interactive: Bool) -> Glass {
         let base: Glass
@@ -24,11 +28,22 @@ enum GlassMode: String, CaseIterable, Identifiable, Codable, Hashable {
         case .dark:
             base = .regular
         case .light:
-            base = .regular.tint(.white)
+            // Most solid public style: regular glass with an opaque white tint.
+            base = .regular.tint(Color.white)
         case .clear:
             base = .clear
         }
         return interactive ? base.interactive() : base
+    }
+
+    /// Extra fill under glass so Light reads solid when the system material stays too thin.
+    var glassUnderlay: Color? {
+        switch self {
+        case .light:
+            return Color.white.opacity(0.45)
+        case .dark, .clear:
+            return nil
+        }
     }
 
     var palette: GlassPalette { GlassPalette(mode: self) }
@@ -77,8 +92,8 @@ struct GlassPalette: Equatable {
             chrome = Color(red: 0.078, green: 0.078, blue: 0.078)
             dim = Color.black.opacity(0.1)
             colorScheme = .light
-            // Soft lift over the dark wash so dark ink / light glass read correctly.
-            washVeil = Color.white.opacity(0.55)
+            // Light veil only — heavy covers kill Liquid Glass refraction.
+            washVeil = Color.white.opacity(0.16)
         }
     }
 
@@ -138,11 +153,21 @@ struct FoundationGlassModifier<S: Shape>: ViewModifier {
 
     func body(content: Content) -> some View {
         if #available(iOS 26, *), !reduceTransparency {
-            content.glassEffect(glassMode.glass(interactive: interactive), in: shape)
+            content
+                .background {
+                    if let underlay = glassMode.glassUnderlay {
+                        shape.fill(underlay)
+                    }
+                }
+                .glassEffect(glassMode.glass(interactive: interactive), in: shape)
         } else {
             content
                 .background {
-                    shape.fill(.ultraThinMaterial)
+                    shape.fill(
+                        glassMode == .light
+                            ? AnyShapeStyle(Color.white.opacity(0.82))
+                            : AnyShapeStyle(.ultraThinMaterial)
+                    )
                 }
         }
     }

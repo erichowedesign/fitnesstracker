@@ -34,13 +34,13 @@ struct GlassModeActionMenu: View {
     }
 
     private var menuStyle: GlassActionMenu.Style {
+        // Piece default scrim (0.28) — do not zero/customize; outer shadows clip the full-page scrim.
         GlassActionMenu.Style(
             trigger: .clear,
             ink: palette.chrome,
             labelInk: palette.primary,
-            triggerSize: 48,
-            itemSize: 48,
-            scrimOpacity: glassModeStore.mode == .light ? 0.18 : 0.32,
+            triggerSize: 52,
+            itemSize: 52,
             confirmsAction: true
         )
     }
@@ -59,10 +59,13 @@ struct GlassModeActionMenu: View {
                 },
             ],
             triggerSymbol: triggerSymbol,
-            arrangement: .arcDownTrailing,
+            // Top-leading: stack options straight down the page.
+            arrangement: .linearDownward,
             tint: nil,
             style: menuStyle
         )
+        // No shadow/compositingGroup on this wrapper — they flatten and clip the piece’s page scrim.
+        .zIndex(80)
         .accessibilityLabel("Glass mode")
     }
 }

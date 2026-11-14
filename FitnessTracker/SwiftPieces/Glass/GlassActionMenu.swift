@@ -749,7 +749,9 @@ private struct PieceLiquidGroup<Content: View>: View {
 
     var body: some View {
         container
-            .shadow(color: .black.opacity(lift && colorScheme == .light ? 0.07 : 0), radius: 18, y: 8)
+            // Always lift when requested — dark wash needs the float as much as light mode.
+            .shadow(color: .black.opacity(lift ? (colorScheme == .light ? 0.12 : 0.38) : 0), radius: 22, y: 10)
+            .shadow(color: .black.opacity(lift ? (colorScheme == .light ? 0.06 : 0.2) : 0), radius: 8, y: 3)
     }
 
     @ViewBuilder private var container: some View {
@@ -788,7 +790,7 @@ private struct PieceLiquidSurface<S: Shape>: ViewModifier {
             // Scaled as two parts, content and outline, about the same centre. A scaleEffect on a glass view inside a
             // GlassEffectContainer shrinks the glass but leaves what it carries full size, pinned to its corner.
             content
-                .background { shape.fill(tint ?? .clear) }
+                .background { shape.fill(tint ?? glassMode.glassUnderlay ?? .clear) }
                 .scaleEffect(scale)
                 .glassEffect(glass, in: shape.scale(scale))
         } else {

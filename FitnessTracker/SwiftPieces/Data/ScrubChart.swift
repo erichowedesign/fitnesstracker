@@ -1243,7 +1243,7 @@ private struct PieceLiquidSurface<S: Shape>: ViewModifier {
             // Scaled as two parts, content and outline, about the same centre. A scaleEffect on a glass view inside a
             // GlassEffectContainer shrinks the glass but leaves what it carries full size, pinned to its corner.
             content
-                .background { shape.fill(tint ?? .clear) }
+                .background { shape.fill(tint ?? glassMode.glassUnderlay ?? .clear) }
                 .scaleEffect(scale)
                 .glassEffect(glass, in: shape.scale(scale))
         } else {
