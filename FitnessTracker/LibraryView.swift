@@ -2,7 +2,6 @@ import SwiftUI
 
 enum LibraryListFilter: Hashable {
     case all
-    case favorites
     case equipment(String)
 }
 
@@ -11,6 +10,7 @@ struct LibraryView: View {
     @State private var path: [LibraryWorkout] = []
     @State private var query = ""
     @State private var filter: LibraryListFilter = .all
+    @State private var favoritesOnly = false
 
     init(hidesFloatingTabBar: Binding<Bool> = .constant(false)) {
         _hidesFloatingTabBar = hidesFloatingTabBar
@@ -21,6 +21,7 @@ struct LibraryView: View {
             LibraryBrowser(
                 query: $query,
                 filter: $filter,
+                favoritesOnly: $favoritesOnly,
                 showsIllustrationCredit: true,
                 bottomInset: max(WashPlayback.screenSize.height * 0.5, 400)
             ) { workout in
@@ -61,6 +62,7 @@ struct LibraryBrowser: View {
 
     @Binding var query: String
     @Binding var filter: LibraryListFilter
+    @Binding var favoritesOnly: Bool
 
     var title: String = "Library"
     var showsCancel: Bool = false
@@ -75,11 +77,12 @@ struct LibraryBrowser: View {
 
     private var results: [LibraryWorkout] {
         LibraryCatalog.workouts.filter { workout in
+            if favoritesOnly {
+                guard favorites.isLiked(workout.slug) else { return false }
+            }
             switch filter {
             case .all:
                 break
-            case .favorites:
-                guard favorites.isLiked(workout.slug) else { return false }
             case .equipment(let equipment):
                 guard workout.equipment == equipment else { return false }
             }
@@ -143,9 +146,13 @@ struct LibraryBrowser: View {
             .accessibilityHidden(true)
         }
         .overlay(alignment: .top) {
-            LibraryFilterSearchChrome(query: $query, filter: $filter)
-                .padding(.horizontal, 16)
-                .padding(.top, chromeTopPadding)
+            LibraryFilterSearchChrome(
+                query: $query,
+                filter: $filter,
+                favoritesOnly: $favoritesOnly
+            )
+            .padding(.horizontal, 16)
+            .padding(.top, chromeTopPadding)
         }
         .navigationTitle(title)
         .toolbarTitleDisplayMode(.inline)
@@ -159,7 +166,7 @@ struct LibraryBrowser: View {
     }
 
     private var emptyMessage: String {
-        if case .favorites = filter {
+        if favoritesOnly {
             return "No favorite workouts yet. Tap the heart on a tile to save one."
         }
         return "No workouts match that search."
@@ -175,19 +182,26 @@ struct LibraryBrowser: View {
     }
 }
 
-/// Filter (left) + full-width search (right). On focus, search shrinks and a clear X appears.
+/// Resting: filter | search | heart. Focused: search full-width | X (heart transforms; filter hides).
 struct LibraryFilterSearchChrome: View {
     @Binding var query: String
     @Binding var filter: LibraryListFilter
+    @Binding var favoritesOnly: Bool
     @FocusState private var searchFocused: Bool
 
     var body: some View {
         HStack(spacing: 12) {
-            filterMenu
+            if !searchFocused {
+                filterMenu
+                    .transition(.move(edge: .leading).combined(with: .opacity))
+            }
             searchField
             if searchFocused {
                 clearButton
-                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                    .transition(.scale.combined(with: .opacity))
+            } else {
+                favoritesButton
+                    .transition(.scale.combined(with: .opacity))
             }
         }
         .animation(.smooth(duration: 0.25), value: searchFocused)
@@ -197,7 +211,6 @@ struct LibraryFilterSearchChrome: View {
         Menu {
             Picker("Filter", selection: $filter) {
                 Text("All").tag(LibraryListFilter.all)
-                Text("Favorites").tag(LibraryListFilter.favorites)
                 ForEach(LibraryCatalog.equipment, id: \.self) { item in
                     Text(item).tag(LibraryListFilter.equipment(item))
                 }
@@ -231,6 +244,22 @@ struct LibraryFilterSearchChrome: View {
         .glassEffect(.regular.interactive(), in: Capsule())
     }
 
+    private var favoritesButton: some View {
+        Button {
+            favoritesOnly.toggle()
+        } label: {
+            Image(systemName: favoritesOnly ? "heart.fill" : "heart")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundStyle(favoritesOnly ? Color.red : .white)
+                .frame(width: 48, height: 48)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: Circle())
+        .accessibilityLabel(favoritesOnly ? "Showing favorites" : "Show favorites")
+        .accessibilityAddTraits(favoritesOnly ? .isSelected : [])
+    }
+
     private var clearButton: some View {
         Button {
             query = ""
@@ -251,8 +280,6 @@ struct LibraryFilterSearchChrome: View {
         switch filter {
         case .all:
             return "Filter, All"
-        case .favorites:
-            return "Filter, Favorites"
         case .equipment(let item):
             return "Filter by equipment, \(item)"
         }

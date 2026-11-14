@@ -614,12 +614,14 @@ private struct LibraryExercisePicker: View {
     var onPick: (LibraryWorkout) -> Void
     @State private var query = ""
     @State private var filter: LibraryListFilter = .all
+    @State private var favoritesOnly = false
 
     var body: some View {
         NavigationStack {
             LibraryBrowser(
                 query: $query,
                 filter: $filter,
+                favoritesOnly: $favoritesOnly,
                 title: "Library",
                 showsCancel: true,
                 bottomInset: 24,
