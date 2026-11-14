@@ -260,7 +260,7 @@ struct GlassChromeIconButton: View {
         .modifier(GlassChromeInkModifier(ink: ink))
         .background {
             if let tint {
-                Circle().fill(tint.opacity(0.32))
+                Circle().fill(tint.opacity(0.58))
             }
         }
         .foundationGlass(interactive: true, in: Circle())

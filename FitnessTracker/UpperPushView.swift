@@ -412,8 +412,8 @@ struct RoutineView: View {
                     GlassChromeIconButton(
                         systemName: "minus",
                         accessibilityLabel: "Remove",
-                        ink: Color(red: 1, green: 0.27, blue: 0.23),
-                        tint: Color(red: 1, green: 0.27, blue: 0.23),
+                        ink: .white,
+                        tint: Color(red: 1, green: 0.14, blue: 0.12),
                         size: 32
                     ) {
                         onDelete(item)
