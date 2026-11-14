@@ -91,26 +91,29 @@ struct HomeView: View {
                 .disabled(isReordering)
                 .padding(.top, 24)
 
-                Text("My Routines")
-                    .font(.title2)
-                    .fontWeight(.bold)
-                    .glassInk()
-                    .padding(.top, 48)
+                HStack(alignment: .center, spacing: 12) {
+                    Text("My Routines")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .glassInk()
+                    Spacer(minLength: 0)
+                    if !isReordering {
+                        GlassChromeIconButton(
+                            systemName: "plus",
+                            accessibilityLabel: "Create routine",
+                            size: 48,
+                            action: {
+                                path.append(.create)
+                                hidesFloatingTabBar = true
+                            }
+                        )
+                    }
+                }
+                .padding(.top, 48)
 
                 VStack(spacing: 12) {
                     ForEach(Array(displayedRoutines.enumerated()), id: \.element.id) { index, routine in
                         routineTile(routine, listNumber: index + 1)
-                    }
-
-                    if !isReordering {
-                        Button {
-                            path.append(.create)
-                            hidesFloatingTabBar = true
-                        } label: {
-                            CreateRoutineRow()
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Create routine")
                     }
                 }
                 .padding(.top, 24)
@@ -334,24 +337,6 @@ private struct HomeReorderDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         draggingID = nil
         return true
-    }
-}
-
-/// Light create affordance under the last routine tile — not a heavy card.
-private struct CreateRoutineRow: View {
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "plus")
-                .font(.system(size: 17, weight: .semibold))
-            Text("Create routine")
-                .font(.headline)
-            Spacer(minLength: 0)
-        }
-        .glassInk()
-        .padding(.horizontal, 20)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: 56)
-        .foundationGlass(interactive: true, in: Capsule())
     }
 }
 
