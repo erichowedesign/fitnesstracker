@@ -250,7 +250,7 @@ struct GlassChromeIconButton: View {
     var body: some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: size >= 56 ? 22 : 18, weight: .semibold))
+                .font(.system(size: size <= 36 ? 14 : 18, weight: .semibold))
                 .frame(width: size, height: size)
                 .contentShape(Circle())
         }
@@ -265,13 +265,13 @@ struct GlassChromeIconButton: View {
 struct GlassChromeSymbolCircle: View {
     var systemName: String
     var accessibilityLabel: String
-    var size: CGFloat = 56
+    var size: CGFloat = 32
 
     @Environment(\.glassPalette) private var palette
 
     var body: some View {
         Image(systemName: systemName)
-            .font(.system(size: size >= 56 ? 22 : 18, weight: .semibold))
+            .font(.system(size: size <= 36 ? 14 : 18, weight: .semibold))
             .foregroundStyle(palette.chrome)
             .frame(width: size, height: size)
             .contentShape(Circle())

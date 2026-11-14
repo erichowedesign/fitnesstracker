@@ -399,7 +399,7 @@ struct RoutineView: View {
         .padding(.top, 24)
     }
 
-    /// Custom edit rows: large liquid-glass minus + drag-handle circles (not system List chrome).
+    /// Custom edit rows: small liquid-glass minus + drag-handle circles (tile size unchanged).
     private func editableReorderList<Item: Identifiable>(
         items: Binding<[Item]>,
         onDelete: @escaping (Item) -> Void,
@@ -412,7 +412,7 @@ struct RoutineView: View {
                     GlassChromeIconButton(
                         systemName: "minus",
                         accessibilityLabel: "Remove",
-                        size: 56
+                        size: 32
                     ) {
                         onDelete(item)
                     }
@@ -423,11 +423,11 @@ struct RoutineView: View {
                     GlassChromeSymbolCircle(
                         systemName: "line.3.horizontal",
                         accessibilityLabel: "Reorder",
-                        size: 56
+                        size: 32
                     )
                 }
-                .padding(.horizontal, 4)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 8)
                 .background(
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
                         .fill(palette.dim.opacity(0.7))
@@ -446,13 +446,13 @@ struct RoutineView: View {
                 )
             }
         }
-        .frame(minHeight: max(CGFloat(count) * 112, 120), alignment: .top)
+        .frame(minHeight: max(CGFloat(count) * 104, 120), alignment: .top)
     }
 
     private func editableRowContent(title: String, metaParts: [String], slug: String) -> some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 16) {
             IllustrationView(slug: editThumbSlug(slug), label: title)
-                .frame(width: 64, height: 64)
+                .frame(width: 72, height: 72)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
