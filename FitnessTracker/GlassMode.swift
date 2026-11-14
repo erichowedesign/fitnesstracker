@@ -244,6 +244,8 @@ struct GlassChromeIconButton: View {
     var systemName: String
     var accessibilityLabel: String
     var ink: Color? = nil
+    /// Soft fill under liquid glass (e.g. red remove) — glass material still comes from `glassMode`.
+    var tint: Color? = nil
     var size: CGFloat = 48
     var action: () -> Void
 
@@ -256,6 +258,11 @@ struct GlassChromeIconButton: View {
         }
         .buttonStyle(.plain)
         .modifier(GlassChromeInkModifier(ink: ink))
+        .background {
+            if let tint {
+                Circle().fill(tint.opacity(0.32))
+            }
+        }
         .foundationGlass(interactive: true, in: Circle())
         .accessibilityLabel(accessibilityLabel)
     }
