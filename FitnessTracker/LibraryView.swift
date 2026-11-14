@@ -334,6 +334,7 @@ struct LibraryTile: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .padding(.trailing, -8)
             .accessibilityLabel(isLiked ? "Remove from favorites" : "Add to favorites")
         }
         .padding(16)
