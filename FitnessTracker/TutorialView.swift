@@ -10,7 +10,7 @@ struct ExerciseTutorial: Hashable, Identifiable {
     let favoriteSlug: String?
     /// Centered nav title from the routine section, or "Tutorial" from Library.
     let sectionTitle: String
-    /// When set, show Weight / Reps / Sets ScrubSteppers and persist changes.
+    /// When set, show Weight / Reps / Sets tap steppers and persist changes.
     let dose: RoutineDoseFields?
 }
 
@@ -180,15 +180,15 @@ struct ExerciseTutorialView: View {
     private var doseRows: some View {
         VStack(spacing: 12) {
             doseRow(label: "Weight") {
-                ScrubStepper(value: $weightLbs, in: 0...500, step: 5, style: clearStepperStyle)
+                ScrubStepper(value: $weightLbs, in: 0...500, step: 5, allowsScrubbing: false, style: clearStepperStyle)
                     .accessibilityLabel("Weight")
             }
             doseRow(label: "Reps") {
-                ScrubStepper(value: $reps, in: 1...50, step: 1, style: clearStepperStyle)
+                ScrubStepper(value: $reps, in: 1...50, step: 1, allowsScrubbing: false, style: clearStepperStyle)
                     .accessibilityLabel("Reps")
             }
             doseRow(label: "Sets") {
-                ScrubStepper(value: $sets, in: 1...20, step: 1, style: clearStepperStyle)
+                ScrubStepper(value: $sets, in: 1...20, step: 1, allowsScrubbing: false, style: clearStepperStyle)
                     .accessibilityLabel("Sets")
             }
         }

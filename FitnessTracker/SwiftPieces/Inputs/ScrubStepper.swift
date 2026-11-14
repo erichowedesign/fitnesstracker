@@ -36,6 +36,7 @@ import UIKit
 ///   - value: Bound integer value.
 ///   - range: Allowed values. Pushing past a bound fires a rigid impact and knocks the numeral pill against that end; a scrub pulls it there with rubber-band resistance.
 ///   - step: Amount added or removed per tap, repeat tick, or scrub unit.
+///   - allowsScrubbing: When `false`, only tap and hold-to-repeat on ± move the value (no pill scrub).
 ///   - style: Tints and size. Defaults to the SwiftPieces house palette (signal buttons around a neutral glass pill), adapting to light and dark.
 public struct ScrubStepper: View {
     /// Colors and metrics. `.standard` is the house palette.
@@ -99,6 +100,7 @@ public struct ScrubStepper: View {
 
     private let range: ClosedRange<Int>
     private let step: Int
+    private let allowsScrubbing: Bool
     private let style: Style
     private var height: CGFloat { style.height }
     private var buttonWidth: CGFloat { style.height }
@@ -112,10 +114,17 @@ public struct ScrubStepper: View {
 
     private enum Phase: Equatable { case idle, pressing(delta: Int), scrubbing, cancelled }
 
-    public init(value: Binding<Int>, in range: ClosedRange<Int> = 0...99, step: Int = 1, style: Style = .standard) {
+    public init(
+        value: Binding<Int>,
+        in range: ClosedRange<Int> = 0...99,
+        step: Int = 1,
+        allowsScrubbing: Bool = true,
+        style: Style = .standard
+    ) {
         self._value = value
         self.range = range
         self.step = max(step, 1)
+        self.allowsScrubbing = allowsScrubbing
         self.style = style
     }
 
@@ -278,12 +287,14 @@ public struct ScrubStepper: View {
                         beginPress(-step)
                     } else if x > width - buttonWidth - gap / 2 {
                         beginPress(step)
-                    } else {
+                    } else if allowsScrubbing {
                         beginScrub(at: drag.location.x, time: drag.time)
+                    } else {
+                        phase = .cancelled
                     }
                 case .pressing:
                     let slop = CGRect(x: -20, y: -20, width: width + 40, height: height + 40)
-                    if abs(drag.translation.width) > 14 {
+                    if allowsScrubbing, abs(drag.translation.width) > 14 {
                         // A sideways move on a button turns into a scrub.
                         cancelHold()
                         beginScrub(at: drag.location.x, time: drag.time)
