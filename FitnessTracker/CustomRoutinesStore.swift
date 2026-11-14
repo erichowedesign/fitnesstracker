@@ -99,7 +99,9 @@ final class CustomRoutinesStore {
 
     func setWashGrade(_ grade: WashGrade, for routineID: String) {
         guard let index = customs.firstIndex(where: { $0.id == routineID }) else { return }
-        customs[index].washGradeRaw = grade.rawValue
+        var current = customs[index]
+        current.washGradeRaw = grade.rawValue
+        customs[index] = current
         persist()
     }
 

@@ -73,7 +73,11 @@ struct HomeView: View {
                 Button {
                     openRoutine(upNext)
                 } label: {
-                    UpNextCard(routine: upNext, listNumber: upNextListNumber)
+                    UpNextCard(
+                        routine: upNext,
+                        listNumber: upNextListNumber,
+                        washGrade: displayWashGrade(for: upNext)
+                    )
                 }
                 .buttonStyle(.plain)
                 .padding(.top, 24)
@@ -98,7 +102,11 @@ struct HomeView: View {
                         Button {
                             openRoutine(routine)
                         } label: {
-                            RoutineListCard(routine: routine, listNumber: index + 1)
+                            RoutineListCard(
+                                routine: routine,
+                                listNumber: index + 1,
+                                washGrade: displayWashGrade(for: routine)
+                            )
                         }
                         .buttonStyle(.plain)
                     }
@@ -204,6 +212,14 @@ struct HomeView: View {
         }
         return shippingRoutines.first { $0.id == id }
     }
+
+    /// Current wash for tiles / Up Next — customs from store, shipping from override or seed.
+    private func displayWashGrade(for routine: Routine) -> WashGrade {
+        if customRoutines.contains(routine.id) {
+            return customRoutines.routine(id: routine.id)?.washGrade ?? routine.washGrade
+        }
+        return routineOverrides.washGrade(for: routine.id, fallback: routine.washGrade)
+    }
 }
 
 /// Apple concentric corners: innerRadius = tile 34 − gap to the illustration square.
@@ -214,11 +230,13 @@ private func homeIllustrationThumb(gap: CGFloat) -> RoundedRectangle {
 private struct UpNextCard: View {
     let routine: Routine
     var listNumber: Int
+    var washGrade: WashGrade
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topLeading) {
-                WashWindow(grade: routine.washGrade)
+                WashWindow(grade: washGrade)
+                    .id("\(routine.id)-\(washGrade.rawValue)")
                 IllustrationView(slug: routine.thumbnailSlug, label: routine.name)
                     .frame(width: 192, height: 192)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
@@ -271,11 +289,13 @@ private struct UpNextCard: View {
 private struct RoutineListCard: View {
     let routine: Routine
     var listNumber: Int
+    var washGrade: WashGrade
 
     var body: some View {
         HStack(alignment: .top, spacing: 20) {
             ZStack {
-                WashWindow(grade: routine.washGrade)
+                WashWindow(grade: washGrade)
+                    .id("\(routine.id)-\(washGrade.rawValue)")
                     .clipShape(homeIllustrationThumb(gap: 16))
                 IllustrationView(slug: routine.thumbnailSlug, label: routine.name)
                         .frame(width: 120, height: 120)

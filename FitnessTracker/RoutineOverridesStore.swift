@@ -62,11 +62,13 @@ final class RoutineOverridesStore {
         cooldown: [GuideStep],
         for routineID: String
     ) {
-        var current = overrides[routineID] ?? PersistedRoutineOverride()
+        var next = overrides
+        var current = next[routineID] ?? PersistedRoutineOverride()
         current.warmup = warmup.map(PersistedGuideStep.init)
         current.exercises = exercises.map(PersistedExercise.init)
         current.cooldown = cooldown.map(PersistedGuideStep.init)
-        overrides[routineID] = current
+        next[routineID] = current
+        overrides = next
         persist()
     }
 
@@ -79,9 +81,11 @@ final class RoutineOverridesStore {
     }
 
     func setWashGrade(_ grade: WashGrade, for routineID: String) {
-        var current = overrides[routineID] ?? PersistedRoutineOverride()
+        var next = overrides
+        var current = next[routineID] ?? PersistedRoutineOverride()
         current.washGradeRaw = grade.rawValue
-        overrides[routineID] = current
+        next[routineID] = current
+        overrides = next
         persist()
     }
 
