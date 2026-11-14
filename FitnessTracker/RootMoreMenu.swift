@@ -20,7 +20,7 @@ struct RootMoreMenu: View {
     }
 }
 
-/// Top-leading glass mode control — SwiftPieces `GlassActionMenu` with Dark / Light / Clear.
+/// Top-leading glass mode control — SwiftPieces `GlassActionMenu` with Dark / Clear only.
 struct GlassModeActionMenu: View {
     @Environment(GlassModeStore.self) private var glassModeStore
     @Environment(\.glassPalette) private var palette
@@ -28,7 +28,6 @@ struct GlassModeActionMenu: View {
     private var triggerSymbol: String {
         switch glassModeStore.mode {
         case .dark: return "circle.lefthalf.filled"
-        case .light: return "sun.max.fill"
         case .clear: return "circle"
         }
     }
@@ -50,9 +49,6 @@ struct GlassModeActionMenu: View {
             items: [
                 .init(symbol: "circle.lefthalf.filled", label: "Dark") {
                     glassModeStore.mode = .dark
-                },
-                .init(symbol: "sun.max.fill", label: "Light") {
-                    glassModeStore.mode = .light
                 },
                 .init(symbol: "circle", label: "Clear") {
                     glassModeStore.mode = .clear

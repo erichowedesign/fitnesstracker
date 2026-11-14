@@ -164,7 +164,7 @@ struct HistoryView: View {
                     showsAverage: true,
                     style: RangeLens.Style(
                         accent: accent,
-                        accentInk: palette.mode == .light ? palette.primary : .white,
+                        accentInk: .white,
                         text: palette.primary,
                         secondary: palette.secondary,
                         tertiary: palette.tertiary,
@@ -347,7 +347,7 @@ struct HistoryView: View {
             accent: accent,
             up: Color(red: 0, green: 0.77, blue: 0.655),
             down: Color(red: 1, green: 0.35, blue: 0.35),
-            chipInk: palette.mode == .light ? palette.primary : .white,
+            chipInk: .white,
             numeralSize: numeral
         )
     }
@@ -361,7 +361,7 @@ struct HistoryView: View {
             ink: palette.primary,
             muted: palette.tertiary,
             band: palette.dim,
-            ground: palette.mode == .light ? Color.white.opacity(0.35) : Color.black.opacity(0.35),
+            ground: Color.black.opacity(0.35),
             numeralSize: 36
         )
     }
@@ -377,7 +377,7 @@ struct HistoryView: View {
                 Color(red: 0.95, green: 0.95, blue: 0.95),
             ],
             rest: palette.dim.opacity(1.3),
-            ink: palette.mode == .light ? .white : Color(red: 0.08, green: 0.08, blue: 0.08),
+            ink: Color(red: 0.08, green: 0.08, blue: 0.08),
             text: palette.primary,
             muted: palette.tertiary
         )

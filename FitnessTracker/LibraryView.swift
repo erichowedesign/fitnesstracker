@@ -171,17 +171,15 @@ struct LibraryBrowser: View {
 }
 
 private struct LibraryTopScrim: View {
-    @Environment(\.glassPalette) private var palette
-
     var body: some View {
         LinearGradient(
             stops: [
                 .init(
-                    color: palette.mode == .light ? Color.white.opacity(0.45) : Color.black.opacity(0.28),
+                    color: Color.black.opacity(0.28),
                     location: 0
                 ),
                 .init(
-                    color: palette.mode == .light ? Color.white.opacity(0.18) : Color.black.opacity(0.12),
+                    color: Color.black.opacity(0.12),
                     location: 0.45
                 ),
                 .init(color: .clear, location: 1),

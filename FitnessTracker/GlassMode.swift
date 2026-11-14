@@ -1,9 +1,9 @@
 import SwiftUI
 
 /// User-facing Liquid Glass appearance. Persisted; drives glass material + ink palette.
+/// Clear = fully clear glass. Dark = regular / dark material (clearly denser than Clear).
 enum GlassMode: String, CaseIterable, Identifiable, Codable, Hashable {
     case dark
-    case light
     case clear
 
     var id: String { rawValue }
@@ -11,37 +11,33 @@ enum GlassMode: String, CaseIterable, Identifiable, Codable, Hashable {
     var title: String {
         switch self {
         case .dark: return "Dark"
-        case .light: return "Light"
         case .clear: return "Clear"
         }
     }
 
     /// Maps to SwiftUI `Glass` (iOS 26/27 Liquid Glass).
-    /// Public Glass has no density API — solidity is `regular` vs `clear`, plus tint / underlay.
-    /// - Light → least clear / most solid (`regular` + white tint)
-    /// - Clear → fully clear (`clear`)
-    /// - Dark → dark glass (`regular`, untinted)
+    /// Public Glass: `regular` / `clear` + `tint` / `interactive`.
+    /// - Clear → fully clear
+    /// - Dark → regular glass with black tint + underlay (not almost-clear)
     @available(iOS 26, *)
     func glass(interactive: Bool) -> Glass {
         let base: Glass
         switch self {
         case .dark:
-            base = .regular
-        case .light:
-            // Most solid public style: regular glass with an opaque white tint.
-            base = .regular.tint(Color.white)
+            // Regular liquid glass tinted dark so it reads clearly denser than Clear.
+            base = .regular.tint(Color.black.opacity(0.78))
         case .clear:
             base = .clear
         }
         return interactive ? base.interactive() : base
     }
 
-    /// Extra fill under glass so Light reads solid when the system material stays too thin.
+    /// Extra fill under glass — Dark only, so Clear stays transparent.
     var glassUnderlay: Color? {
         switch self {
-        case .light:
-            return Color.white.opacity(0.45)
-        case .dark, .clear:
+        case .dark:
+            return Color.black.opacity(0.32)
+        case .clear:
             return nil
         }
     }
@@ -69,32 +65,21 @@ struct GlassPalette: Equatable {
     var heart: Color
     /// Color scheme for system materials / ScrubStepper adaptive bits.
     var colorScheme: ColorScheme
-    /// Veil over the wash so light-mode ink stays legible.
+    /// Veil over the wash (unused for Clear/Dark; both keep wash visible).
     var washVeil: Color
 
     init(mode: GlassMode) {
         self.mode = mode
         accent = Color(red: 0, green: 0.569, blue: 1)
         heart = .pink
-        switch mode {
-        case .dark, .clear:
-            primary = Color(red: 0.961, green: 0.961, blue: 0.961)
-            secondary = Color.white.opacity(0.85)
-            tertiary = Color.white.opacity(0.72)
-            chrome = Color(red: 0.961, green: 0.961, blue: 0.961)
-            dim = Color.white.opacity(0.12)
-            colorScheme = .dark
-            washVeil = .clear
-        case .light:
-            primary = Color(red: 0.078, green: 0.078, blue: 0.078)
-            secondary = Color.black.opacity(0.72)
-            tertiary = Color.black.opacity(0.55)
-            chrome = Color(red: 0.078, green: 0.078, blue: 0.078)
-            dim = Color.black.opacity(0.1)
-            colorScheme = .light
-            // Light veil only — heavy covers kill Liquid Glass refraction.
-            washVeil = Color.white.opacity(0.16)
-        }
+        // Clear + Dark both sit on the wash with light ink.
+        primary = Color(red: 0.961, green: 0.961, blue: 0.961)
+        secondary = Color.white.opacity(0.85)
+        tertiary = Color.white.opacity(0.72)
+        chrome = Color(red: 0.961, green: 0.961, blue: 0.961)
+        dim = Color.white.opacity(0.12)
+        colorScheme = .dark
+        washVeil = .clear
     }
 
     static let clear = GlassPalette(mode: .clear)
@@ -115,9 +100,15 @@ final class GlassModeStore {
     var palette: GlassPalette { mode.palette }
 
     init() {
-        if let raw = UserDefaults.standard.string(forKey: Self.defaultsKey),
-           let saved = GlassMode(rawValue: raw) {
-            mode = saved
+        if let raw = UserDefaults.standard.string(forKey: Self.defaultsKey) {
+            if let saved = GlassMode(rawValue: raw) {
+                mode = saved
+            } else if raw == "light" {
+                // Former Light option removed — land on Clear.
+                mode = .clear
+            } else {
+                mode = .clear
+            }
         } else {
             mode = .clear
         }
@@ -164,9 +155,9 @@ struct FoundationGlassModifier<S: Shape>: ViewModifier {
             content
                 .background {
                     shape.fill(
-                        glassMode == .light
-                            ? AnyShapeStyle(Color.white.opacity(0.82))
-                            : AnyShapeStyle(.ultraThinMaterial)
+                        glassMode == .dark
+                            ? AnyShapeStyle(Color.black.opacity(0.72))
+                            : AnyShapeStyle(Color.white.opacity(0.12))
                     )
                 }
         }

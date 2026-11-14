@@ -279,18 +279,14 @@ struct RootTabs: View {
     private var tabBar: some View {
         ZStack {
             Capsule()
-                .fill(palette.mode == .light ? Color.white.opacity(0.35) : Color.black.opacity(0.6))
+                .fill(Color.black.opacity(0.6))
             Capsule()
-                .fill(palette.dim.opacity(palette.mode == .light ? 0.5 : 0.5))
+                .fill(palette.dim.opacity(0.5))
 
             ZStack(alignment: .leading) {
                 Capsule()
-                    .fill(
-                        palette.mode == .light
-                            ? Color.white.opacity(0.55)
-                            : Color(red: 18 / 255, green: 18 / 255, blue: 18 / 255)
-                    )
-                    .blendMode(palette.mode == .light ? .normal : .plusLighter)
+                    .fill(Color(red: 18 / 255, green: 18 / 255, blue: 18 / 255))
+                    .blendMode(.plusLighter)
                     .frame(width: 106, height: 54)
                     .offset(x: selectedPillX)
 
@@ -331,7 +327,7 @@ struct RootTabs: View {
                     .frame(height: 12)
             }
             .foregroundStyle(selected ? palette.accent : palette.chrome)
-            .blendMode(selected || palette.mode == .light ? .normal : .plusLighter)
+            .blendMode(selected ? .normal : .plusLighter)
             .padding(.horizontal, 8)
             .padding(.top, 6)
             .frame(width: 102, height: 54, alignment: .top)
