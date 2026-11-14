@@ -53,7 +53,8 @@ struct HistoryView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 24)
+                // Match Routine / Tutorial large-title top inset.
+                .padding(.top, 34)
                 .padding(.bottom, 24)
             }
             .scrollContentBackground(.hidden)

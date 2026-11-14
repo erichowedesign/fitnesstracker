@@ -78,7 +78,8 @@ struct HomeView: View {
                 .padding(.top, 24)
             }
             .padding(.horizontal, 16)
-            .padding(.top, 24)
+            // Match Routine / Tutorial large-title top inset.
+            .padding(.top, 34)
             .padding(.bottom, 24)
         }
         .contentMargins(.bottom, homeScrollBottomInset, for: .scrollContent)

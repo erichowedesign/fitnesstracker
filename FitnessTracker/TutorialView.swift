@@ -109,7 +109,8 @@ struct ExerciseTutorialView: View {
                 .padding(.bottom, 32)
             }
             .padding(.horizontal, 16)
-            .padding(.top, 42)
+            // Match Home / History / Routine large-title top inset.
+            .padding(.top, 34)
         }
         .scrollContentBackground(.hidden)
         .glassInk()
