@@ -131,7 +131,7 @@ struct ExerciseTutorialView: View {
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(width: 48, height: 48)
-                        .glassEffect(.regular.interactive(), in: Circle())
+                        .foundationGlass(interactive: true, in: Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Back")
@@ -148,7 +148,7 @@ struct ExerciseTutorialView: View {
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundStyle(isLiked ? Color.pink : .white)
                             .frame(width: 48, height: 48)
-                            .glassEffect(.regular.interactive(), in: Circle())
+                            .foundationGlass(interactive: true, in: Circle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(isLiked ? "Remove from favorites" : "Add to favorites")
@@ -204,7 +204,7 @@ struct ExerciseTutorialView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+                .foundationGlass(interactive: false, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
             Spacer(minLength: 0)
             control()
         }
@@ -221,7 +221,7 @@ struct ExerciseTutorialView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 370)
-        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .foundationGlass(interactive: false, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
     }
 
     private func hintCard(_ hint: String) -> some View {
@@ -238,7 +238,7 @@ struct ExerciseTutorialView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .foundationGlass(interactive: false, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
     }
 
     private func loadDoseIfNeeded() {

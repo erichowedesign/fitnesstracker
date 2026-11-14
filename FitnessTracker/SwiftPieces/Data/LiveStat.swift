@@ -970,6 +970,7 @@ private struct PieceLiquidSurface<S: Shape>: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.pieceLiquidScale) private var scale
+    @Environment(\.glassMode) private var glassMode
 
     func body(content: Content) -> some View {
         #if compiler(>=6.2)
@@ -991,7 +992,7 @@ private struct PieceLiquidSurface<S: Shape>: ViewModifier {
     #if compiler(>=6.2)
     @available(iOS 26, *)
     private var glass: Glass {
-        interactive ? Glass.regular.interactive() : .regular
+        glassMode.glass(interactive: interactive)
     }
     #endif
 

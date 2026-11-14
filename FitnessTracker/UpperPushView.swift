@@ -96,7 +96,7 @@ struct RoutineView: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 370)
                         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
-                        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+                        .foundationGlass(interactive: false, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
                         .padding(.top, 32)
 
                     glanceCard
@@ -163,7 +163,7 @@ struct RoutineView: View {
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(width: 48, height: 48)
-                        .glassEffect(.regular.interactive(), in: Circle())
+                        .foundationGlass(interactive: true, in: Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Cancel editing")
@@ -177,7 +177,7 @@ struct RoutineView: View {
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(.white)
                         .frame(width: 48, height: 48)
-                        .glassEffect(.regular.interactive(), in: Circle())
+                        .foundationGlass(interactive: true, in: Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Save edits")
@@ -253,7 +253,7 @@ struct RoutineView: View {
         .padding(.horizontal, 52)
         .frame(maxWidth: .infinity)
         .frame(height: 120)
-        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .foundationGlass(interactive: false, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(draftExercises.count) exercises, \(routine.minutes) minutes, difficulty \(routine.difficulty) of five")
     }
@@ -284,7 +284,7 @@ struct RoutineView: View {
         }
         .buttonStyle(.plain)
         // Same glass family as the Home floating tab bar.
-        .glassEffect(.regular.interactive(), in: Capsule())
+        .foundationGlass(interactive: true, in: Capsule())
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
         .accessibilityAddTraits(.isButton)
@@ -758,7 +758,7 @@ private struct GuideRow: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 152)
-        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .foundationGlass(interactive: false, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
     }
 }
 

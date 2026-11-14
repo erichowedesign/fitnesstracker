@@ -220,7 +220,7 @@ struct LibraryFilterSearchChrome: View {
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 48, height: 48)
-                .glassEffect(.regular.interactive(), in: Circle())
+                .foundationGlass(interactive: true, in: Circle())
         }
         .accessibilityLabel(filterAccessibilityLabel)
     }
@@ -241,7 +241,7 @@ struct LibraryFilterSearchChrome: View {
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
         .frame(height: 48)
-        .glassEffect(.regular.interactive(), in: Capsule())
+        .foundationGlass(interactive: true, in: Capsule())
     }
 
     private var favoritesButton: some View {
@@ -255,7 +255,7 @@ struct LibraryFilterSearchChrome: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: Circle())
+        .foundationGlass(interactive: true, in: Circle())
         .accessibilityLabel(favoritesOnly ? "Showing favorites" : "Show favorites")
         .accessibilityAddTraits(favoritesOnly ? .isSelected : [])
     }
@@ -272,7 +272,7 @@ struct LibraryFilterSearchChrome: View {
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: Circle())
+        .foundationGlass(interactive: true, in: Circle())
         .accessibilityLabel("Clear search")
     }
 
@@ -329,7 +329,7 @@ struct LibraryTile: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .frame(height: 152)
-        .glassEffect(.clear, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .foundationGlass(interactive: false, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
     }
 }
 

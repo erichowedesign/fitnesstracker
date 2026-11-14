@@ -76,6 +76,8 @@ struct RootTabs: View {
 
             tabHeader
 
+            moreMenuOverlay
+
             tabBar
                 .opacity(hidesFloatingTabBar ? 0 : 1)
                 .allowsHitTesting(!hidesFloatingTabBar)
@@ -90,6 +92,23 @@ struct RootTabs: View {
         .onAppear {
             wash.grade = .grayscale
         }
+    }
+
+    /// Hittable trailing menu (tab header itself is pass-through). Sections are extensible.
+    private var moreMenuOverlay: some View {
+        VStack {
+            HStack {
+                Spacer(minLength: 0)
+                RootMoreMenu()
+                    .padding(.trailing, 8)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.top, 4)
+        .opacity(hidesFloatingTabBar ? 0 : 1)
+        .allowsHitTesting(!hidesFloatingTabBar)
+        .accessibilityHidden(hidesFloatingTabBar)
+        .animation(.smooth(duration: 0.35), value: hidesFloatingTabBar)
     }
 
     private func tabPage<Content: View>(
@@ -200,13 +219,6 @@ struct RootTabs: View {
                             tabTitle("Library", page: .library)
                         }
                     }
-                    ToolbarItem(id: "tab-menu", placement: .topBarTrailing) {
-                        Button {
-                        } label: {
-                            Image(systemName: "ellipsis")
-                        }
-                        .accessibilityLabel("More")
-                    }
                 }
         }
         .ignoresSafeArea()
@@ -276,7 +288,7 @@ struct RootTabs: View {
             .frame(width: 294, height: 54)
         }
         .frame(width: 302, height: 62)
-        .glassEffect(.regular.interactive(), in: Capsule())
+        .foundationGlass(interactive: true, in: Capsule())
         .padding(.bottom, 8)
         .animation(.snappy(duration: 0.25), value: tab)
     }

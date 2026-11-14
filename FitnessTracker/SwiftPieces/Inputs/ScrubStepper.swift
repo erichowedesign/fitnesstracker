@@ -692,6 +692,7 @@ private struct PieceLiquidSurface<S: Shape>: ViewModifier {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.pieceLiquidScale) private var scale
+    @Environment(\.glassMode) private var glassMode
 
     func body(content: Content) -> some View {
         #if compiler(>=6.2)
@@ -713,10 +714,7 @@ private struct PieceLiquidSurface<S: Shape>: ViewModifier {
     #if compiler(>=6.2)
     @available(iOS 26, *)
     private var glass: Glass {
-        // Match Foundation chrome: untinted surfaces use clear glass (labels/cards);
-        // tinted signal buttons keep regular glass so house colors still read.
-        let base: Glass = tint == nil ? .clear : .regular
-        return interactive ? base.interactive() : base
+        glassMode.glass(interactive: interactive)
     }
     #endif
 
