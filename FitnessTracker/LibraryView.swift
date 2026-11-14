@@ -59,6 +59,7 @@ struct LibraryView: View {
 /// Shared Library chrome: filter + search (top) + large glass tiles.
 struct LibraryBrowser: View {
     @Environment(FavoritesStore.self) private var favorites
+    @Environment(\.glassPalette) private var palette
 
     @Binding var query: String
     @Binding var filter: LibraryListFilter
@@ -130,6 +131,8 @@ struct LibraryBrowser: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(.clear, for: .navigation)
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+        .preferredColorScheme(palette.colorScheme)
+        .animation(.smooth(duration: 0.3), value: palette.mode)
         .overlay(alignment: .top) {
             LibraryTopScrim()
         }
@@ -146,9 +149,12 @@ struct LibraryBrowser: View {
         .toolbarTitleDisplayMode(.inline)
         .toolbar {
             if showsCancel {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { onCancel?() }
+                ToolbarItem(placement: .topBarTrailing) {
+                    GlassChromeLabelButton(title: "Cancel") {
+                        onCancel?()
+                    }
                 }
+                .sharedBackgroundVisibility(.hidden)
             }
         }
     }
@@ -163,10 +169,10 @@ struct LibraryBrowser: View {
     private var illustrationCredit: some View {
         Text(.init("Drawings by Everkinetic, arranged by Bryl Lim. [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)"))
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .glassInk(.tertiary)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
-            .tint(Color.primary.opacity(0.8))
+            .tint(palette.chrome.opacity(0.85))
     }
 }
 
@@ -196,6 +202,7 @@ private struct LibraryTopScrim: View {
 
 /// Resting: filter | search | heart. Focused: search full-width | X (heart transforms; filter hides).
 struct LibraryFilterSearchChrome: View {
+    @Environment(\.glassPalette) private var palette
     @Binding var query: String
     @Binding var filter: LibraryListFilter
     @Binding var favoritesOnly: Bool
@@ -229,11 +236,12 @@ struct LibraryFilterSearchChrome: View {
             }
         } label: {
             Image(systemName: "line.3.horizontal.decrease")
-                .font(.system(size: 15, weight: .semibold))
-                .glassInk()
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(palette.chrome)
                 .frame(width: 48, height: 48)
-                .foundationGlass(interactive: true, in: Circle())
+                .contentShape(Circle())
         }
+        .foundationGlass(interactive: true, in: Circle())
         .accessibilityLabel(filterAccessibilityLabel)
     }
 
@@ -257,35 +265,24 @@ struct LibraryFilterSearchChrome: View {
     }
 
     private var favoritesButton: some View {
-        Button {
-            favoritesOnly.toggle()
-        } label: {
-            Image(systemName: favoritesOnly ? "heart.fill" : "heart")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(favoritesOnly ? Color.red : Color.primary)
-                .frame(width: 48, height: 48)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .foundationGlass(interactive: true, in: Circle())
-        .accessibilityLabel(favoritesOnly ? "Showing favorites" : "Show favorites")
+        GlassChromeIconButton(
+            systemName: favoritesOnly ? "heart.fill" : "heart",
+            accessibilityLabel: favoritesOnly ? "Showing favorites" : "Show favorites",
+            ink: favoritesOnly ? palette.heart : nil,
+            action: { favoritesOnly.toggle() }
+        )
         .accessibilityAddTraits(favoritesOnly ? .isSelected : [])
     }
 
     private var clearButton: some View {
-        Button {
-            query = ""
-            searchFocused = false
-        } label: {
-            Image(systemName: "xmark")
-                .font(.system(size: 15, weight: .semibold))
-                .glassInk()
-                .frame(width: 48, height: 48)
-                .contentShape(Circle())
-        }
-        .buttonStyle(.plain)
-        .foundationGlass(interactive: true, in: Circle())
-        .accessibilityLabel("Clear search")
+        GlassChromeIconButton(
+            systemName: "xmark",
+            accessibilityLabel: "Clear search",
+            action: {
+                query = ""
+                searchFocused = false
+            }
+        )
     }
 
     private var filterAccessibilityLabel: String {
@@ -300,6 +297,7 @@ struct LibraryFilterSearchChrome: View {
 
 struct LibraryTile: View {
     @Environment(FavoritesStore.self) private var favorites
+    @Environment(\.glassPalette) private var palette
     let workout: LibraryWorkout
     var onOpen: () -> Void
 
@@ -331,7 +329,7 @@ struct LibraryTile: View {
             } label: {
                 Image(systemName: isLiked ? "heart.fill" : "heart")
                     .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(isLiked ? Color.pink : Color.primary)
+                    .foregroundStyle(isLiked ? palette.heart : palette.chrome)
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }

@@ -63,6 +63,8 @@ struct HistoryView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .containerBackground(.clear, for: .navigation)
             .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+            .preferredColorScheme(palette.colorScheme)
+            .animation(.smooth(duration: 0.3), value: palette.mode)
             .background { LockRootPopGesture() }
             .navigationTitle("History")
             .toolbarTitleDisplayMode(.inline)
@@ -361,7 +363,7 @@ struct HistoryView: View {
             ink: palette.primary,
             muted: palette.tertiary,
             band: palette.dim,
-            ground: Color.black.opacity(0.35),
+            ground: palette.mode == .dark ? Color.black.opacity(0.35) : Color.white.opacity(0.18),
             numeralSize: 36
         )
     }
@@ -461,11 +463,14 @@ struct HistoryView: View {
                             resubmit(session)
                         } label: {
                             Text("Update weights")
+                                .font(.body.weight(.semibold))
+                                .glassInk()
                                 .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                                .contentShape(Capsule())
                         }
-                        .buttonStyle(.glass)
-                        .controlSize(.large)
-                        .buttonBorderShape(.capsule)
+                        .buttonStyle(.plain)
+                        .foundationGlass(interactive: true, in: Capsule())
                         .padding(.top, 4)
                     }
                 }

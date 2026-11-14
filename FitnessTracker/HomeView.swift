@@ -4,6 +4,7 @@ struct HomeView: View {
     @Environment(SessionStore.self) private var store
     @Environment(RoutineOverridesStore.self) private var routineOverrides
     @Environment(WashTheme.self) private var wash
+    @Environment(\.glassPalette) private var palette
     @Binding var hidesFloatingTabBar: Bool
     @State private var path: [Routine] = []
     @State private var showResetRoutinesConfirm = false
@@ -97,6 +98,8 @@ struct HomeView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .containerBackground(.clear, for: .navigation)
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
+        .preferredColorScheme(palette.colorScheme)
+        .animation(.smooth(duration: 0.3), value: palette.mode)
         .background { LockRootPopGesture() }
         .navigationTitle("Foundation")
         .toolbarTitleDisplayMode(.inline)

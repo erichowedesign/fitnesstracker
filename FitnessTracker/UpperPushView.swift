@@ -11,6 +11,7 @@ struct RoutineView: View {
     @Environment(SessionStore.self) private var store
     @Environment(RoutineOverridesStore.self) private var routineOverrides
     @Environment(\.glassPalette) private var palette
+    @Environment(\.dismiss) private var dismiss
     let routine: Routine
     @State private var didSave = false
     @State private var showCompleteButton = false
@@ -50,8 +51,11 @@ struct RoutineView: View {
             .safeAreaInset(edge: .bottom) { completeInset }
             .navigationTitle("Routine \(routine.rotationIndex)")
             .toolbarTitleDisplayMode(.inline)
-            .navigationBarBackButtonHidden(isEditingRoutine)
+            // Custom glass chrome — system back / plain Edit ignore Clear–Dark.
+            .navigationBarBackButtonHidden(true)
             .toolbar { editToolbar }
+            .preferredColorScheme(palette.colorScheme)
+            .animation(.smooth(duration: 0.3), value: palette.mode)
             .environment(\.editMode, $editMode)
             .alert("Workout saved", isPresented: $didSave) {
                 Button("OK", role: .cancel) {}
@@ -157,40 +161,34 @@ struct RoutineView: View {
     private var editToolbar: some ToolbarContent {
         if isEditingRoutine {
             ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    cancelRoutineEditing()
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 18, weight: .semibold))
-                        .glassInk()
-                        .frame(width: 48, height: 48)
-                        .foundationGlass(interactive: true, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Cancel editing")
+                GlassChromeIconButton(
+                    systemName: "xmark",
+                    accessibilityLabel: "Cancel editing",
+                    action: cancelRoutineEditing
+                )
             }
             .sharedBackgroundVisibility(.hidden)
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
-                    commitRoutineEditing()
-                } label: {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 18, weight: .semibold))
-                        .glassInk()
-                        .frame(width: 48, height: 48)
-                        .foundationGlass(interactive: true, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Save edits")
+                GlassChromeIconButton(
+                    systemName: "checkmark",
+                    accessibilityLabel: "Save edits",
+                    action: commitRoutineEditing
+                )
             }
             .sharedBackgroundVisibility(.hidden)
         } else {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Edit") {
-                    beginRoutineEditing()
-                }
-                .fontWeight(.semibold)
+            ToolbarItem(placement: .topBarLeading) {
+                GlassChromeIconButton(
+                    systemName: "chevron.backward",
+                    accessibilityLabel: "Back",
+                    action: { dismiss() }
+                )
             }
+            .sharedBackgroundVisibility(.hidden)
+            ToolbarItem(placement: .topBarTrailing) {
+                GlassChromeLabelButton(title: "Edit", action: beginRoutineEditing)
+            }
+            .sharedBackgroundVisibility(.hidden)
         }
     }
 
@@ -395,10 +393,14 @@ struct RoutineView: View {
                 } label: {
                     Label("Add", systemImage: "plus")
                         .font(.body.weight(.semibold))
+                        .glassInk()
+                        .padding(.horizontal, 14)
+                        .frame(height: 40)
+                        .contentShape(Capsule())
                 }
-                .buttonStyle(.glass)
-                .buttonBorderShape(.capsule)
-                .controlSize(.regular)
+                .buttonStyle(.plain)
+                .foundationGlass(interactive: true, in: Capsule())
+                .accessibilityLabel("Add to \(title)")
             }
             content()
         }
@@ -612,6 +614,7 @@ private struct RoutineEditSheets: ViewModifier {
 
 private struct LibraryExercisePicker: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.glassPalette) private var palette
     var onPick: (LibraryWorkout) -> Void
     @State private var query = ""
     @State private var filter: LibraryListFilter = .all
@@ -637,6 +640,7 @@ private struct LibraryExercisePicker: View {
                 }
             }
         }
+        .preferredColorScheme(palette.colorScheme)
         .presentationBackground {
             ZStack {
                 Color.black
@@ -649,6 +653,7 @@ private struct LibraryExercisePicker: View {
 
 private struct AddLibraryExerciseSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.glassPalette) private var palette
     let workout: LibraryWorkout
     var onAdd: (_ sets: Int, _ reps: Int, _ weight: String?) -> Void
 
@@ -673,9 +678,10 @@ private struct AddLibraryExerciseSheet: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(workout.name)
                                 .font(.headline)
+                                .glassInk()
                             Text("\(workout.equipment) · \(workout.muscle)")
                                 .font(.subheadline)
-                                .foregroundStyle(.secondary)
+                                .glassInk(.secondary)
                         }
                     }
                     .listRowBackground(Color.clear)
@@ -699,22 +705,35 @@ private struct AddLibraryExerciseSheet: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .glassInk()
             .navigationTitle("Define Workout")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
+            .preferredColorScheme(palette.colorScheme)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                ToolbarItem(placement: .topBarLeading) {
+                    GlassChromeLabelButton(title: "Cancel", action: { dismiss() })
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Add") {
+                .sharedBackgroundVisibility(.hidden)
+                ToolbarItem(placement: .topBarTrailing) {
+                    GlassChromeLabelButton(title: "Add") {
                         guard let setsValue, let repsValue else { return }
                         let trimmed = weightText.trimmingCharacters(in: .whitespacesAndNewlines)
                         onAdd(setsValue, repsValue, trimmed.isEmpty ? nil : trimmed)
                     }
-                    .fontWeight(.semibold)
-                    .disabled(!canAdd)
+                    .opacity(canAdd ? 1 : 0.45)
+                    .allowsHitTesting(canAdd)
                 }
+                .sharedBackgroundVisibility(.hidden)
             }
+        }
+        .presentationBackground {
+            ZStack {
+                Color.black
+                WashBackground(grade: .grayscale)
+            }
+            .ignoresSafeArea()
         }
     }
 }
@@ -748,7 +767,7 @@ private struct GuideRow: View {
                         .padding(.top, 20)
                     Text(weight)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .glassInk(.secondary)
                         .padding(.top, 4)
                 }
             }
@@ -774,7 +793,7 @@ private struct MetaLine: View {
             }
         }
         .font(.subheadline)
-        .foregroundStyle(.secondary)
+        .glassInk(.secondary)
         .lineLimit(1)
     }
 }

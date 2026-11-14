@@ -212,8 +212,7 @@ public struct ScrubStepper: View {
                 .accessibilityHidden(true)
             }
             .clipShape(shape)
-            // Untinted (clear) surfaces use Glass.clear so they match app chrome
-            // `.glassEffect(.clear)` cards; chromatic tints keep regular glass.
+            // Tint paints inside glass; material itself follows `glassMode` (Clear / Dark).
             .pieceLiquid(shape, tint: Self.resolvedTint(style.block), interactive: false)
             // The digits roll without overshoot, so they never pass the true value.
             .animation(stepping ? nil : motion.value, value: value)
@@ -258,8 +257,7 @@ public struct ScrubStepper: View {
             .pieceBudContent(out: out)
             .frame(width: buttonWidth, height: buttonWidth)
             // Its tint drains as it melts, so it dissolves into the pill instead of sitting on the numeral.
-            // Color.clear must become nil tint — otherwise buttons stay on Glass.regular and look flatter
-            // than neighboring `.glassEffect(.clear)` / interactive chrome.
+            // Color.clear → nil tint so melt-home uses glassMode underlay only.
             .pieceLiquid(.circle, tint: out ? Self.resolvedTint(style.button) : nil, interactive: true)
             // The button's click: it sinks, with no bounce on the way in.
             .pieceLiquidScale(pressed && !reduceMotion ? 0.9 : 1)

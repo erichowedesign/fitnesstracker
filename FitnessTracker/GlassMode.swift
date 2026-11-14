@@ -212,3 +212,54 @@ extension View {
         modifier(GlassInkModifier(level: level))
     }
 }
+
+/// Nav / toolbar circle control — always uses `foundationGlass` + palette ink (Clear/Dark).
+struct GlassChromeIconButton: View {
+    var systemName: String
+    var accessibilityLabel: String
+    var ink: Color? = nil
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 18, weight: .semibold))
+                .frame(width: 48, height: 48)
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .modifier(GlassChromeInkModifier(ink: ink))
+        .foundationGlass(interactive: true, in: Circle())
+        .accessibilityLabel(accessibilityLabel)
+    }
+}
+
+/// Capsule text control for toolbar actions like Edit.
+struct GlassChromeLabelButton: View {
+    var title: String
+    var accessibilityLabel: String? = nil
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.body.weight(.semibold))
+                .glassInk()
+                .padding(.horizontal, 16)
+                .frame(height: 48)
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .foundationGlass(interactive: true, in: Capsule())
+        .accessibilityLabel(accessibilityLabel ?? title)
+    }
+}
+
+private struct GlassChromeInkModifier: ViewModifier {
+    var ink: Color?
+    @Environment(\.glassPalette) private var palette
+
+    func body(content: Content) -> some View {
+        content.foregroundStyle(ink ?? palette.chrome)
+    }
+}

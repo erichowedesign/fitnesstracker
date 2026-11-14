@@ -125,36 +125,29 @@ struct ExerciseTutorialView: View {
         .navigationTitle(sectionTitle)
         .toolbarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .preferredColorScheme(palette.colorScheme)
+        .animation(.smooth(duration: 0.3), value: palette.mode)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Image(systemName: "chevron.backward")
-                        .font(.system(size: 18, weight: .semibold))
-                        .glassInk()
-                        .frame(width: 48, height: 48)
-                        .foundationGlass(interactive: true, in: Circle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Back")
+                GlassChromeIconButton(
+                    systemName: "chevron.backward",
+                    accessibilityLabel: "Back",
+                    action: { dismiss() }
+                )
             }
             .sharedBackgroundVisibility(.hidden)
 
             if canFavorite {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        guard let favoriteSlug else { return }
-                        favorites.toggle(favoriteSlug)
-                    } label: {
-                        Image(systemName: isLiked ? "heart.fill" : "heart")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(isLiked ? Color.pink : Color.primary)
-                            .frame(width: 48, height: 48)
-                            .foundationGlass(interactive: true, in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(isLiked ? "Remove from favorites" : "Add to favorites")
+                    GlassChromeIconButton(
+                        systemName: isLiked ? "heart.fill" : "heart",
+                        accessibilityLabel: isLiked ? "Remove from favorites" : "Add to favorites",
+                        ink: isLiked ? palette.heart : nil,
+                        action: {
+                            guard let favoriteSlug else { return }
+                            favorites.toggle(favoriteSlug)
+                        }
+                    )
                 }
                 .sharedBackgroundVisibility(.hidden)
             }
