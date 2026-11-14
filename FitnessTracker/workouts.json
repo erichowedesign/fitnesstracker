@@ -1,0 +1,329 @@
+{
+  "schemaVersion": 1,
+  "planName": "Planet Fitness — Flexible Strength Foundation",
+  "schedule": "Flexible four-workout rotation with rest or recovery days as needed; not fixed to weekdays",
+  "sessionTargetMinutes": [
+    45,
+    60
+  ],
+  "generalNotes": [
+    "Warm-up and cool-down are part of each session",
+    "Avoid pushing through joint pain, instability, or unusual symptoms",
+    "Weights listed as history are not prescribed starting weights"
+  ],
+  "routines": [
+    {
+      "id": "A",
+      "name": "Upper Push",
+      "focus": "Upper body pressing",
+      "warmup": {
+        "targetMinutes": 8,
+        "instructions": "3 min easy walk; shoulder circles and scapular motion; light cable external rotations 1×12 per side; two progressive light bench sets"
+      },
+      "cooldown": {
+        "targetMinutes": 5,
+        "instructions": "Easy walk; gentle chest and cross-body shoulder stretches; relaxed shoulder movements"
+      },
+      "exercises": [
+        {
+          "hevyTemplateId": "3601968B",
+          "name": "Dumbbell Bench Press",
+          "equipment": "dumbbell",
+          "sets": 3,
+          "targetReps": 10,
+          "targetDurationSeconds": null,
+          "restSeconds": 90,
+          "notes": "45 lb per dumbbell previously used; historical reference only",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "99C1F2AD",
+          "name": "Cable Bench Press",
+          "equipment": "cable",
+          "sets": 3,
+          "targetReps": 10,
+          "targetDurationSeconds": null,
+          "restSeconds": 75,
+          "notes": "Use double cable bench setup",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "878CD1D0",
+          "name": "Dumbbell Shoulder Press",
+          "equipment": "dumbbell",
+          "sets": 2,
+          "targetReps": 10,
+          "targetDurationSeconds": null,
+          "restSeconds": 90,
+          "notes": "35 lb per dumbbell previously used; optional if shoulder comfortable",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "422B08F1",
+          "name": "Dumbbell Lateral Raise",
+          "equipment": "dumbbell",
+          "sets": 2,
+          "targetReps": 12,
+          "targetDurationSeconds": null,
+          "restSeconds": 60,
+          "notes": "10 lb per dumbbell previously used",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "93A552C6",
+          "name": "Cable Triceps Pushdown",
+          "equipment": "cable",
+          "sets": 3,
+          "targetReps": 10,
+          "targetDurationSeconds": null,
+          "restSeconds": 60,
+          "notes": "Controlled motion",
+          "videoUrl": null
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "name": "Lower Stability",
+      "focus": "Lower body control and joint-friendly strength",
+      "warmup": {
+        "targetMinutes": 8,
+        "instructions": "5 min easy bike or walk; clamshell 2×15; supported marching 1×10 per side; leg swings 2×15"
+      },
+      "cooldown": {
+        "targetMinutes": 5,
+        "instructions": "3 min walk; gentle hip flexor and hamstring stretch; comfortable hip motion"
+      },
+      "exercises": [
+        {
+          "hevyTemplateId": "11A123F3",
+          "name": "Seated Leg Curl",
+          "equipment": "machine",
+          "sets": 3,
+          "targetReps": 10,
+          "targetDurationSeconds": null,
+          "restSeconds": 75,
+          "notes": "Controlled range",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "75A4F6C4",
+          "name": "Leg Extension",
+          "equipment": "machine",
+          "sets": 2,
+          "targetReps": 10,
+          "targetDurationSeconds": null,
+          "restSeconds": 75,
+          "notes": "Light to moderate, knee-comfortable range",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "F4B4C6EE",
+          "name": "Hip Abduction",
+          "equipment": "machine",
+          "sets": 2,
+          "targetReps": 12,
+          "targetDurationSeconds": null,
+          "restSeconds": 60,
+          "notes": "Do not force hip range",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "8BEBFED6",
+          "name": "Hip Adduction",
+          "equipment": "machine",
+          "sets": 2,
+          "targetReps": 12,
+          "targetDurationSeconds": null,
+          "restSeconds": 60,
+          "notes": "Light and comfortable range",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "E05C2C38",
+          "name": "Standing Calf Raise",
+          "equipment": "machine",
+          "sets": 3,
+          "targetReps": 12,
+          "targetDurationSeconds": null,
+          "restSeconds": 60,
+          "notes": "Swap for preferred calf machine",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "CC55119B",
+          "name": "Pallof Press",
+          "equipment": "cable",
+          "sets": 2,
+          "targetReps": 10,
+          "targetDurationSeconds": null,
+          "restSeconds": 60,
+          "notes": "10 reps per side; resist rotation",
+          "videoUrl": null
+        }
+      ]
+    },
+    {
+      "id": "C",
+      "name": "Upper Pull",
+      "focus": "Back, arms, grip, pull-up progression",
+      "warmup": {
+        "targetMinutes": 8,
+        "instructions": "3 min walk; scapular retractions 1×12; light cable rows 1×12; assisted pull-up warm-up 1×5"
+      },
+      "cooldown": {
+        "targetMinutes": 5,
+        "instructions": "Easy walk; gentle upper-back and shoulder movement; relaxed breathing"
+      },
+      "exercises": [
+        {
+          "hevyTemplateId": "2C37EC5E",
+          "name": "Assisted Pull-Up",
+          "equipment": "assisted machine",
+          "sets": 3,
+          "targetReps": 8,
+          "targetDurationSeconds": null,
+          "restSeconds": 120,
+          "notes": "Aim 6–8 reps; log assistance, not added weight",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "0393F233",
+          "name": "Seated Cable Row (V-Grip)",
+          "equipment": "cable",
+          "sets": 3,
+          "targetReps": 10,
+          "targetDurationSeconds": null,
+          "restSeconds": 90,
+          "notes": "Adjust grip for wrist and elbow comfort",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "6A6C31A5",
+          "name": "Cable Lat Pulldown",
+          "equipment": "cable",
+          "sets": 2,
+          "targetReps": 10,
+          "targetDurationSeconds": null,
+          "restSeconds": 75,
+          "notes": "Comfortable shoulder range",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "ADA8623C",
+          "name": "Cable Biceps Curl",
+          "equipment": "cable",
+          "sets": 3,
+          "targetReps": 10,
+          "targetDurationSeconds": null,
+          "restSeconds": 60,
+          "notes": "Controlled motion",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "BE640BA0",
+          "name": "Face Pull",
+          "equipment": "cable",
+          "sets": 2,
+          "targetReps": 12,
+          "targetDurationSeconds": null,
+          "restSeconds": 60,
+          "notes": "Light and controlled",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "50C613D0",
+          "name": "Farmer Carry",
+          "equipment": "dumbbell",
+          "sets": 2,
+          "targetReps": null,
+          "targetDurationSeconds": 30,
+          "restSeconds": 60,
+          "notes": "30 seconds per set; neutral wrists",
+          "videoUrl": null
+        }
+      ]
+    },
+    {
+      "id": "D",
+      "name": "Lower Strength + Core",
+      "focus": "Lower-body foundation and trunk stability",
+      "warmup": {
+        "targetMinutes": 8,
+        "instructions": "5 min bike or walk; supported hip hinges 1×10; easy glute bridges 1×10; shallow supported squats if comfortable"
+      },
+      "cooldown": {
+        "targetMinutes": 5,
+        "instructions": "Easy walk; gentle hip flexor stretch; comfortable hip motion and breathing"
+      },
+      "exercises": [
+        {
+          "hevyTemplateId": "CDA23948",
+          "name": "Glute Bridge",
+          "equipment": "bodyweight",
+          "sets": 3,
+          "targetReps": 10,
+          "targetDurationSeconds": null,
+          "restSeconds": 75,
+          "notes": "Bodyweight first",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "9694DA61",
+          "name": "High Box Squat (Bodyweight Squat Template)",
+          "equipment": "bodyweight",
+          "sets": 2,
+          "targetReps": 8,
+          "targetDurationSeconds": null,
+          "restSeconds": 90,
+          "notes": "Use high bench/box and comfortable depth; skip if aggravating hip",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "11A123F3",
+          "name": "Seated Leg Curl",
+          "equipment": "machine",
+          "sets": 3,
+          "targetReps": 10,
+          "targetDurationSeconds": null,
+          "restSeconds": 75,
+          "notes": "Controlled motion",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "128A2381",
+          "name": "Low Step-Up",
+          "equipment": "bodyweight",
+          "sets": 2,
+          "targetReps": 8,
+          "targetDurationSeconds": null,
+          "restSeconds": 75,
+          "notes": "8 per side; use support if needed",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "CC55119B",
+          "name": "Pallof Press",
+          "equipment": "cable",
+          "sets": 3,
+          "targetReps": 10,
+          "targetDurationSeconds": null,
+          "restSeconds": 60,
+          "notes": "10 per side; light resistance",
+          "videoUrl": null
+        },
+        {
+          "hevyTemplateId": "BD0AD077",
+          "name": "Bird Dog",
+          "equipment": "bodyweight",
+          "sets": 2,
+          "targetReps": 8,
+          "targetDurationSeconds": null,
+          "restSeconds": 45,
+          "notes": "8 per side; slow and controlled",
+          "videoUrl": null
+        }
+      ]
+    }
+  ]
+}
