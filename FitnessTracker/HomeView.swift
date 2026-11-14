@@ -2,7 +2,6 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 private enum HomeRoute: Hashable {
-    case create
     case routine(String)
 }
 
@@ -17,6 +16,7 @@ struct HomeView: View {
     @State private var path: [HomeRoute] = []
     /// Routine ids that should open straight into edit mode (new custom creates).
     @State private var startEditingIDs: Set<String> = []
+    @State private var showCreateSheet = false
     @State private var isReordering = false
     @State private var draftOrder: [Routine] = []
     @State private var orderSnapshot: [Routine] = []
@@ -102,10 +102,7 @@ struct HomeView: View {
                             systemName: "plus",
                             accessibilityLabel: "Create routine",
                             size: 48,
-                            action: {
-                                path.append(.create)
-                                hidesFloatingTabBar = true
-                            }
+                            action: { showCreateSheet = true }
                         )
                     }
                 }
@@ -140,12 +137,6 @@ struct HomeView: View {
         .toolbar { homeToolbar }
         .navigationDestination(for: HomeRoute.self) { route in
             switch route {
-            case .create:
-                CreateRoutineView { routine in
-                    startEditingIDs.insert(routine.id)
-                    // Replace create with the new routine so Back from edit returns Home.
-                    path = [.routine(routine.id)]
-                }
             case .routine(let id):
                 if let routine = resolvedRoutine(id: id) {
                     RoutineView(
@@ -161,6 +152,29 @@ struct HomeView: View {
                         .onAppear { path.removeAll() }
                 }
             }
+        }
+        .sheet(isPresented: $showCreateSheet) {
+            NavigationStack {
+                CreateRoutineView { routine in
+                    startEditingIDs.insert(routine.id)
+                    showCreateSheet = false
+                    // Push after the sheet dismisses so Home → routine is one step.
+                    DispatchQueue.main.async {
+                        hidesFloatingTabBar = true
+                        path = [.routine(routine.id)]
+                    }
+                }
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground {
+                ZStack {
+                    Color.black
+                    WashBackground(grade: .grayscale)
+                }
+                .ignoresSafeArea()
+            }
+            .preferredColorScheme(palette.colorScheme)
         }
         .onChange(of: path) { _, newPath in
             hidesFloatingTabBar = !newPath.isEmpty

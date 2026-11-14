@@ -82,13 +82,6 @@ struct CreateRoutineView: View {
         .scrollDismissesKeyboard(.immediately)
         .scrollContentBackground(.hidden)
         .glassInk()
-        .background {
-            ZStack {
-                Color.black
-                WashBackground(grade: .grayscale)
-            }
-            .ignoresSafeArea()
-        }
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .navigationBarBackButtonHidden(true)
@@ -98,8 +91,8 @@ struct CreateRoutineView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 GlassChromeIconButton(
-                    systemName: "chevron.backward",
-                    accessibilityLabel: "Back",
+                    systemName: "xmark",
+                    accessibilityLabel: "Close",
                     action: { dismiss() }
                 )
             }
