@@ -37,6 +37,8 @@ struct ExerciseTutorialView: View {
     let frames: [String]
     let hints: [String]
     let hintSource: String?
+    /// Library tutorials default to black grayscale; routine tutorials pass the routine wash.
+    var grade: WashGrade = .grayscale
     var favoriteSlug: String? = nil
     var sectionTitle: String = "Tutorial"
     var initialDose: RoutineDoseFields? = nil
@@ -116,8 +118,7 @@ struct ExerciseTutorialView: View {
         .background {
             ZStack {
                 Color.black
-                // All tutorials share Library’s black wash (grayscale map on the shared wash mp4).
-                WashBackground(grade: .grayscale)
+                WashBackground(grade: grade)
             }
             .ignoresSafeArea()
         }

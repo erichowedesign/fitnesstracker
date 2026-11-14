@@ -122,6 +122,7 @@ struct RoutineView: View {
                     frames: item.frames,
                     hints: item.hints,
                     hintSource: item.hintSource,
+                    grade: draftWashGrade,
                     favoriteSlug: item.favoriteSlug,
                     sectionTitle: item.sectionTitle,
                     initialDose: item.dose,
