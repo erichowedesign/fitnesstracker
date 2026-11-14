@@ -399,13 +399,14 @@ struct RoutineView: View {
         .padding(.top, 24)
     }
 
-    /// Custom edit rows: small liquid-glass minus + drag-handle circles (tile size unchanged).
+    /// Custom edit rows: small liquid-glass minus + drag-handle; tiles use Clear/Dark/Light `foundationGlass` (not a flat dim fill).
     private func editableReorderList<Item: Identifiable>(
         items: Binding<[Item]>,
         onDelete: @escaping (Item) -> Void,
         @ViewBuilder content: @escaping (Item) -> some View
     ) -> some View where Item.ID == String {
         let count = items.wrappedValue.count
+        // No GlassEffectContainer here — keep ± / drag circles from melting into the row tile.
         return VStack(spacing: 8) {
             ForEach(items.wrappedValue) { item in
                 HStack(spacing: 10) {
@@ -430,9 +431,9 @@ struct RoutineView: View {
                 }
                 .padding(.horizontal, 8)
                 .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .fill(palette.dim.opacity(0.7))
+                .foundationGlass(
+                    interactive: true,
+                    in: RoundedRectangle(cornerRadius: 34, style: .continuous)
                 )
                 .onDrag {
                     draggingEditID = item.id
@@ -449,6 +450,7 @@ struct RoutineView: View {
             }
         }
         .frame(minHeight: max(CGFloat(count) * 104, 120), alignment: .top)
+        .preferredColorScheme(palette.colorScheme)
     }
 
     private func editableRowContent(title: String, metaParts: [String], slug: String) -> some View {
