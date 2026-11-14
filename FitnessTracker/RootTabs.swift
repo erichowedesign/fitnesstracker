@@ -101,13 +101,13 @@ struct RootTabs: View {
         .animation(.smooth(duration: 0.3), value: palette.mode)
     }
 
-    /// Trailing theme GlassActionMenu — icons share the content trailing edge (16pt).
+    /// Trailing more menu (ellipsis → Theme → Clear/Dark/Light). Icons share the content trailing edge (16pt).
     /// Avoid clip/compositing on this layer so GlassActionMenu’s full-page scrim can paint over the wash.
     private var chromeMenusOverlay: some View {
         VStack {
             HStack(alignment: .center, spacing: 0) {
                 Spacer(minLength: 0)
-                GlassModeActionMenu()
+                RootChromeMenu()
             }
             // Match Home / History / Library content trailing inset.
             .padding(.horizontal, 16)
