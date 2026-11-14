@@ -76,7 +76,7 @@ struct RootTabs: View {
 
             tabHeader
 
-            moreMenuOverlay
+            chromeMenusOverlay
 
             tabBar
                 .opacity(hidesFloatingTabBar ? 0 : 1)
@@ -94,10 +94,12 @@ struct RootTabs: View {
         }
     }
 
-    /// Hittable trailing menu (tab header itself is pass-through). Sections are extensible.
-    private var moreMenuOverlay: some View {
+    /// Leading: glass mode action menu. Trailing: extensible more menu. Tab header stays pass-through.
+    private var chromeMenusOverlay: some View {
         VStack {
-            HStack {
+            HStack(alignment: .top) {
+                GlassModeActionMenu()
+                    .padding(.leading, 12)
                 Spacer(minLength: 0)
                 RootMoreMenu()
                     .padding(.trailing, 8)
@@ -109,6 +111,7 @@ struct RootTabs: View {
         .allowsHitTesting(!hidesFloatingTabBar)
         .accessibilityHidden(hidesFloatingTabBar)
         .animation(.smooth(duration: 0.35), value: hidesFloatingTabBar)
+        .zIndex(20)
     }
 
     private func tabPage<Content: View>(
