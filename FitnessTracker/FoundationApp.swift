@@ -19,7 +19,7 @@ struct FoundationApp: App {
                 .environment(\.glassMode, glassModeStore.mode)
                 .environment(\.glassPalette, glassModeStore.palette)
                 .preferredColorScheme(glassModeStore.palette.colorScheme)
-                .background(glassModeStore.mode == .light ? Color(white: 0.92) : Color.black)
+                .background(Color.black)
         }
     }
 }

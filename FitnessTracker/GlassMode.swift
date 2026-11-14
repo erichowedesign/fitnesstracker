@@ -3,7 +3,7 @@ import SwiftUI
 /// User-facing Liquid Glass appearance. Persisted; drives glass material + ink palette.
 /// - Clear → true untinted clear everywhere (no densifying tray fills)
 /// - Dark → dark-tinted clear
-/// - Light → denser frosted light material (the milky tab-bar look Eric captured)
+/// - Light → milky denser clear glass (former Clear tab-bar look — not opaque white)
 enum GlassMode: String, CaseIterable, Identifiable, Codable, Hashable {
     case dark
     case light
@@ -21,6 +21,7 @@ enum GlassMode: String, CaseIterable, Identifiable, Codable, Hashable {
 
     /// Maps to SwiftUI `Glass` (iOS 26/27 Liquid Glass).
     /// Public Glass: `regular` / `clear` + `tint` / `interactive`.
+    /// All three stay on the **clear** path — Light is milky-tinted clear, never solid white regular.
     @available(iOS 26, *)
     func glass(interactive: Bool) -> Glass {
         let base: Glass
@@ -31,13 +32,13 @@ enum GlassMode: String, CaseIterable, Identifiable, Codable, Hashable {
             // Dark-tinted clear — still see-through, denser than Clear.
             base = .clear.tint(Color.black.opacity(0.38))
         case .light:
-            // Denser frosted light material (former Clear tab-bar mismatch look).
-            base = .regular.tint(Color.white)
+            // Milky denser clear (Clear tab-bar mismatch look) — wash still reads through.
+            base = .clear.tint(Color.white.opacity(0.28))
         }
         return interactive ? base.interactive() : base
     }
 
-    /// Extra fill under glass. Clear stays empty; Light/Dark get soft density.
+    /// Soft fill under glass. Clear stays empty; Light/Dark get light density only.
     var glassUnderlay: Color? {
         switch self {
         case .clear:
@@ -45,7 +46,8 @@ enum GlassMode: String, CaseIterable, Identifiable, Codable, Hashable {
         case .dark:
             return Color.black.opacity(0.12)
         case .light:
-            return Color.white.opacity(0.28)
+            // Soft milk — not opaque white pills.
+            return Color.white.opacity(0.12)
         }
     }
 
@@ -72,7 +74,7 @@ struct GlassPalette: Equatable {
     var heart: Color
     /// Color scheme for Liquid Glass / system materials.
     var colorScheme: ColorScheme
-    /// Veil over the wash (Light only — keeps dark ink readable).
+    /// Veil over the wash (unused — Clear/Dark/Light keep wash visible).
     var washVeil: Color
     /// Soft tray fill under chrome glass (tab bar, etc.). Clear = none.
     var chromeTray: Color
@@ -110,16 +112,16 @@ struct GlassPalette: Equatable {
             chromePill = Color.black.opacity(0.36)
             chromePlusLighter = true
         case .light:
-            // Denser light material — matches the milky Clear tab-bar screenshot look.
-            primary = Color(red: 0.078, green: 0.078, blue: 0.078)
-            secondary = Color.black.opacity(0.72)
-            tertiary = Color.black.opacity(0.55)
-            chrome = Color(red: 0.078, green: 0.078, blue: 0.078)
-            dim = Color.black.opacity(0.1)
+            // Same wash + light ink as Clear/Dark; light scheme + soft white tray = milky glass.
+            primary = Color(red: 0.961, green: 0.961, blue: 0.961)
+            secondary = Color.white.opacity(0.85)
+            tertiary = Color.white.opacity(0.72)
+            chrome = Color(red: 0.961, green: 0.961, blue: 0.961)
+            dim = Color.white.opacity(0.14)
             colorScheme = .light
-            washVeil = Color.white.opacity(0.16)
-            chromeTray = Color.white.opacity(0.18)
-            chromePill = Color.white.opacity(0.5)
+            washVeil = .clear
+            chromeTray = Color.white.opacity(0.16)
+            chromePill = Color.white.opacity(0.36)
             chromePlusLighter = false
         }
     }
@@ -202,7 +204,7 @@ struct FoundationGlassModifier<S: Shape>: ViewModifier {
         case .dark:
             return AnyShapeStyle(Color.black.opacity(0.28))
         case .light:
-            return AnyShapeStyle(Color.white.opacity(0.82))
+            return AnyShapeStyle(Color.white.opacity(0.22))
         }
     }
 }

@@ -78,7 +78,7 @@ struct HomeView: View {
                 .padding(.top, 24)
             }
             .padding(.horizontal, 16)
-            .padding(.top, 16)
+            .padding(.top, 24)
             .padding(.bottom, 24)
         }
         .contentMargins(.bottom, homeScrollBottomInset, for: .scrollContent)
