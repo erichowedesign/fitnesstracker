@@ -1,5 +1,17 @@
 import SwiftUI
 
+/// One-shot: wipe local routine edits and reseed history so Home Up Next is Upper Pull (C / 3).
+private enum FoundationShippingReset {
+    static let key = "foundation.shippingReset.v20261113-upper-pull"
+
+    static func applyIfNeeded(store: SessionStore, overrides: RoutineOverridesStore) {
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        overrides.clearAll()
+        store.reseedDemoHistoryForNextUpUpperPull()
+        UserDefaults.standard.set(true, forKey: key)
+    }
+}
+
 @main
 struct FoundationApp: App {
     @State private var store = SessionStore()
@@ -20,6 +32,9 @@ struct FoundationApp: App {
                 .environment(\.glassPalette, glassModeStore.palette)
                 .preferredColorScheme(glassModeStore.palette.colorScheme)
                 .background(Color.black)
+                .onAppear {
+                    FoundationShippingReset.applyIfNeeded(store: store, overrides: routineOverrides)
+                }
         }
     }
 }

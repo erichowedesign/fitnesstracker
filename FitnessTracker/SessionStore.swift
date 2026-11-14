@@ -69,7 +69,7 @@ struct HistoryStats {
 final class SessionStore {
     private(set) var sessions: [FinishedSession] = []
     private let url: URL
-    private let seededKey = "foundation.history.seeded.v1"
+    private let seededKey = "foundation.history.seeded.v2"
 
     init(fileManager: FileManager = .default) {
         let folder = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
@@ -78,6 +78,15 @@ final class SessionStore {
         url = folder.appending(path: "sessions.json")
         sessions = Self.read(from: url)
         seedIfNeeded()
+    }
+
+    /// Replace history with shipping demo data so Home **Up Next** is Upper Pull
+    /// (`id` `C`, `rotationIndex` 3). Up Next = routine after the newest session, so the
+    /// newest seeded session is Lower Stability (`B`).
+    func reseedDemoHistoryForNextUpUpperPull() {
+        sessions = Self.sampleSessions()
+        persist()
+        UserDefaults.standard.set(true, forKey: seededKey)
     }
 
     var stats: HistoryStats {
@@ -203,11 +212,24 @@ final class SessionStore {
             return calendar.date(bySettingHour: hour, minute: 30, second: 0, of: base) ?? base
         }
 
+        // Newest first after sort: B → Up Next = C (Upper Pull, rotation 3).
         return [
+            FinishedSession(
+                routineId: "B",
+                routineName: "Lower Stability",
+                finishedAt: day(-1, hour: 17),
+                exerciseIds: ["B-curl", "B-ext", "B-abd"],
+                durationMinutes: 55,
+                lifts: [
+                    LoggedLift(id: "B-curl", name: "Seated Leg Curl", sets: 3, weight: "70 lbs"),
+                    LoggedLift(id: "B-ext", name: "Leg Extension", sets: 3, weight: "80 lbs"),
+                    LoggedLift(id: "B-abd", name: "Hip Abduction", sets: 3, weight: "60 lbs"),
+                ]
+            ),
             FinishedSession(
                 routineId: "A",
                 routineName: "Upper Push",
-                finishedAt: day(-1),
+                finishedAt: day(-2),
                 exerciseIds: ["A-bench", "A-fly", "A-press", "A-raise", "A-pushdown"],
                 durationMinutes: 58,
                 lifts: [
@@ -219,33 +241,9 @@ final class SessionStore {
                 ]
             ),
             FinishedSession(
-                routineId: "B",
-                routineName: "Lower Stability",
-                finishedAt: day(-2, hour: 17),
-                exerciseIds: ["B-curl", "B-ext", "B-abd"],
-                durationMinutes: 55,
-                lifts: [
-                    LoggedLift(id: "B-curl", name: "Seated Leg Curl", sets: 3, weight: "70 lbs"),
-                    LoggedLift(id: "B-ext", name: "Leg Extension", sets: 3, weight: "80 lbs"),
-                    LoggedLift(id: "B-abd", name: "Hip Abduction", sets: 3, weight: "60 lbs"),
-                ]
-            ),
-            FinishedSession(
-                routineId: "C",
-                routineName: "Upper Pull",
-                finishedAt: day(-4),
-                exerciseIds: ["C-pull", "C-row", "C-face"],
-                durationMinutes: 62,
-                lifts: [
-                    LoggedLift(id: "C-pull", name: "Assisted Pull-Up", sets: 3, weight: "40 lbs"),
-                    LoggedLift(id: "C-row", name: "Seated Row", sets: 3, weight: "90 lbs"),
-                    LoggedLift(id: "C-face", name: "Face Pull", sets: 3, weight: "35 lbs"),
-                ]
-            ),
-            FinishedSession(
                 routineId: "D",
                 routineName: "Lower Strength + Core",
-                finishedAt: day(-6, hour: 19),
+                finishedAt: day(-4, hour: 19),
                 exerciseIds: ["D-squat", "D-step", "D-bridge"],
                 durationMinutes: 60,
                 lifts: [
@@ -255,26 +253,38 @@ final class SessionStore {
                 ]
             ),
             FinishedSession(
+                routineId: "C",
+                routineName: "Upper Pull",
+                finishedAt: day(-6),
+                exerciseIds: ["C-pull", "C-row", "C-face"],
+                durationMinutes: 62,
+                lifts: [
+                    LoggedLift(id: "C-pull", name: "Assisted Pull-Up", sets: 3, weight: "40 lbs"),
+                    LoggedLift(id: "C-row", name: "Seated Row", sets: 3, weight: "90 lbs"),
+                    LoggedLift(id: "C-face", name: "Face Pull", sets: 3, weight: "35 lbs"),
+                ]
+            ),
+            FinishedSession(
+                routineId: "B",
+                routineName: "Lower Stability",
+                finishedAt: day(-8),
+                exerciseIds: ["B-curl", "B-ext"],
+                durationMinutes: 48,
+                lifts: [
+                    LoggedLift(id: "B-curl", name: "Seated Leg Curl", sets: 3, weight: "65 lbs"),
+                    LoggedLift(id: "B-ext", name: "Leg Extension", sets: 3, weight: "75 lbs"),
+                ]
+            ),
+            FinishedSession(
                 routineId: "A",
                 routineName: "Upper Push",
-                finishedAt: day(-8),
+                finishedAt: day(-10),
                 exerciseIds: ["A-bench", "A-fly", "A-press"],
                 durationMinutes: 50,
                 lifts: [
                     LoggedLift(id: "A-bench", name: "Dumbbell Bench Press", sets: 3, weight: "40 lbs"),
                     LoggedLift(id: "A-fly", name: "Cable Bench Press", sets: 3, weight: "20 lbs"),
                     LoggedLift(id: "A-press", name: "Dumbbell Shoulder Press", sets: 3, weight: "20 lbs"),
-                ]
-            ),
-            FinishedSession(
-                routineId: "B",
-                routineName: "Lower Stability",
-                finishedAt: day(-10),
-                exerciseIds: ["B-curl", "B-ext"],
-                durationMinutes: 48,
-                lifts: [
-                    LoggedLift(id: "B-curl", name: "Seated Leg Curl", sets: 3, weight: "65 lbs"),
-                    LoggedLift(id: "B-ext", name: "Leg Extension", sets: 3, weight: "75 lbs"),
                 ]
             ),
         ].sorted { $0.finishedAt > $1.finishedAt }
