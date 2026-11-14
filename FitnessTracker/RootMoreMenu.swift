@@ -40,8 +40,9 @@ struct GlassModeActionMenu: View {
             trigger: .clear,
             ink: palette.chrome,
             labelInk: palette.primary,
-            triggerSize: 52,
-            itemSize: 52,
+            // Match RootMoreMenu 48pt circle — HIG toolbar leading/trailing pair.
+            triggerSize: 48,
+            itemSize: 48,
             itemSpacing: 4,
             confirmsAction: true
         )

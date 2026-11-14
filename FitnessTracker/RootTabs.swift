@@ -101,17 +101,17 @@ struct RootTabs: View {
         .animation(.smooth(duration: 0.3), value: palette.mode)
     }
 
-    /// Leading: glass mode action menu. Trailing: extensible more menu. Tab header stays pass-through.
+    /// Leading theme control + trailing more — same size, equal HIG toolbar edge insets.
     /// Avoid clip/compositing on this layer so GlassActionMenu’s full-page scrim can paint over the wash.
     private var chromeMenusOverlay: some View {
         VStack {
-            HStack(alignment: .top) {
+            HStack(alignment: .center, spacing: 0) {
                 GlassModeActionMenu()
-                    .padding(.leading, 12)
                 Spacer(minLength: 0)
                 RootMoreMenu()
-                    .padding(.trailing, 8)
             }
+            // Standard toolbar leading/trailing margin (matched pair, not asymmetric).
+            .padding(.horizontal, 16)
             Spacer(minLength: 0)
         }
         .padding(.top, 4)
