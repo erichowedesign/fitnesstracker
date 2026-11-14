@@ -88,17 +88,4 @@ extension View {
     func foundationGlass<S: Shape>(interactive: Bool = false, in shape: S) -> some View {
         modifier(FoundationGlassModifier(interactive: interactive, shape: shape))
     }
-
-    /// Keeps `\.glassMode` in sync with `GlassModeStore` for SwiftPieces + modifiers.
-    func syncGlassModeEnvironment() -> some View {
-        modifier(GlassModeEnvironmentBridge())
-    }
-}
-
-private struct GlassModeEnvironmentBridge: ViewModifier {
-    @Environment(GlassModeStore.self) private var store
-
-    func body(content: Content) -> some View {
-        content.environment(\.glassMode, store.mode)
-    }
 }

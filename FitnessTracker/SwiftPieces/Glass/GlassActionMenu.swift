@@ -255,6 +255,8 @@ public struct GlassActionMenu: View {
         // The widest a name may be at home and still sit inside its action.
         let snug = itemSize * 0.66
         let home = !out && !reduceMotion
+        // Capture before `visualEffect` — that closure is Sendable / nonisolated.
+        let namesPreferTrailing = arrangement == .linearDownward || arrangement == .arcDownTrailing
         return Text(text)
             .font(.body.weight(.semibold))
             .foregroundStyle(style.labelInk)
@@ -269,8 +271,7 @@ public struct GlassActionMenu: View {
             .visualEffect { content, proxy in
                 let size = proxy.size
                 let squeeze = home ? min(1, snug / max(size.width * homeScale, 1)) : 1
-                let trailing = arrangement == .linearDownward || arrangement == .arcDownTrailing
-                let side = trailing
+                let side = namesPreferTrailing
                     ? CGSize(width: size.width / 2 + reach, height: 0)
                     : CGSize(width: -(size.width / 2 + reach), height: 0)
                 let place = home ? CGSize.zero : above ? CGSize(width: 0, height: -(size.height / 2 + reach)) : side

@@ -181,7 +181,7 @@ private final class WashPlayerView: UIView {
             NotificationCenter.default.removeObserver(loopObserver)
         }
         loopObserver = NotificationCenter.default.addObserver(
-            forName: .AVPlayerItemDidPlayToEndTime,
+            forName: AVPlayerItem.didPlayToEndTimeNotification,
             object: item,
             queue: .main
         ) { [weak self] _ in
@@ -197,7 +197,6 @@ private final class WashPlayerView: UIView {
         let asset = AVURLAsset(url: url)
         self.asset = asset
         let mappedGrade = grade
-        let colorMap = WashLook.colorMap(for: mappedGrade)
         let contrast: CGFloat = mappedGrade == .grayscale ? 1.7 : 1.35
         let brightness: CGFloat = mappedGrade == .grayscale ? -0.12 : 0.05
         if player == nil {
@@ -211,19 +210,28 @@ private final class WashPlayerView: UIView {
             observe(placeholder)
             applyPlaybackState()
         }
-        AVVideoComposition.videoComposition(with: asset, applyingCIFiltersWithHandler: { request in
-            let source = request.sourceImage.clampedToExtent()
-            let contrasted = source.applyingFilter("CIColorControls", parameters: [
-                kCIInputContrastKey: contrast,
-                kCIInputSaturationKey: 0,
-                kCIInputBrightnessKey: brightness,
-            ])
-            let graded = contrasted.applyingFilter("CIColorMap", parameters: [
-                "inputGradientImage": colorMap,
-            ])
-            request.finish(with: graded.cropped(to: request.sourceImage.extent), context: nil)
-        }) { [weak self] composition, _ in
-            DispatchQueue.main.async {
+        Task { [weak self] in
+            let colorMap = WashLook.colorMap(for: mappedGrade)
+            let composition: AVVideoComposition?
+            do {
+                composition = try await AVVideoComposition(applyingFiltersTo: asset) { parameters in
+                    let source = parameters.sourceImage.clampedToExtent()
+                    let contrasted = source.applyingFilter("CIColorControls", parameters: [
+                        kCIInputContrastKey: contrast,
+                        kCIInputSaturationKey: 0,
+                        kCIInputBrightnessKey: brightness,
+                    ])
+                    let graded = contrasted.applyingFilter("CIColorMap", parameters: [
+                        "inputGradientImage": colorMap,
+                    ])
+                    return AVCIImageFilteringResult(
+                        resultImage: graded.cropped(to: parameters.sourceImage.extent)
+                    )
+                }
+            } catch {
+                composition = nil
+            }
+            await MainActor.run {
                 guard let self, self.grade == mappedGrade else { return }
                 let item = AVPlayerItem(asset: asset)
                 if let composition {
