@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Top-trailing more control: glass ellipsis → Theme → Clear / Dark / Light.
+/// Top-trailing more control: glass ellipsis → Theme / Pause–Play video → Clear / Dark / Light.
 /// Idle trigger matches `GlassChromeIconButton` / `foundationGlass`; open levels use `GlassActionMenu`
 /// (vertical float, page scrim, tap-outside dismiss).
 struct RootChromeMenu: View {
@@ -11,6 +11,7 @@ struct RootChromeMenu: View {
     }
 
     @Environment(GlassModeStore.self) private var glassModeStore
+    @Environment(WashTheme.self) private var wash
     @Environment(\.glassPalette) private var palette
 
     @State private var level: Level = .idle
@@ -39,6 +40,14 @@ struct RootChromeMenu: View {
         }
     }
 
+    private var videoMenuSymbol: String {
+        wash.isVideoPlaying ? "pause.fill" : "play.fill"
+    }
+
+    private var videoMenuLabel: String {
+        wash.isVideoPlaying ? "Pause video" : "Play video"
+    }
+
     var body: some View {
         ZStack {
             switch level {
@@ -53,6 +62,9 @@ struct RootChromeMenu: View {
                     items: [
                         .init(symbol: "circle.lefthalf.filled", label: "Theme") {
                             pendingTheme = true
+                        },
+                        .init(symbol: videoMenuSymbol, label: videoMenuLabel) {
+                            wash.toggleVideoPlayback()
                         },
                     ],
                     triggerSymbol: "ellipsis",

@@ -124,19 +124,42 @@ enum WashGrade: String, Hashable, Codable, CaseIterable {
 
 @Observable
 final class WashTheme {
+    private static let videoPlayingKey = "foundation.washVideoPlaying"
+
     var grade: WashGrade = .grayscale
+    /// App-wide wash video motion. When false, players pause on the current graded frame.
+    var isVideoPlaying: Bool {
+        didSet { UserDefaults.standard.set(isVideoPlaying, forKey: Self.videoPlayingKey) }
+    }
+
+    init() {
+        if UserDefaults.standard.object(forKey: Self.videoPlayingKey) == nil {
+            isVideoPlaying = true
+        } else {
+            isVideoPlaying = UserDefaults.standard.bool(forKey: Self.videoPlayingKey)
+        }
+    }
+
+    func toggleVideoPlayback() {
+        isVideoPlaying.toggle()
+    }
 }
 
 struct WashBackground: View {
     var grade: WashGrade
+    @Environment(WashTheme.self) private var wash
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
+
+    private var isActive: Bool {
+        wash.isVideoPlaying && !reduceMotion && scenePhase != .background
+    }
 
     var body: some View {
         ZStack {
             Color.black
             GeometryReader { geo in
-                WashPlayerLayer(isActive: !reduceMotion && scenePhase != .background, grade: grade)
+                WashPlayerLayer(isActive: isActive, grade: grade)
                     .frame(width: geo.size.height, height: geo.size.width)
                     .rotationEffect(.degrees(90))
                     .frame(width: geo.size.width, height: geo.size.height, alignment: .center)
@@ -181,7 +204,10 @@ struct WashWindow: View {
     }
 
     private var isActive: Bool {
-        !reduceMotion && scenePhase != .background && wash.grade == .grayscale
+        wash.isVideoPlaying
+            && !reduceMotion
+            && scenePhase != .background
+            && wash.grade == .grayscale
     }
 }
 
