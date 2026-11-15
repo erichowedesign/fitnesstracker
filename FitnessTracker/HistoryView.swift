@@ -118,27 +118,17 @@ private struct CompletedSessionCard: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 20) {
-            ZStack(alignment: .bottomTrailing) {
-                ZStack {
-                    WashWindow(grade: .grayscale)
-                        .clipShape(historyIllustrationThumb(gap: 16))
-                    IllustrationView(slug: thumbnailSlug, label: session.routineName)
-                        .frame(width: 120, height: 120)
-                        .saturation(0)
-                        .opacity(0.88)
-                }
-                .frame(width: 120, height: 120)
-                .clipShape(historyIllustrationThumb(gap: 16))
-                .glassInk()
-
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 28, weight: .semibold))
-                    .symbolRenderingMode(.palette)
-                    .foregroundStyle(.white, palette.accent)
-                    .shadow(color: .black.opacity(0.35), radius: 4, y: 1)
-                    .offset(x: 4, y: 4)
-                    .accessibilityHidden(true)
+            ZStack {
+                WashWindow(grade: .grayscale)
+                    .clipShape(historyIllustrationThumb(gap: 16))
+                IllustrationView(slug: thumbnailSlug, label: session.routineName)
+                    .frame(width: 120, height: 120)
+                    .saturation(0)
+                    .opacity(0.88)
             }
+            .frame(width: 120, height: 120)
+            .clipShape(historyIllustrationThumb(gap: 16))
+            .glassInk()
 
             VStack(alignment: .leading, spacing: 23) {
                 Text("Routine \(listNumber)")
@@ -164,6 +154,15 @@ private struct CompletedSessionCard: View {
         .frame(height: 152)
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .foundationGlass(interactive: false, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
+        .overlay(alignment: .topTrailing) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 28, weight: .semibold))
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.white, palette.accent)
+                .shadow(color: .black.opacity(0.35), radius: 4, y: 1)
+                .padding(16)
+                .accessibilityHidden(true)
+        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             "Completed Routine \(listNumber), \(session.routineName), \(completedStamp)"
