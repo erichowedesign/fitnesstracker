@@ -154,21 +154,6 @@ struct ExerciseTutorialView: View {
                 .sharedBackgroundVisibility(.hidden)
             }
         }
-        .overlay(alignment: .top) {
-            LinearGradient(
-                stops: [
-                    .init(color: .black.opacity(0.28), location: 0),
-                    .init(color: .black.opacity(0.12), location: 0.45),
-                    .init(color: .clear, location: 1),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .frame(height: 120)
-            .ignoresSafeArea(edges: .top)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-        }
         .background {
             DisableRoutineInteractivePop()
         }
