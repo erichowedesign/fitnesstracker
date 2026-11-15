@@ -295,9 +295,9 @@ struct RootTabs: View {
                     .offset(x: selectedPillX)
 
                 HStack(spacing: -8) {
-                    tabButton(.home, accessibilityLabel: "Home", systemImage: "house")
-                    tabButton(.history, accessibilityLabel: "History", systemImage: "clock.arrow.circlepath")
-                    tabButton(.library, accessibilityLabel: "Library", systemImage: "book")
+                    tabButton(.home, title: "Home", systemImage: "house")
+                    tabButton(.history, title: "History", systemImage: "clock.arrow.circlepath")
+                    tabButton(.library, title: "Library", systemImage: "book")
                 }
                 .padding(.horizontal, 2)
             }
@@ -312,7 +312,7 @@ struct RootTabs: View {
 
     private func tabButton(
         _ value: AppTab,
-        accessibilityLabel: String,
+        title: String,
         systemImage: String,
         unselectedImage: String? = nil
     ) -> some View {
@@ -320,17 +320,25 @@ struct RootTabs: View {
         return Button {
             select(value)
         } label: {
-            Image(systemName: selected ? systemImage : (unselectedImage ?? systemImage))
-                .symbolVariant(.none)
-                .environment(\.symbolVariants, .none)
-                .font(.system(size: 22, weight: .medium))
-                .foregroundStyle(selected ? palette.accent : palette.chrome)
-                .blendMode(selected || !palette.chromePlusLighter ? .normal : .plusLighter)
-                .frame(width: 102, height: 54)
-                .contentShape(Rectangle())
+            VStack(spacing: 1) {
+                Image(systemName: selected ? systemImage : (unselectedImage ?? systemImage))
+                    .symbolVariant(.none)
+                    .environment(\.symbolVariants, .none)
+                    .font(.system(size: 20, weight: .medium))
+                    .frame(height: 28)
+                Text(title)
+                    .font(.system(size: 10, weight: .medium))
+                    .frame(height: 12)
+            }
+            .foregroundStyle(selected ? palette.accent : palette.chrome)
+            .blendMode(selected || !palette.chromePlusLighter ? .normal : .plusLighter)
+            .padding(.horizontal, 8)
+            .padding(.top, 6)
+            .frame(width: 102, height: 54, alignment: .top)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(accessibilityLabel)
+        .accessibilityLabel(title)
         .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
