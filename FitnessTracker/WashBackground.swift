@@ -15,21 +15,29 @@ enum WashPlayback {
         return scene?.screen.bounds.size ?? .zero
     }
 
-    /// Keep Apple Music / other apps playing. Wash is visual-only (muted).
-    /// AVPlayer otherwise activates a solo session and stops external audio.
+    /// Wash is visual-only: never take a `.playback` session (that ducks / stops Music).
+    /// Set ambient + mixWithOthers only — do **not** `setActive(true)`.
     static func configureAmbientAudioSession() {
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
-            try session.setActive(true)
         } catch {
-            // Best-effort — wash players stay muted either way.
+            // Best-effort — players stay muted / audio tracks disabled either way.
         }
     }
 
+    /// Hard silence: mute, volume 0, disable any audio tracks on the current item.
     static func silence(_ player: AVPlayer) {
         player.isMuted = true
         player.volume = 0
+        disableAudioTracks(on: player.currentItem)
+    }
+
+    static func disableAudioTracks(on item: AVPlayerItem?) {
+        guard let item else { return }
+        for track in item.tracks where track.assetTrack?.mediaType == .audio {
+            track.isEnabled = false
+        }
     }
 }
 
@@ -307,6 +315,10 @@ private final class WashPlayerView: UIView {
         statusObserver = item.observe(\.status, options: [.new]) { [weak self] item, _ in
             guard item.status == .readyToPlay else { return }
             DispatchQueue.main.async {
+                WashPlayback.disableAudioTracks(on: item)
+                if let player = self?.player {
+                    WashPlayback.silence(player)
+                }
                 self?.applyPlaybackState()
             }
         }
