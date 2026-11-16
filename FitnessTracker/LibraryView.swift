@@ -133,9 +133,6 @@ struct LibraryBrowser: View {
         .preferredColorScheme(palette.colorScheme)
         .animation(.smooth(duration: 0.3), value: palette.mode)
         .overlay(alignment: .top) {
-            LibraryTopScrim()
-        }
-        .overlay(alignment: .top) {
             LibraryFilterSearchChrome(
                 query: $query,
                 filter: $filter,
@@ -176,30 +173,6 @@ struct LibraryBrowser: View {
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
             .tint(palette.chrome.opacity(0.85))
-    }
-}
-
-private struct LibraryTopScrim: View {
-    var body: some View {
-        LinearGradient(
-            stops: [
-                .init(
-                    color: Color.black.opacity(0.28),
-                    location: 0
-                ),
-                .init(
-                    color: Color.black.opacity(0.12),
-                    location: 0.45
-                ),
-                .init(color: .clear, location: 1),
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .frame(height: 120)
-        .ignoresSafeArea(edges: .top)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
     }
 }
 
