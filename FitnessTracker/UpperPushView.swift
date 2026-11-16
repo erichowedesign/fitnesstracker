@@ -853,8 +853,9 @@ struct RoutineView: View {
                 itemID: exercise.id,
                 section: .main,
                 weightLbs: weightLbs,
-                reps: exercise.doseReps,
-                sets: exercise.sets
+                reps: exercise.doseWorkValue,
+                sets: exercise.sets,
+                usesDuration: exercise.usesDurationDose
             )
         )
     }
@@ -874,8 +875,9 @@ struct RoutineView: View {
                 itemID: step.id,
                 section: section,
                 weightLbs: step.doseWeightLbs,
-                reps: step.doseReps,
-                sets: step.doseSets
+                reps: step.doseWorkValue,
+                sets: step.doseSets,
+                usesDuration: step.usesDurationDose
             )
         )
     }
@@ -885,7 +887,7 @@ struct RoutineView: View {
         case .main:
             guard let index = draftExercises.firstIndex(where: { $0.id == dose.itemID }) else { return }
             let updated = draftExercises[index].withDose(
-                reps: dose.reps,
+                work: dose.reps,
                 sets: dose.sets,
                 weightLbs: dose.weightLbs
             )
@@ -898,14 +900,14 @@ struct RoutineView: View {
         case .warmup:
             guard let index = draftWarmup.firstIndex(where: { $0.id == dose.itemID }) else { return }
             draftWarmup[index] = draftWarmup[index].withDose(
-                reps: dose.reps,
+                work: dose.reps,
                 sets: dose.sets,
                 weightLbs: dose.weightLbs
             )
         case .cooldown:
             guard let index = draftCooldown.firstIndex(where: { $0.id == dose.itemID }) else { return }
             draftCooldown[index] = draftCooldown[index].withDose(
-                reps: dose.reps,
+                work: dose.reps,
                 sets: dose.sets,
                 weightLbs: dose.weightLbs
             )
@@ -1018,9 +1020,10 @@ private struct AddLibraryExerciseSheet: View {
     var onAdd: (_ sets: Int, _ reps: Int, _ weight: String?) -> Void
 
     @State private var setsText = "3"
-    @State private var repsText = "10"
+    @State private var repsText = ""
     @State private var weightText = ""
 
+    private var usesDuration: Bool { workout.usesDurationDose }
     private var setsValue: Int? { Int(setsText.trimmingCharacters(in: .whitespaces)) }
     private var repsValue: Int? { Int(repsText.trimmingCharacters(in: .whitespaces)) }
     private var canAdd: Bool {
@@ -1048,8 +1051,8 @@ private struct AddLibraryExerciseSheet: View {
                 }
 
                 Section {
-                    LabeledContent("Reps") {
-                        TextField("Reps", text: $repsText)
+                    LabeledContent(usesDuration ? "Time" : "Reps") {
+                        TextField(usesDuration ? "Seconds" : "Reps", text: $repsText)
                             .keyboardType(.numberPad)
                             .multilineTextAlignment(.trailing)
                     }
@@ -1063,6 +1066,11 @@ private struct AddLibraryExerciseSheet: View {
                             .keyboardType(.decimalPad)
                             .multilineTextAlignment(.trailing)
                     }
+                }
+            }
+            .onAppear {
+                if repsText.isEmpty {
+                    repsText = "\(workout.defaultDoseWorkValue)"
                 }
             }
             .scrollContentBackground(.hidden)

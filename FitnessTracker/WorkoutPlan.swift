@@ -176,20 +176,40 @@ struct Exercise: Identifiable {
         Self.poundsValue(from: displayWeight)
     }
 
+    /// Prefer explicit duration from plan data; otherwise library timed slug.
+    var usesDurationDose: Bool {
+        if targetDurationSeconds != nil, targetReps == nil { return true }
+        if targetReps != nil { return false }
+        return LibraryCatalog.usesDurationDose(slug: slug)
+    }
+
     var doseReps: Int {
         max(targetReps ?? 10, 1)
     }
 
+    /// Reps or seconds, depending on `usesDurationDose`.
+    var doseWorkValue: Int {
+        if usesDurationDose {
+            return max(targetDurationSeconds ?? LibraryCatalog.workout(slug: slug)?.defaultDoseWorkValue ?? 30, 1)
+        }
+        return doseReps
+    }
+
     func withDose(reps: Int, sets: Int, weightLbs: Int) -> Exercise {
+        withDose(work: reps, sets: sets, weightLbs: weightLbs)
+    }
+
+    func withDose(work: Int, sets: Int, weightLbs: Int) -> Exercise {
         let display: String? = weightLbs > 0 ? "\(weightLbs) lbs" : nil
+        let timed = usesDurationDose
         return Exercise(
             id: id,
             hevyTemplateId: hevyTemplateId,
             name: name,
             equipment: equipment,
             sets: max(sets, 1),
-            targetReps: max(reps, 1),
-            targetDurationSeconds: nil,
+            targetReps: timed ? nil : max(work, 1),
+            targetDurationSeconds: timed ? max(work, 1) : nil,
             restSeconds: restSeconds,
             notes: notes,
             tracksAssistance: tracksAssistance,
@@ -221,14 +241,15 @@ struct Exercise: Identifiable {
             if trimmedWeight.localizedCaseInsensitiveContains("lbs") { return trimmedWeight }
             return "\(trimmedWeight) lbs"
         }()
+        let timed = workout.usesDurationDose
         return Exercise(
             id: "\(workout.slug)-\(UUID().uuidString.prefix(8))",
             hevyTemplateId: workout.slug,
             name: workout.name,
             equipment: workout.equipment,
             sets: max(sets, 1),
-            targetReps: max(reps, 1),
-            targetDurationSeconds: nil,
+            targetReps: timed ? nil : max(reps, 1),
+            targetDurationSeconds: timed ? max(reps, 1) : nil,
             restSeconds: restSeconds,
             notes: "",
             tracksAssistance: workout.name.range(of: "assisted", options: .caseInsensitive) != nil,
@@ -264,17 +285,55 @@ struct GuideStep: Identifiable, Equatable {
         GuideStep(
             id: "\(workout.slug)-\(UUID().uuidString.prefix(8))",
             title: workout.name,
-            metaParts: doseMetaParts(reps: reps, sets: sets, weightLbs: Exercise.poundsValue(from: weight)),
+            metaParts: doseMetaParts(
+                work: reps,
+                sets: sets,
+                weightLbs: Exercise.poundsValue(from: weight),
+                usesDuration: workout.usesDurationDose
+            ),
             slug: workout.slug
         )
+    }
+
+    var usesDurationDose: Bool {
+        if metaParts.contains(where: {
+            $0.localizedCaseInsensitiveContains("sec") || $0.localizedCaseInsensitiveContains("min")
+        }) {
+            return true
+        }
+        if metaParts.contains(where: { $0.localizedCaseInsensitiveContains("rep") }) {
+            return false
+        }
+        return LibraryCatalog.usesDurationDose(slug: slug)
     }
 
     var doseReps: Int {
         Self.firstInt(in: metaParts.first(where: { $0.localizedCaseInsensitiveContains("rep") })) ?? 10
     }
 
+    /// Seconds when timed; otherwise reps.
+    var doseWorkValue: Int {
+        if usesDurationDose {
+            return doseDurationSeconds
+        }
+        return doseReps
+    }
+
+    var doseDurationSeconds: Int {
+        if let part = metaParts.first(where: { $0.localizedCaseInsensitiveContains("sec") }),
+           let seconds = Self.firstInt(in: part) {
+            return max(seconds, 1)
+        }
+        if let part = metaParts.first(where: { $0.localizedCaseInsensitiveContains("min") }),
+           let minutes = Self.firstInt(in: part) {
+            return max(minutes, 1) * 60
+        }
+        return LibraryCatalog.workout(slug: slug)?.defaultDoseWorkValue ?? 30
+    }
+
     var doseSets: Int {
-        Self.firstInt(in: metaParts.first(where: { $0.localizedCaseInsensitiveContains("set") })) ?? 2
+        Self.firstInt(in: metaParts.first(where: { $0.localizedCaseInsensitiveContains("set") }))
+            ?? (usesDurationDose ? 1 : 2)
     }
 
     var doseWeightLbs: Int {
@@ -285,16 +344,30 @@ struct GuideStep: Identifiable, Equatable {
     }
 
     func withDose(reps: Int, sets: Int, weightLbs: Int) -> GuideStep {
+        withDose(work: reps, sets: sets, weightLbs: weightLbs)
+    }
+
+    func withDose(work: Int, sets: Int, weightLbs: Int) -> GuideStep {
         GuideStep(
             id: id,
             title: title,
-            metaParts: Self.doseMetaParts(reps: reps, sets: sets, weightLbs: weightLbs),
+            metaParts: Self.doseMetaParts(
+                work: work,
+                sets: sets,
+                weightLbs: weightLbs,
+                usesDuration: usesDurationDose
+            ),
             slug: slug
         )
     }
 
-    private static func doseMetaParts(reps: Int, sets: Int, weightLbs: Int) -> [String] {
-        var parts = ["\(max(reps, 1)) reps", "\(max(sets, 1)) sets"]
+    private static func doseMetaParts(work: Int, sets: Int, weightLbs: Int, usesDuration: Bool) -> [String] {
+        var parts: [String]
+        if usesDuration {
+            parts = ["\(max(work, 1)) sec", "\(max(sets, 1)) sets"]
+        } else {
+            parts = ["\(max(work, 1)) reps", "\(max(sets, 1)) sets"]
+        }
         if weightLbs > 0 {
             parts.append("\(weightLbs) lbs")
         }

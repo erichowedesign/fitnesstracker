@@ -10,7 +10,7 @@ struct ExerciseTutorial: Hashable, Identifiable {
     let favoriteSlug: String?
     /// Centered nav title from the routine section, or "Tutorial" from Library.
     let sectionTitle: String
-    /// When set, show Weight / Reps / Sets tap steppers and persist changes.
+    /// When set, show Weight / Reps-or-Time / Sets tap steppers and persist changes.
     let dose: RoutineDoseFields?
 }
 
@@ -24,8 +24,10 @@ struct RoutineDoseFields: Hashable {
     var itemID: String
     var section: Section
     var weightLbs: Int
+    /// Reps, or seconds when `usesDuration` is true.
     var reps: Int
     var sets: Int
+    var usesDuration: Bool = false
 }
 
 struct ExerciseTutorialView: View {
@@ -166,15 +168,26 @@ struct ExerciseTutorialView: View {
         .onChange(of: sets) { _, _ in emitDoseChange() }
     }
 
+    private var usesDurationDose: Bool {
+        initialDose?.usesDuration == true
+    }
+
     private var doseRows: some View {
         VStack(spacing: 12) {
             doseRow(label: "Weight") {
                 ScrubStepper(value: $weightLbs, in: 0...500, step: 5, allowsScrubbing: false, style: clearStepperStyle)
                     .accessibilityLabel("Weight")
             }
-            doseRow(label: "Reps") {
-                ScrubStepper(value: $reps, in: 1...50, step: 1, allowsScrubbing: false, style: clearStepperStyle)
-                    .accessibilityLabel("Reps")
+            if usesDurationDose {
+                doseRow(label: "Time") {
+                    ScrubStepper(value: $reps, in: 5...600, step: 5, allowsScrubbing: false, style: clearStepperStyle)
+                        .accessibilityLabel("Time in seconds")
+                }
+            } else {
+                doseRow(label: "Reps") {
+                    ScrubStepper(value: $reps, in: 1...50, step: 1, allowsScrubbing: false, style: clearStepperStyle)
+                        .accessibilityLabel("Reps")
+                }
             }
             doseRow(label: "Sets") {
                 ScrubStepper(value: $sets, in: 1...20, step: 1, allowsScrubbing: false, style: clearStepperStyle)

@@ -18,6 +18,15 @@ struct LibraryWorkout: Identifiable, Hashable {
         return WashGrade.forRoutine(routineID)
     }
 
+    /// Timed / duration doses (Time scrubber) instead of reps.
+    var usesDurationDose: Bool {
+        LibraryCatalog.usesDurationDose(slug: slug)
+    }
+
+    var defaultDoseWorkValue: Int {
+        usesDurationDose ? 30 : 10
+    }
+
     var hints: [String] {
         ExerciseTips.set(for: name).tips
     }
@@ -338,4 +347,61 @@ enum LibraryCatalog {
     ]
 
     static let equipment: [String] = Array(Set(workouts.map(\.equipment))).sorted()
+
+    /// Workouts edited with Time (seconds) instead of Reps. Cardio, holds, hangs,
+    /// stretches/poses, carries, and continuous walks/crawls/circles.
+    static let durationDoseSlugs: Set<String> = [
+        "active-hang",
+        "arm-circles",
+        "assault-bike",
+        "banded-lateral-walk",
+        "banded-monster-walk",
+        "battle-ropes",
+        "bear-crawl",
+        "bear-plank",
+        "butterfly-stretch",
+        "cable-pallof-hold",
+        "cat-cow-stretch",
+        "childs-pose",
+        "copenhagen-plank",
+        "crab-walk",
+        "cross-body-shoulder-stretch",
+        "cycling",
+        "dead-hang",
+        "doorway-chest-stretch",
+        "elliptical",
+        "farmer-carry",
+        "glute-bridge-march",
+        "hamstring-stretch",
+        "hiking",
+        "hollow-body-hold",
+        "jump-rope",
+        "kneeling-hip-flexor-stretch",
+        "l-sit-hold",
+        "leg-swings-stretch",
+        "plank",
+        "rowing",
+        "running",
+        "seated-forward-fold-stretch",
+        "side-plank",
+        "skierg",
+        "stair-climber",
+        "standing-quad-stretch",
+        "superman-hold",
+        "swimming",
+        "torso-twist-stretch",
+        "treadmill-incline-walk",
+        "walking",
+        "wall-calf-stretch",
+        "wall-sit",
+        "worlds-greatest-stretch",
+    ]
+
+    static func usesDurationDose(slug: String) -> Bool {
+        durationDoseSlugs.contains(slug)
+    }
+
+    static func durationDoseWorkouts() -> [LibraryWorkout] {
+        workouts.filter(\.usesDurationDose).sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
 }
