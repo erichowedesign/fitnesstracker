@@ -46,12 +46,14 @@ struct HistoryView: View {
                     } else {
                         VStack(spacing: 12) {
                             ForEach(sessionsNewestFirst) { session in
+                                // contentShape + contextMenu on the card (Home My Routines pattern).
+                                // TabPanBridge must not require these duration observers to fail.
                                 CompletedSessionCard(
                                     session: session,
                                     listNumber: listNumber(for: session.routineId),
                                     thumbnailSlug: thumbnailSlug(for: session)
                                 )
-                                // Long-press (not swipe): TabPanBridge owns horizontal pans on root tabs.
+                                .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
                                 .contextMenu {
                                     Button("Delete", role: .destructive) {
                                         sessionPendingDelete = session

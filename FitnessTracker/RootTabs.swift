@@ -426,9 +426,10 @@ private struct TabPanBridge: UIViewRepresentable {
             shouldBeRequiredToFailBy otherGestureRecognizer: UIGestureRecognizer
         ) -> Bool {
             guard isEnabled, otherGestureRecognizer !== pan else { return false }
-            // Context-menu long-press must run on a stationary hold without waiting
-            // for the tab pan to fail.
-            if otherGestureRecognizer is UILongPressGestureRecognizer {
+            // Context-menu / long-press must run on a stationary hold without waiting
+            // for the tab pan to fail. SwiftUI `.contextMenu` uses private duration
+            // observers that are *not* UILongPressGestureRecognizer subclasses.
+            if Self.isPressOrContextMenuGesture(otherGestureRecognizer) {
                 return false
             }
             // Tile taps and scroll pans wait. A horizontal drag wins; a tap runs
@@ -459,8 +460,8 @@ private struct TabPanBridge: UIViewRepresentable {
                 if let scroll = view as? UIScrollView, recognizer === scroll.panGestureRecognizer {
                     continue
                 }
-                // Long-press (context menus) must not wait on the tab pan.
-                if recognizer is UILongPressGestureRecognizer {
+                // Long-press / context-menu duration observers must not wait on the tab pan.
+                if Self.isPressOrContextMenuGesture(recognizer) {
                     continue
                 }
                 recognizer.require(toFail: pan)
@@ -468,6 +469,16 @@ private struct TabPanBridge: UIViewRepresentable {
             for child in view.subviews {
                 linkGestures(in: child)
             }
+        }
+
+        /// UILongPress plus SwiftUI/UIKit private recognizers that drive `.contextMenu`.
+        private static func isPressOrContextMenuGesture(_ recognizer: UIGestureRecognizer) -> Bool {
+            if recognizer is UILongPressGestureRecognizer { return true }
+            let name = NSStringFromClass(type(of: recognizer))
+            return name.contains("LongPress")
+                || name.contains("ContextMenu")
+                || name.contains("DurationObserving")
+                || name.contains("TouchDuration")
         }
     }
 }
