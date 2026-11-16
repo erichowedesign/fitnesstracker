@@ -180,8 +180,15 @@ struct ExerciseTutorialView: View {
             }
             if usesDurationDose {
                 doseRow(label: "Time") {
-                    ScrubStepper(value: $reps, in: 5...600, step: 5, allowsScrubbing: false, style: clearStepperStyle)
-                        .accessibilityLabel("Time in seconds")
+                    ScrubStepper(
+                        value: $reps,
+                        in: Self.durationRange,
+                        step: Self.durationStepSeconds,
+                        allowsScrubbing: false,
+                        formatValue: Self.formatDurationClock,
+                        style: clearStepperStyle
+                    )
+                    .accessibilityLabel("Time")
                 }
             } else {
                 doseRow(label: "Reps") {
@@ -243,7 +250,11 @@ struct ExerciseTutorialView: View {
     private func loadDoseIfNeeded() {
         guard !didLoadDose, let initialDose else { return }
         weightLbs = initialDose.weightLbs
-        reps = max(initialDose.reps, 1)
+        if initialDose.usesDuration {
+            reps = Self.snappedDurationSeconds(initialDose.reps)
+        } else {
+            reps = max(initialDose.reps, 1)
+        }
         sets = max(initialDose.sets, 1)
         // Defer so onChange from seed values does not write immediately.
         DispatchQueue.main.async { didLoadDose = true }
@@ -252,8 +263,24 @@ struct ExerciseTutorialView: View {
     private func emitDoseChange() {
         guard didLoadDose, var dose = initialDose else { return }
         dose.weightLbs = weightLbs
-        dose.reps = reps
+        dose.reps = dose.usesDuration ? Self.snappedDurationSeconds(reps) : reps
         dose.sets = sets
         onDoseChange?(dose)
+    }
+
+    /// Time scrubber: ±15s, shown as `m:ss` (e.g. 1:30).
+    private static let durationStepSeconds = 15
+    private static let durationRange = durationStepSeconds...(60 * 10)
+
+    private static func formatDurationClock(_ seconds: Int) -> String {
+        let clamped = max(seconds, 0)
+        return "\(clamped / 60):\(String(format: "%02d", clamped % 60))"
+    }
+
+    private static func snappedDurationSeconds(_ seconds: Int) -> Int {
+        let step = durationStepSeconds
+        let clamped = min(max(seconds, durationRange.lowerBound), durationRange.upperBound)
+        let snapped = Int((Double(clamped) / Double(step)).rounded()) * step
+        return min(max(snapped, durationRange.lowerBound), durationRange.upperBound)
     }
 }

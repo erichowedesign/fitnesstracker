@@ -163,13 +163,19 @@ struct Exercise: Identifiable {
     var metaParts: [String] {
         let work: String
         if let targetDurationSeconds, targetReps == nil {
-            work = "\(targetDurationSeconds) sec"
+            work = Self.durationClockLabel(targetDurationSeconds)
         } else if let targetReps {
             work = "\(targetReps) reps"
         } else {
             work = "—"
         }
         return [work, "\(sets) sets", Self.restLabel(restSeconds)]
+    }
+
+    /// Minute:second for timed doses (matches tutorial Time scrubber).
+    private static func durationClockLabel(_ seconds: Int) -> String {
+        let clamped = max(seconds, 0)
+        return "\(clamped / 60):\(String(format: "%02d", clamped % 60))"
     }
 
     var doseWeightLbs: Int {
@@ -364,7 +370,9 @@ struct GuideStep: Identifiable, Equatable {
     private static func doseMetaParts(work: Int, sets: Int, weightLbs: Int, usesDuration: Bool) -> [String] {
         var parts: [String]
         if usesDuration {
-            parts = ["\(max(work, 1)) sec", "\(max(sets, 1)) sets"]
+            let seconds = max(work, 1)
+            let clock = "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
+            parts = [clock, "\(max(sets, 1)) sets"]
         } else {
             parts = ["\(max(work, 1)) reps", "\(max(sets, 1)) sets"]
         }

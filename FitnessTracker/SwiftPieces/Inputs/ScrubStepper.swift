@@ -37,6 +37,7 @@ import UIKit
 ///   - range: Allowed values. Pushing past a bound fires a rigid impact and knocks the numeral pill against that end; a scrub pulls it there with rubber-band resistance.
 ///   - step: Amount added or removed per tap, repeat tick, or scrub unit.
 ///   - allowsScrubbing: When `false`, only tap and hold-to-repeat on ± move the value (no pill scrub).
+///   - formatValue: How the bound integer is shown in the pill (and VoiceOver value). Defaults to decimal digits.
 ///   - style: Tints and size. Defaults to the SwiftPieces house palette (signal buttons around a neutral glass pill), adapting to light and dark.
 public struct ScrubStepper: View {
     /// Colors and metrics. `.standard` is the house palette.
@@ -101,6 +102,7 @@ public struct ScrubStepper: View {
     private let range: ClosedRange<Int>
     private let step: Int
     private let allowsScrubbing: Bool
+    private let formatValue: (Int) -> String
     private let style: Style
     private var height: CGFloat { style.height }
     private var buttonWidth: CGFloat { style.height }
@@ -111,6 +113,8 @@ public struct ScrubStepper: View {
     /// Scrub travel per step at 1x. Past a stop the block holds back no more than this, so it gives about 4pt.
     private let pointsPerStep: CGFloat = 14
     private var motion: PieceMotion { PieceMotion(reduceMotion: reduceMotion) }
+    private var formattedValue: String { formatValue(value) }
+    private var usesPlainNumericLabel: Bool { formatValue(value) == "\(value)" }
 
     private enum Phase: Equatable { case idle, pressing(delta: Int), scrubbing, cancelled }
 
@@ -119,12 +123,14 @@ public struct ScrubStepper: View {
         in range: ClosedRange<Int> = 0...99,
         step: Int = 1,
         allowsScrubbing: Bool = true,
+        formatValue: @escaping (Int) -> String = { "\($0)" },
         style: Style = .standard
     ) {
         self._value = value
         self.range = range
         self.step = max(step, 1)
         self.allowsScrubbing = allowsScrubbing
+        self.formatValue = formatValue
         self.style = style
     }
 
@@ -153,7 +159,7 @@ public struct ScrubStepper: View {
         .sensoryFeedback(.selection, trigger: stepTick)
         .sensoryFeedback(.impact(flexibility: .rigid), trigger: rigidTick)
         .accessibilityElement(children: .ignore)
-        .accessibilityValue("\(value)")
+        .accessibilityValue(formattedValue)
         .accessibilityAdjustableAction { adjust($0 == .increment ? step : -step) }
         // A touch the system cancels never reaches onEnded, so the repeat stops and the block lets go here too.
         .onChange(of: isTouching) { _, touching in
@@ -190,10 +196,12 @@ public struct ScrubStepper: View {
         let out = PieceMotion.tight
         // Reduce Motion's flash fades back unhurried and never overshoots.
         let back = reduceMotion ? Spring(duration: 0.5, bounce: 0) : PieceMotion.elastic
-        return Text("\(value)")
+        // Clock / custom labels skip numericText — that transition expects plain digits.
+        let digitTransition = !reduceMotion && usesPlainNumericLabel
+        return Text(formattedValue)
             .font(.system(size: numeralSize, weight: .semibold, design: .rounded).monospacedDigit())
             .foregroundStyle(style.ink)
-            .contentTransition(reduceMotion ? .opacity : .numericText(value: Double(value)))
+            .contentTransition(digitTransition ? .numericText(value: Double(value)) : .opacity)
             .lineLimit(1)
             .padding(.horizontal, 18)
             .frame(minWidth: 72)
