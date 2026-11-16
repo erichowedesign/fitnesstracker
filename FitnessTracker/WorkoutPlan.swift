@@ -27,7 +27,6 @@ struct SeedExercise: Codable {
     let sets: Int
     let targetReps: Int?
     let targetDurationSeconds: Int?
-    let restSeconds: Int
     let notes: String
     let videoUrl: String?
 }
@@ -121,7 +120,6 @@ struct Exercise: Identifiable {
     let sets: Int
     let targetReps: Int?
     let targetDurationSeconds: Int?
-    let restSeconds: Int
     let notes: String
     let tracksAssistance: Bool
     let slug: String
@@ -169,7 +167,7 @@ struct Exercise: Identifiable {
         } else {
             work = "—"
         }
-        return [work, Self.setsLabel(sets), Self.restLabel(restSeconds)]
+        return [work, Self.setsLabel(sets)]
     }
 
     /// Minute:second for timed doses (matches tutorial Time scrubber).
@@ -234,7 +232,6 @@ struct Exercise: Identifiable {
             sets: max(sets, 1),
             targetReps: timed ? nil : max(work, 1),
             targetDurationSeconds: timed ? max(work, 1) : nil,
-            restSeconds: restSeconds,
             notes: notes,
             tracksAssistance: tracksAssistance,
             slug: slug,
@@ -273,8 +270,7 @@ struct Exercise: Identifiable {
         _ workout: LibraryWorkout,
         sets: Int,
         reps: Int,
-        weight: String?,
-        restSeconds: Int = 90
+        weight: String?
     ) -> Exercise {
         let trimmedWeight = weight?.trimmingCharacters(in: .whitespacesAndNewlines)
         let display: String? = {
@@ -291,21 +287,11 @@ struct Exercise: Identifiable {
             sets: max(sets, 1),
             targetReps: timed ? nil : max(reps, 1),
             targetDurationSeconds: timed ? max(reps, 1) : nil,
-            restSeconds: restSeconds,
             notes: "",
             tracksAssistance: workout.name.range(of: "assisted", options: .caseInsensitive) != nil,
             slug: workout.slug,
             displayWeight: display
         )
-    }
-
-    private static func restLabel(_ seconds: Int) -> String {
-        let minutes = seconds / 60
-        let remainder = seconds % 60
-        if minutes > 0 {
-            return "\(minutes):\(String(format: "%02d", remainder)) rest"
-        }
-        return "\(seconds) sec rest"
     }
 }
 
@@ -411,7 +397,7 @@ struct GuideStep: Identifiable, Equatable {
     }
 
     /// Main Workout row form when dragging in from warm-up / cool-down.
-    func asExercise(displayWeight: String? = nil, restSeconds: Int = 90) -> Exercise {
+    func asExercise(displayWeight: String? = nil) -> Exercise {
         let library = LibraryCatalog.workout(slug: slug)
         let weightLbs: Int = {
             if let displayWeight, Exercise.poundsValue(from: displayWeight) > 0 {
@@ -429,7 +415,6 @@ struct GuideStep: Identifiable, Equatable {
             sets: max(doseSets, 1),
             targetReps: timed ? nil : max(work, 1),
             targetDurationSeconds: timed ? max(work, 1) : nil,
-            restSeconds: restSeconds,
             notes: "",
             tracksAssistance: title.range(of: "assisted", options: .caseInsensitive) != nil,
             slug: slug,
@@ -494,7 +479,6 @@ enum WorkoutPlan {
                 sets: exercise.sets,
                 targetReps: exercise.targetReps,
                 targetDurationSeconds: exercise.targetDurationSeconds,
-                restSeconds: exercise.restSeconds,
                 notes: exercise.notes,
                 tracksAssistance: exercise.equipment.lowercased().contains("assisted")
                     || exercise.name.range(of: "assisted pull-?up", options: .regularExpression) != nil,

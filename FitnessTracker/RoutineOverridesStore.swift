@@ -194,7 +194,6 @@ struct PersistedExercise: Codable, Equatable {
     var sets: Int
     var targetReps: Int?
     var targetDurationSeconds: Int?
-    var restSeconds: Int
     var notes: String
     var tracksAssistance: Bool
     var slug: String
@@ -208,7 +207,6 @@ struct PersistedExercise: Codable, Equatable {
         sets = exercise.sets
         targetReps = exercise.targetReps
         targetDurationSeconds = exercise.targetDurationSeconds
-        restSeconds = exercise.restSeconds
         notes = exercise.notes
         tracksAssistance = exercise.tracksAssistance
         slug = exercise.slug
@@ -224,7 +222,6 @@ struct PersistedExercise: Codable, Equatable {
             sets: sets,
             targetReps: targetReps,
             targetDurationSeconds: targetDurationSeconds,
-            restSeconds: restSeconds,
             notes: notes,
             tracksAssistance: tracksAssistance,
             slug: slug,

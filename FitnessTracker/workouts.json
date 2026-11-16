@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "planName": "Planet Fitness — Flexible Strength Foundation",
+  "planName": "Planet Fitness \u2014 Flexible Strength Foundation",
   "schedule": "Flexible four-workout rotation with rest or recovery days as needed; not fixed to weekdays",
   "sessionTargetMinutes": [
     45,
@@ -18,7 +18,7 @@
       "focus": "Upper body pressing",
       "warmup": {
         "targetMinutes": 8,
-        "instructions": "3 min easy walk; shoulder circles and scapular motion; light cable external rotations 1×12 per side; two progressive light bench sets"
+        "instructions": "3 min easy walk; shoulder circles and scapular motion; light cable external rotations 1\u00d712 per side; two progressive light bench sets"
       },
       "cooldown": {
         "targetMinutes": 5,
@@ -32,7 +32,6 @@
           "sets": 3,
           "targetReps": 10,
           "targetDurationSeconds": null,
-          "restSeconds": 90,
           "notes": "45 lb per dumbbell previously used; historical reference only",
           "videoUrl": null
         },
@@ -43,7 +42,6 @@
           "sets": 3,
           "targetReps": 10,
           "targetDurationSeconds": null,
-          "restSeconds": 75,
           "notes": "Use double cable bench setup",
           "videoUrl": null
         },
@@ -54,7 +52,6 @@
           "sets": 2,
           "targetReps": 10,
           "targetDurationSeconds": null,
-          "restSeconds": 90,
           "notes": "35 lb per dumbbell previously used; optional if shoulder comfortable",
           "videoUrl": null
         },
@@ -65,7 +62,6 @@
           "sets": 2,
           "targetReps": 12,
           "targetDurationSeconds": null,
-          "restSeconds": 60,
           "notes": "10 lb per dumbbell previously used",
           "videoUrl": null
         },
@@ -76,7 +72,6 @@
           "sets": 3,
           "targetReps": 10,
           "targetDurationSeconds": null,
-          "restSeconds": 60,
           "notes": "Controlled motion",
           "videoUrl": null
         }
@@ -88,7 +83,7 @@
       "focus": "Lower body control and joint-friendly strength",
       "warmup": {
         "targetMinutes": 8,
-        "instructions": "5 min easy bike or walk; clamshell 2×15; supported marching 1×10 per side; leg swings 2×15"
+        "instructions": "5 min easy bike or walk; clamshell 2\u00d715; supported marching 1\u00d710 per side; leg swings 2\u00d715"
       },
       "cooldown": {
         "targetMinutes": 5,
@@ -102,7 +97,6 @@
           "sets": 3,
           "targetReps": 10,
           "targetDurationSeconds": null,
-          "restSeconds": 75,
           "notes": "Controlled range",
           "videoUrl": null
         },
@@ -113,7 +107,6 @@
           "sets": 2,
           "targetReps": 10,
           "targetDurationSeconds": null,
-          "restSeconds": 75,
           "notes": "Light to moderate, knee-comfortable range",
           "videoUrl": null
         },
@@ -124,7 +117,6 @@
           "sets": 2,
           "targetReps": 12,
           "targetDurationSeconds": null,
-          "restSeconds": 60,
           "notes": "Do not force hip range",
           "videoUrl": null
         },
@@ -135,7 +127,6 @@
           "sets": 2,
           "targetReps": 12,
           "targetDurationSeconds": null,
-          "restSeconds": 60,
           "notes": "Light and comfortable range",
           "videoUrl": null
         },
@@ -146,7 +137,6 @@
           "sets": 3,
           "targetReps": 12,
           "targetDurationSeconds": null,
-          "restSeconds": 60,
           "notes": "Swap for preferred calf machine",
           "videoUrl": null
         },
@@ -157,7 +147,6 @@
           "sets": 2,
           "targetReps": 10,
           "targetDurationSeconds": null,
-          "restSeconds": 60,
           "notes": "10 reps per side; resist rotation",
           "videoUrl": null
         }
@@ -169,7 +158,7 @@
       "focus": "Back, arms, grip, pull-up progression",
       "warmup": {
         "targetMinutes": 8,
-        "instructions": "3 min walk; scapular retractions 1×12; light cable rows 1×12; assisted pull-up warm-up 1×5"
+        "instructions": "3 min walk; scapular retractions 1\u00d712; light cable rows 1\u00d712; assisted pull-up warm-up 1\u00d75"
       },
       "cooldown": {
         "targetMinutes": 5,
@@ -183,8 +172,7 @@
           "sets": 3,
           "targetReps": 8,
           "targetDurationSeconds": null,
-          "restSeconds": 120,
-          "notes": "Aim 6–8 reps; log assistance, not added weight",
+          "notes": "Aim 6\u20138 reps; log assistance, not added weight",
           "videoUrl": null
         },
         {
@@ -194,7 +182,6 @@
           "sets": 3,
           "targetReps": 10,
           "targetDurationSeconds": null,
-          "restSeconds": 90,
           "notes": "Adjust grip for wrist and elbow comfort",
           "videoUrl": null
         },
@@ -205,7 +192,6 @@
           "sets": 2,
           "targetReps": 10,
           "targetDurationSeconds": null,
-          "restSeconds": 75,
           "notes": "Comfortable shoulder range",
           "videoUrl": null
         },
@@ -216,7 +202,6 @@
           "sets": 3,
           "targetReps": 10,
           "targetDurationSeconds": null,
-          "restSeconds": 60,
           "notes": "Controlled motion",
           "videoUrl": null
         },
@@ -227,7 +212,6 @@
           "sets": 2,
           "targetReps": 12,
           "targetDurationSeconds": null,
-          "restSeconds": 60,
           "notes": "Light and controlled",
           "videoUrl": null
         },
@@ -238,7 +222,6 @@
           "sets": 2,
           "targetReps": null,
           "targetDurationSeconds": 30,
-          "restSeconds": 60,
           "notes": "30 seconds per set; neutral wrists",
           "videoUrl": null
         }
@@ -250,7 +233,7 @@
       "focus": "Lower-body foundation and trunk stability",
       "warmup": {
         "targetMinutes": 8,
-        "instructions": "5 min bike or walk; supported hip hinges 1×10; easy glute bridges 1×10; shallow supported squats if comfortable"
+        "instructions": "5 min bike or walk; supported hip hinges 1\u00d710; easy glute bridges 1\u00d710; shallow supported squats if comfortable"
       },
       "cooldown": {
         "targetMinutes": 5,
@@ -264,7 +247,6 @@
           "sets": 3,
           "targetReps": 10,
           "targetDurationSeconds": null,
-          "restSeconds": 75,
           "notes": "Bodyweight first",
           "videoUrl": null
         },
@@ -275,7 +257,6 @@
           "sets": 2,
           "targetReps": 8,
           "targetDurationSeconds": null,
-          "restSeconds": 90,
           "notes": "Use high bench/box and comfortable depth; skip if aggravating hip",
           "videoUrl": null
         },
@@ -286,7 +267,6 @@
           "sets": 3,
           "targetReps": 10,
           "targetDurationSeconds": null,
-          "restSeconds": 75,
           "notes": "Controlled motion",
           "videoUrl": null
         },
@@ -297,7 +277,6 @@
           "sets": 2,
           "targetReps": 8,
           "targetDurationSeconds": null,
-          "restSeconds": 75,
           "notes": "8 per side; use support if needed",
           "videoUrl": null
         },
@@ -308,7 +287,6 @@
           "sets": 3,
           "targetReps": 10,
           "targetDurationSeconds": null,
-          "restSeconds": 60,
           "notes": "10 per side; light resistance",
           "videoUrl": null
         },
@@ -319,7 +297,6 @@
           "sets": 2,
           "targetReps": 8,
           "targetDurationSeconds": null,
-          "restSeconds": 45,
           "notes": "8 per side; slow and controlled",
           "videoUrl": null
         }
