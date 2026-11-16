@@ -14,6 +14,23 @@ enum WashPlayback {
         let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first
         return scene?.screen.bounds.size ?? .zero
     }
+
+    /// Keep Apple Music / other apps playing. Wash is visual-only (muted).
+    /// AVPlayer otherwise activates a solo session and stops external audio.
+    static func configureAmbientAudioSession() {
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+            try session.setActive(true)
+        } catch {
+            // Best-effort — wash players stay muted either way.
+        }
+    }
+
+    static func silence(_ player: AVPlayer) {
+        player.isMuted = true
+        player.volume = 0
+    }
 }
 
 /// Wash color grades: shipping A–D are locked; `customLibrary` is for new customs.
@@ -277,7 +294,9 @@ private final class WashPlayerView: UIView {
 
     private func applyPlaybackState() {
         guard let player else { return }
+        WashPlayback.silence(player)
         if wantsPlayback {
+            WashPlayback.configureAmbientAudioSession()
             player.playImmediately(atRate: WashPlayback.rate)
         } else {
             player.pause()
@@ -313,10 +332,11 @@ private final class WashPlayerView: UIView {
         let mappedGrade = grade
         let contrast: CGFloat = mappedGrade == .grayscale ? 1.7 : 1.35
         let brightness: CGFloat = mappedGrade == .grayscale ? -0.12 : 0.05
+        WashPlayback.configureAmbientAudioSession()
         if player == nil {
             let placeholder = AVPlayerItem(asset: asset)
             let player = AVPlayer(playerItem: placeholder)
-            player.isMuted = true
+            WashPlayback.silence(player)
             player.actionAtItemEnd = .none
             player.preventsDisplaySleepDuringVideoPlayback = false
             self.player = player
@@ -352,10 +372,11 @@ private final class WashPlayerView: UIView {
                     item.videoComposition = composition
                 }
                 if let player = self.player {
+                    WashPlayback.silence(player)
                     player.replaceCurrentItem(with: item)
                 } else {
                     let player = AVPlayer(playerItem: item)
-                    player.isMuted = true
+                    WashPlayback.silence(player)
                     player.actionAtItemEnd = .none
                     player.preventsDisplaySleepDuringVideoPlayback = false
                     self.player = player

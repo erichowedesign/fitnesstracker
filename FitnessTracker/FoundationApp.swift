@@ -23,6 +23,11 @@ struct FoundationApp: App {
     @State private var wash = WashTheme()
     @State private var chromeActions = RootChromeActions()
 
+    init() {
+        // Before wash AVPlayers spin up — ambient + mixWithOthers so Apple Music keeps going.
+        WashPlayback.configureAmbientAudioSession()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootTabs()
@@ -39,6 +44,7 @@ struct FoundationApp: App {
                 .preferredColorScheme(glassModeStore.palette.colorScheme)
                 .background(Color.black)
                 .onAppear {
+                    WashPlayback.configureAmbientAudioSession()
                     FoundationShippingReset.applyIfNeeded(store: store, overrides: routineOverrides)
                 }
         }
