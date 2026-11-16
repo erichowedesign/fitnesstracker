@@ -457,11 +457,14 @@ struct RoutineView: View {
     }
 
     private func loadDraft() {
-        if routine.isCustom || customRoutines.contains(routine.id) {
-            draftWarmup = routine.includesWarmup ? routine.warmup : []
-            draftExercises = routine.includesMain ? routine.exercises : []
-            draftCooldown = routine.includesCooldown ? routine.cooldown : []
-            draftWashGrade = routine.washGrade
+        // Always reload from the persistence store — not the navigation `routine`
+        // snapshot. Popping the tutorial re-fires onAppear; reading a stale prop
+        // wiped Time/Reps/Sets/Weight edits that had already been saved.
+        if let custom = customRoutines.routine(id: routine.id) {
+            draftWarmup = custom.includesWarmup ? custom.warmup : []
+            draftExercises = custom.includesMain ? custom.exercises : []
+            draftCooldown = custom.includesCooldown ? custom.cooldown : []
+            draftWashGrade = custom.washGrade
             draftName = customRoutines.name(for: routine.id, fallback: routine.name)
             draftDetail = customRoutines.detail(for: routine.id)
             focusFallback = customRoutines.sectionFocus(for: routine.id, fallback: routine.summary)
@@ -475,8 +478,11 @@ struct RoutineView: View {
             focusFallback = WorkoutPlan.all().first(where: { $0.id == routine.id })?.focus ?? routine.focus
         }
         for exercise in draftExercises {
-            guard weights[exercise.id] == nil, let seed = exercise.displayWeight else { continue }
-            weights[exercise.id] = seed
+            if let seed = exercise.displayWeight {
+                weights[exercise.id] = seed
+            } else {
+                weights.removeValue(forKey: exercise.id)
+            }
         }
     }
 

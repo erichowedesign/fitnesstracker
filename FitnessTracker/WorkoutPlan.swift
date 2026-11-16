@@ -162,20 +162,38 @@ struct Exercise: Identifiable {
 
     var metaParts: [String] {
         let work: String
-        if let targetDurationSeconds, targetReps == nil {
-            work = Self.durationClockLabel(targetDurationSeconds)
+        if usesDurationDose {
+            work = Self.durationClockLabel(doseWorkValue)
         } else if let targetReps {
             work = "\(targetReps) reps"
         } else {
             work = "—"
         }
-        return [work, "\(sets) sets", Self.restLabel(restSeconds)]
+        return [work, Self.setsLabel(sets), Self.restLabel(restSeconds)]
     }
 
     /// Minute:second for timed doses (matches tutorial Time scrubber).
-    private static func durationClockLabel(_ seconds: Int) -> String {
+    static func durationClockLabel(_ seconds: Int) -> String {
         let clamped = max(seconds, 0)
         return "\(clamped / 60):\(String(format: "%02d", clamped % 60))"
+    }
+
+    static func setsLabel(_ sets: Int) -> String {
+        let count = max(sets, 1)
+        return count == 1 ? "1 set" : "\(count) sets"
+    }
+
+    /// Parses `m:ss` (e.g. 1:30). Returns nil when the string is not a clock.
+    static func durationSeconds(fromClock text: String) -> Int? {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let parts = trimmed.split(separator: ":", omittingEmptySubsequences: false)
+        guard parts.count == 2,
+              let minutes = Int(parts[0]),
+              let seconds = Int(parts[1]),
+              minutes >= 0,
+              seconds >= 0, seconds < 60
+        else { return nil }
+        return minutes * 60 + seconds
     }
 
     var doseWeightLbs: Int {
@@ -302,6 +320,10 @@ struct GuideStep: Identifiable, Equatable {
     }
 
     var usesDurationDose: Bool {
+        // Clock meta from the Time scrubber (`1:30`) has no "sec"/"min" token.
+        if metaParts.contains(where: { Exercise.durationSeconds(fromClock: $0) != nil }) {
+            return true
+        }
         if metaParts.contains(where: {
             $0.localizedCaseInsensitiveContains("sec") || $0.localizedCaseInsensitiveContains("min")
         }) {
@@ -326,6 +348,10 @@ struct GuideStep: Identifiable, Equatable {
     }
 
     var doseDurationSeconds: Int {
+        if let part = metaParts.first(where: { Exercise.durationSeconds(fromClock: $0) != nil }),
+           let seconds = Exercise.durationSeconds(fromClock: part) {
+            return max(seconds, 1)
+        }
         if let part = metaParts.first(where: { $0.localizedCaseInsensitiveContains("sec") }),
            let seconds = Self.firstInt(in: part) {
             return max(seconds, 1)
@@ -370,11 +396,9 @@ struct GuideStep: Identifiable, Equatable {
     private static func doseMetaParts(work: Int, sets: Int, weightLbs: Int, usesDuration: Bool) -> [String] {
         var parts: [String]
         if usesDuration {
-            let seconds = max(work, 1)
-            let clock = "\(seconds / 60):\(String(format: "%02d", seconds % 60))"
-            parts = [clock, "\(max(sets, 1)) sets"]
+            parts = [Exercise.durationClockLabel(max(work, 1)), Exercise.setsLabel(sets)]
         } else {
-            parts = ["\(max(work, 1)) reps", "\(max(sets, 1)) sets"]
+            parts = ["\(max(work, 1)) reps", Exercise.setsLabel(sets)]
         }
         if weightLbs > 0 {
             parts.append("\(weightLbs) lbs")
