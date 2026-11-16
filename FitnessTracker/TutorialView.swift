@@ -116,7 +116,10 @@ struct ExerciseTutorialView: View {
             .padding(.top, 34)
         }
         .scrollContentBackground(.hidden)
+        // System scroll-edge fade under the nav bar reads as a top scrim; hide like Routine/Home.
+        .scrollEdgeEffectHidden(true, for: .vertical)
         .glassInk()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
             ZStack {
                 Color.black
@@ -124,6 +127,7 @@ struct ExerciseTutorialView: View {
             }
             .ignoresSafeArea()
         }
+        .containerBackground(.clear, for: .navigation)
         .toolbarBackground(.hidden, for: .navigationBar)
         .toolbarBackgroundVisibility(.hidden, for: .navigationBar)
         .navigationTitle(sectionTitle)
