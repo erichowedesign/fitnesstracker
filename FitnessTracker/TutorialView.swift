@@ -186,8 +186,11 @@ struct ExerciseTutorialView: View {
                         step: Self.durationStepSeconds,
                         allowsScrubbing: false,
                         formatValue: Self.formatDurationClock,
+                        // Wide enough for `10:00` monospaced in the pill (default 72 truncates `m:ss`).
+                        minimumWellWidth: 108,
                         style: clearStepperStyle
                     )
+                    .fixedSize(horizontal: true, vertical: false)
                     .accessibilityLabel("Time")
                 }
             } else {
