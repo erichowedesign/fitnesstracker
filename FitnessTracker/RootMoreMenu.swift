@@ -1,5 +1,18 @@
 import SwiftUI
 
+enum RootChromeLayout {
+    static let menuButtonSize: CGFloat = 48
+    static let trailingClusterSpacing: CGFloat = 8
+
+    /// Invisible stand-in for the global RootTabs `RootChromeMenu` so other trailing
+    /// chrome sits to its left without overlapping.
+    static var menuSlot: some View {
+        Color.clear
+            .frame(width: menuButtonSize, height: menuButtonSize)
+            .accessibilityHidden(true)
+    }
+}
+
 /// Top-trailing more control: glass ellipsis → Theme / Pause–Play video → Clear / Dark / Light.
 /// Idle trigger matches `GlassChromeIconButton` / `foundationGlass`; open levels use `GlassActionMenu`
 /// (vertical float, page scrim, tap-outside dismiss).

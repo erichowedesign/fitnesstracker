@@ -139,20 +139,23 @@ struct ExerciseTutorialView: View {
             }
             .sharedBackgroundVisibility(.hidden)
 
-            if canFavorite {
-                ToolbarItem(placement: .topBarTrailing) {
-                    GlassChromeIconButton(
-                        systemName: isLiked ? "heart.fill" : "heart",
-                        accessibilityLabel: isLiked ? "Remove from favorites" : "Add to favorites",
-                        ink: isLiked ? palette.heart : nil,
-                        action: {
-                            guard let favoriteSlug else { return }
-                            favorites.toggle(favoriteSlug)
-                        }
-                    )
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack(spacing: RootChromeLayout.trailingClusterSpacing) {
+                    if canFavorite {
+                        GlassChromeIconButton(
+                            systemName: isLiked ? "heart.fill" : "heart",
+                            accessibilityLabel: isLiked ? "Remove from favorites" : "Add to favorites",
+                            ink: isLiked ? palette.heart : nil,
+                            action: {
+                                guard let favoriteSlug else { return }
+                                favorites.toggle(favoriteSlug)
+                            }
+                        )
+                    }
+                    RootChromeLayout.menuSlot
                 }
-                .sharedBackgroundVisibility(.hidden)
             }
+            .sharedBackgroundVisibility(.hidden)
         }
         .background {
             DisableRoutineInteractivePop()

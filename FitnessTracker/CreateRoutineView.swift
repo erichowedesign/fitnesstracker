@@ -118,6 +118,11 @@ struct CreateRoutineView: View {
                 )
             }
             .sharedBackgroundVisibility(.hidden)
+            // Sheet is outside RootTabs overlay — host its own trailing menu.
+            ToolbarItem(placement: .topBarTrailing) {
+                RootChromeMenu()
+            }
+            .sharedBackgroundVisibility(.hidden)
         }
     }
 

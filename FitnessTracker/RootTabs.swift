@@ -101,7 +101,8 @@ struct RootTabs: View {
         .animation(.smooth(duration: 0.3), value: palette.mode)
     }
 
-    /// Trailing more menu (ellipsis → Theme → Clear/Dark/Light). Icons share the content trailing edge (16pt).
+    /// Trailing more menu stays on every screen (including pushes). Other trailing chrome
+    /// reserves `RootChromeLayout.menuSlot` so it sits to the left of this control.
     /// Avoid clip/compositing on this layer so GlassActionMenu’s full-page scrim can paint over the wash.
     private var chromeMenusOverlay: some View {
         VStack {
@@ -114,10 +115,6 @@ struct RootTabs: View {
             Spacer(minLength: 0)
         }
         .padding(.top, 4)
-        .opacity(hidesFloatingTabBar ? 0 : 1)
-        .allowsHitTesting(!hidesFloatingTabBar)
-        .accessibilityHidden(hidesFloatingTabBar)
-        .animation(.smooth(duration: 0.35), value: hidesFloatingTabBar)
         // Above pages + wash so GlassActionMenu stays a floating layer.
         .zIndex(100)
     }

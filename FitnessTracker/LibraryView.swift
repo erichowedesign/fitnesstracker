@@ -149,8 +149,12 @@ struct LibraryBrowser: View {
         .toolbar {
             if showsCancel {
                 ToolbarItem(placement: .topBarTrailing) {
-                    GlassChromeLabelButton(title: "Cancel") {
-                        onCancel?()
+                    HStack(spacing: RootChromeLayout.trailingClusterSpacing) {
+                        GlassChromeLabelButton(title: "Cancel") {
+                            onCancel?()
+                        }
+                        // Library picker is a sheet — host its own trailing menu.
+                        RootChromeMenu()
                     }
                 }
                 .sharedBackgroundVisibility(.hidden)

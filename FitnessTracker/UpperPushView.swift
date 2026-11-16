@@ -363,13 +363,16 @@ struct RoutineView: View {
             }
             .sharedBackgroundVisibility(.hidden)
             ToolbarItem(placement: .topBarTrailing) {
-                GlassChromeIconButton(
-                    systemName: "checkmark",
-                    accessibilityLabel: "Save edits",
-                    action: commitRoutineEditing
-                )
-                .opacity(canSaveEdits ? 1 : 0.45)
-                .allowsHitTesting(canSaveEdits)
+                HStack(spacing: RootChromeLayout.trailingClusterSpacing) {
+                    GlassChromeIconButton(
+                        systemName: "checkmark",
+                        accessibilityLabel: "Save edits",
+                        action: commitRoutineEditing
+                    )
+                    .opacity(canSaveEdits ? 1 : 0.45)
+                    .allowsHitTesting(canSaveEdits)
+                    RootChromeLayout.menuSlot
+                }
             }
             .sharedBackgroundVisibility(.hidden)
         } else {
@@ -382,7 +385,14 @@ struct RoutineView: View {
             }
             .sharedBackgroundVisibility(.hidden)
             ToolbarItem(placement: .topBarTrailing) {
-                GlassChromeLabelButton(title: "Edit", action: beginRoutineEditing)
+                HStack(spacing: RootChromeLayout.trailingClusterSpacing) {
+                    GlassChromeIconButton(
+                        systemName: "pencil",
+                        accessibilityLabel: "Edit routine",
+                        action: beginRoutineEditing
+                    )
+                    RootChromeLayout.menuSlot
+                }
             }
             .sharedBackgroundVisibility(.hidden)
         }
@@ -1067,13 +1077,16 @@ private struct AddLibraryExerciseSheet: View {
                 }
                 .sharedBackgroundVisibility(.hidden)
                 ToolbarItem(placement: .topBarTrailing) {
-                    GlassChromeLabelButton(title: "Add") {
-                        guard let setsValue, let repsValue else { return }
-                        let trimmed = weightText.trimmingCharacters(in: .whitespacesAndNewlines)
-                        onAdd(setsValue, repsValue, trimmed.isEmpty ? nil : trimmed)
+                    HStack(spacing: RootChromeLayout.trailingClusterSpacing) {
+                        GlassChromeLabelButton(title: "Add") {
+                            guard let setsValue, let repsValue else { return }
+                            let trimmed = weightText.trimmingCharacters(in: .whitespacesAndNewlines)
+                            onAdd(setsValue, repsValue, trimmed.isEmpty ? nil : trimmed)
+                        }
+                        .opacity(canAdd ? 1 : 0.45)
+                        .allowsHitTesting(canAdd)
+                        RootChromeMenu()
                     }
-                    .opacity(canAdd ? 1 : 0.45)
-                    .allowsHitTesting(canAdd)
                 }
                 .sharedBackgroundVisibility(.hidden)
             }
