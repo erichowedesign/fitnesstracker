@@ -13,6 +13,7 @@ struct RoutineView: View {
     @Environment(RoutineOverridesStore.self) private var routineOverrides
     @Environment(CustomRoutinesStore.self) private var customRoutines
     @Environment(RoutineOrderStore.self) private var routineOrder
+    @Environment(RootChromeActions.self) private var chromeActions
     @Environment(\.glassPalette) private var palette
     @Environment(\.dismiss) private var dismiss
     let routine: Routine
@@ -138,7 +139,29 @@ struct RoutineView: View {
             .onAppear {
                 loadDraft()
                 applyStartEditingIfNeeded()
+                publishChromeEditAction()
             }
+            .onDisappear {
+                chromeActions.clearEditRoutine()
+            }
+            .onChange(of: isEditingRoutine) { _, _ in
+                publishChromeEditAction()
+            }
+            .onChange(of: showLibraryPicker) { _, _ in
+                publishChromeEditAction()
+            }
+            .onChange(of: pendingLibraryWorkout != nil) { _, _ in
+                publishChromeEditAction()
+            }
+    }
+
+    private func publishChromeEditAction() {
+        let sheetsOpen = showLibraryPicker || pendingLibraryWorkout != nil || stagedLibraryWorkout != nil
+        if !isEditingRoutine, !sheetsOpen {
+            chromeActions.editRoutine = beginRoutineEditing
+        } else {
+            chromeActions.clearEditRoutine()
+        }
     }
 
     private var routineScroll: some View {
@@ -385,14 +408,7 @@ struct RoutineView: View {
             }
             .sharedBackgroundVisibility(.hidden)
             ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: RootChromeLayout.trailingClusterSpacing) {
-                    GlassChromeIconButton(
-                        systemName: "pencil",
-                        accessibilityLabel: "Edit routine",
-                        action: beginRoutineEditing
-                    )
-                    RootChromeLayout.menuSlot
-                }
+                RootChromeLayout.menuSlot
             }
             .sharedBackgroundVisibility(.hidden)
         }
@@ -756,6 +772,7 @@ struct RoutineView: View {
             editMode = .active
             showCompleteButton = false
         }
+        publishChromeEditAction()
     }
 
     private func commitRoutineEditing() {
@@ -772,6 +789,7 @@ struct RoutineView: View {
             isEditingRoutine = false
             editMode = .inactive
         }
+        publishChromeEditAction()
     }
 
     private func cancelRoutineEditing() {
@@ -790,6 +808,7 @@ struct RoutineView: View {
             isEditingRoutine = false
             editMode = .inactive
         }
+        publishChromeEditAction()
     }
 
     private func persistDraft() {

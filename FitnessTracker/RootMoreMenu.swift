@@ -13,6 +13,16 @@ enum RootChromeLayout {
     }
 }
 
+/// Screen-scoped actions for the shared ellipsis menu (e.g. Edit routine on RoutineView).
+@Observable
+final class RootChromeActions {
+    var editRoutine: (() -> Void)?
+
+    func clearEditRoutine() {
+        editRoutine = nil
+    }
+}
+
 /// Top-trailing more control: glass ellipsis → Theme / Pause–Play video → Clear / Dark / Light.
 /// Idle trigger matches `GlassChromeIconButton` / `foundationGlass`; open levels use `GlassActionMenu`
 /// (vertical float, page scrim, tap-outside dismiss).
@@ -25,6 +35,7 @@ struct RootChromeMenu: View {
 
     @Environment(GlassModeStore.self) private var glassModeStore
     @Environment(WashTheme.self) private var wash
+    @Environment(RootChromeActions.self) private var chromeActions
     @Environment(\.glassPalette) private var palette
 
     @State private var level: Level = .idle
@@ -61,6 +72,23 @@ struct RootChromeMenu: View {
         wash.isVideoPlaying ? "Pause video" : "Play video"
     }
 
+    private var rootMenuItems: [GlassActionMenu.Item] {
+        var items: [GlassActionMenu.Item] = [
+            .init(symbol: "circle.lefthalf.filled", label: "Theme") {
+                pendingTheme = true
+            },
+            .init(symbol: videoMenuSymbol, label: videoMenuLabel) {
+                wash.toggleVideoPlayback()
+            },
+        ]
+        if let editRoutine = chromeActions.editRoutine {
+            items.append(
+                .init(symbol: "pencil", label: "Edit routine", action: editRoutine)
+            )
+        }
+        return items
+    }
+
     var body: some View {
         ZStack {
             switch level {
@@ -72,14 +100,7 @@ struct RootChromeMenu: View {
                 )
             case .root:
                 GlassActionMenu(
-                    items: [
-                        .init(symbol: "circle.lefthalf.filled", label: "Theme") {
-                            pendingTheme = true
-                        },
-                        .init(symbol: videoMenuSymbol, label: videoMenuLabel) {
-                            wash.toggleVideoPlayback()
-                        },
-                    ],
+                    items: rootMenuItems,
                     triggerSymbol: "ellipsis",
                     arrangement: .linearDownwardFromTrailing,
                     isExpanded: $rootExpanded,

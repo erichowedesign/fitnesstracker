@@ -21,6 +21,7 @@ struct FoundationApp: App {
     @State private var favorites = FavoritesStore()
     @State private var glassModeStore = GlassModeStore()
     @State private var wash = WashTheme()
+    @State private var chromeActions = RootChromeActions()
 
     var body: some Scene {
         WindowGroup {
@@ -32,6 +33,7 @@ struct FoundationApp: App {
                 .environment(favorites)
                 .environment(glassModeStore)
                 .environment(wash)
+                .environment(chromeActions)
                 .environment(\.glassMode, glassModeStore.mode)
                 .environment(\.glassPalette, glassModeStore.palette)
                 .preferredColorScheme(glassModeStore.palette.colorScheme)
