@@ -39,6 +39,8 @@ struct RoutineView: View {
     @State private var editSnapshotCooldown: [GuideStep] = []
     @State private var editSnapshotWeights: [String: String] = [:]
     @State private var draggingEditID: String?
+    @State private var draggingEditSection: RoutineEditSection?
+    @State private var editDropTarget: EditDropTarget?
     /// 1-based My Routines list position while editing.
     @State private var draftListPosition = 1
     @State private var draftWashGrade: WashGrade = .thermal
@@ -636,7 +638,7 @@ struct RoutineView: View {
             section: .main,
             isEmpty: draftExercises.isEmpty
         ) {
-            editableReorderList(items: $draftExercises) { exercise in
+            editableReorderList(section: .main, items: $draftExercises) { exercise in
                 if let index = draftExercises.firstIndex(where: { $0.id == exercise.id }) {
                     deleteExercises(at: IndexSet(integer: index))
                 }
@@ -660,7 +662,7 @@ struct RoutineView: View {
             section: section,
             isEmpty: steps.wrappedValue.isEmpty
         ) {
-            editableReorderList(items: steps) { step in
+            editableReorderList(section: section, items: steps) { step in
                 steps.wrappedValue.removeAll { $0.id == step.id }
             } content: { step in
                 editableRowContent(title: step.title, metaParts: step.metaParts, slug: step.slug)
@@ -668,13 +670,16 @@ struct RoutineView: View {
         }
     }
 
+    private var isEditDragging: Bool { draggingEditID != nil }
+
     private func editableSectionChrome<Content: View>(
         title: String,
         section: RoutineEditSection,
         isEmpty: Bool,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(alignment: .leading, spacing: isEmpty ? 0 : 16) {
+        let highlighted = isEditDragging && editDropTarget?.section == section
+        return VStack(alignment: .leading, spacing: isEmpty ? 12 : 16) {
             HStack {
                 Text(title)
                     .font(.title2)
@@ -694,15 +699,98 @@ struct RoutineView: View {
                 .foundationGlass(interactive: true, in: Capsule())
                 .accessibilityLabel("Add to \(title)")
             }
-            if !isEmpty {
+            if isEmpty {
+                if isEditDragging {
+                    sectionDropZone(section: section, title: title, highlighted: highlighted)
+                }
+            } else {
                 content()
+                if isEditDragging {
+                    sectionAppendDropZone(section: section, highlighted: editDropTarget == .append(section))
+                }
             }
         }
+        .padding(highlighted ? 12 : 0)
         .padding(.top, isEmpty ? 16 : 24)
+        .background {
+            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                .fill(palette.accent.opacity(highlighted ? 0.16 : 0))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .strokeBorder(palette.accent.opacity(highlighted ? 0.85 : 0), lineWidth: 2)
+                }
+                .animation(.snappy(duration: 0.18), value: highlighted)
+        }
+        .onDrop(
+            of: [UTType.text],
+            delegate: EditSectionDropDelegate(
+                section: section,
+                draggingID: $draggingEditID,
+                draggingSection: $draggingEditSection,
+                dropTarget: $editDropTarget,
+                onMove: moveEditItem
+            )
+        )
+    }
+
+    private func sectionDropZone(section: RoutineEditSection, title: String, highlighted: Bool) -> some View {
+        Text("Drop here to move into \(title)")
+            .font(.subheadline.weight(.semibold))
+            .glassInk()
+            .frame(maxWidth: .infinity)
+            .frame(minHeight: 72)
+            .padding(.horizontal, 16)
+            .foundationGlass(
+                interactive: false,
+                in: RoundedRectangle(cornerRadius: 28, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .strokeBorder(palette.accent.opacity(highlighted ? 1 : 0.45), lineWidth: highlighted ? 2.5 : 1.5)
+            }
+            .scaleEffect(highlighted ? 1.02 : 1)
+            .animation(.snappy(duration: 0.18), value: highlighted)
+            .onDrop(
+                of: [UTType.text],
+                delegate: EditSectionDropDelegate(
+                    section: section,
+                    draggingID: $draggingEditID,
+                    draggingSection: $draggingEditSection,
+                    dropTarget: $editDropTarget,
+                    onMove: moveEditItem
+                )
+            )
+            .accessibilityLabel("Drop zone for \(title)")
+    }
+
+    private func sectionAppendDropZone(section: RoutineEditSection, highlighted: Bool) -> some View {
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .frame(height: 28)
+            .overlay {
+                Capsule()
+                    .fill(palette.accent.opacity(highlighted ? 0.95 : 0.35))
+                    .frame(height: highlighted ? 4 : 2)
+                    .padding(.horizontal, 12)
+            }
+            .contentShape(Rectangle())
+            .animation(.snappy(duration: 0.18), value: highlighted)
+            .onDrop(
+                of: [UTType.text],
+                delegate: EditAppendDropDelegate(
+                    section: section,
+                    draggingID: $draggingEditID,
+                    draggingSection: $draggingEditSection,
+                    dropTarget: $editDropTarget,
+                    onMove: moveEditItem
+                )
+            )
+            .accessibilityLabel("Drop at end of section")
     }
 
     /// Custom edit rows: small liquid-glass minus + drag-handle; tiles use Clear/Dark/Light `foundationGlass` (not a flat dim fill).
     private func editableReorderList<Item: Identifiable>(
+        section: RoutineEditSection,
         items: Binding<[Item]>,
         onDelete: @escaping (Item) -> Void,
         @ViewBuilder content: @escaping (Item) -> some View
@@ -711,42 +799,63 @@ struct RoutineView: View {
         // No GlassEffectContainer here — keep ± / drag circles from melting into the row tile.
         return VStack(spacing: 8) {
             ForEach(items.wrappedValue) { item in
-                HStack(spacing: 10) {
-                    GlassChromeIconButton(
-                        systemName: "minus",
-                        accessibilityLabel: "Remove",
-                        ink: .white,
-                        tint: Color(red: 1, green: 0.14, blue: 0.12),
-                        size: 32
-                    ) {
-                        onDelete(item)
+                let showInsertLine = editDropTarget == .before(section, item.id)
+                    && draggingEditID != item.id
+                VStack(spacing: 0) {
+                    Capsule()
+                        .fill(palette.accent)
+                        .frame(height: 3)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 6)
+                        .opacity(showInsertLine ? 1 : 0)
+                        .accessibilityHidden(true)
+
+                    HStack(spacing: 10) {
+                        GlassChromeIconButton(
+                            systemName: "minus",
+                            accessibilityLabel: "Remove",
+                            ink: .white,
+                            tint: Color(red: 1, green: 0.14, blue: 0.12),
+                            size: 32
+                        ) {
+                            onDelete(item)
+                        }
+
+                        content(item)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                        GlassChromeSymbolCircle(
+                            systemName: "line.3.horizontal",
+                            accessibilityLabel: "Drag to reorder or move section",
+                            size: 32
+                        )
                     }
-
-                    content(item)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    GlassChromeSymbolCircle(
-                        systemName: "line.3.horizontal",
-                        accessibilityLabel: "Reorder",
-                        size: 32
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 8)
+                    .foundationGlass(
+                        interactive: true,
+                        in: RoundedRectangle(cornerRadius: 34, style: .continuous)
                     )
+                    .opacity(draggingEditID == item.id ? 0.45 : 1)
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 8)
-                .foundationGlass(
-                    interactive: true,
-                    in: RoundedRectangle(cornerRadius: 34, style: .continuous)
-                )
                 .onDrag {
                     draggingEditID = item.id
+                    draggingEditSection = section
+                    editDropTarget = nil
                     return NSItemProvider(object: item.id as NSString)
                 }
                 .onDrop(
                     of: [UTType.text],
-                    delegate: EditReorderDropDelegate(
+                    delegate: EditRowDropDelegate(
+                        section: section,
                         itemID: item.id,
-                        items: items,
-                        draggingID: $draggingEditID
+                        draggingID: $draggingEditID,
+                        draggingSection: $draggingEditSection,
+                        dropTarget: $editDropTarget,
+                        onMove: moveEditItem,
+                        onSameSectionReorder: { fromID, beforeID in
+                            reorderWithinSection(section, movingID: fromID, beforeID: beforeID)
+                        }
                     )
                 )
             }
@@ -756,6 +865,152 @@ struct RoutineView: View {
             alignment: .top
         )
         .preferredColorScheme(palette.colorScheme)
+        .animation(.snappy(duration: 0.18), value: editDropTarget)
+    }
+
+    private func clearEditDragState() {
+        draggingEditID = nil
+        draggingEditSection = nil
+        editDropTarget = nil
+    }
+
+    private func reorderWithinSection(
+        _ section: RoutineEditSection,
+        movingID: String,
+        beforeID: String
+    ) {
+        switch section {
+        case .warmup:
+            guard let from = draftWarmup.firstIndex(where: { $0.id == movingID }),
+                  let to = draftWarmup.firstIndex(where: { $0.id == beforeID }),
+                  from != to
+            else { return }
+            withAnimation(.snappy(duration: 0.2)) {
+                draftWarmup.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+            }
+        case .main:
+            guard let from = draftExercises.firstIndex(where: { $0.id == movingID }),
+                  let to = draftExercises.firstIndex(where: { $0.id == beforeID }),
+                  from != to
+            else { return }
+            withAnimation(.snappy(duration: 0.2)) {
+                draftExercises.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+            }
+        case .cooldown:
+            guard let from = draftCooldown.firstIndex(where: { $0.id == movingID }),
+                  let to = draftCooldown.firstIndex(where: { $0.id == beforeID }),
+                  from != to
+            else { return }
+            withAnimation(.snappy(duration: 0.2)) {
+                draftCooldown.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+            }
+        }
+    }
+
+    /// Moves a workout across warm-up / main / cool-down (converting Exercise ↔ GuideStep as needed).
+    private func moveEditItem(
+        id: String,
+        from: RoutineEditSection,
+        to target: EditDropTarget
+    ) {
+        let toSection = target.section
+        if from == toSection {
+            switch target {
+            case .before(_, let beforeID):
+                reorderWithinSection(from, movingID: id, beforeID: beforeID)
+            case .append:
+                appendWithinSection(from, movingID: id)
+            }
+            clearEditDragState()
+            return
+        }
+
+        withAnimation(.snappy(duration: 0.22)) {
+            switch from {
+            case .warmup:
+                guard let index = draftWarmup.firstIndex(where: { $0.id == id }) else { return }
+                let step = draftWarmup.remove(at: index)
+                insertAcrossSections(step: step, exercise: nil, into: target)
+            case .cooldown:
+                guard let index = draftCooldown.firstIndex(where: { $0.id == id }) else { return }
+                let step = draftCooldown.remove(at: index)
+                insertAcrossSections(step: step, exercise: nil, into: target)
+            case .main:
+                guard let index = draftExercises.firstIndex(where: { $0.id == id }) else { return }
+                let exercise = draftExercises.remove(at: index)
+                let weight = weights.removeValue(forKey: exercise.id) ?? exercise.displayWeight
+                insertAcrossSections(
+                    step: exercise.asGuideStep(weightOverride: weight),
+                    exercise: exercise,
+                    weight: weight,
+                    into: target
+                )
+            }
+        }
+        clearEditDragState()
+    }
+
+    private func appendWithinSection(_ section: RoutineEditSection, movingID: String) {
+        switch section {
+        case .warmup:
+            guard let from = draftWarmup.firstIndex(where: { $0.id == movingID }) else { return }
+            let item = draftWarmup.remove(at: from)
+            draftWarmup.append(item)
+        case .main:
+            guard let from = draftExercises.firstIndex(where: { $0.id == movingID }) else { return }
+            let item = draftExercises.remove(at: from)
+            draftExercises.append(item)
+        case .cooldown:
+            guard let from = draftCooldown.firstIndex(where: { $0.id == movingID }) else { return }
+            let item = draftCooldown.remove(at: from)
+            draftCooldown.append(item)
+        }
+    }
+
+    private func insertAcrossSections(
+        step: GuideStep,
+        exercise: Exercise?,
+        weight: String? = nil,
+        into target: EditDropTarget
+    ) {
+        switch target.section {
+        case .warmup:
+            insertGuide(step, into: &draftWarmup, target: target)
+        case .cooldown:
+            insertGuide(step, into: &draftCooldown, target: target)
+        case .main:
+            let mainItem = exercise ?? step.asExercise(displayWeight: weight)
+            insertExercise(mainItem, into: &draftExercises, target: target)
+            if let display = mainItem.displayWeight {
+                weights[mainItem.id] = display
+            }
+        }
+    }
+
+    private func insertGuide(_ step: GuideStep, into list: inout [GuideStep], target: EditDropTarget) {
+        switch target {
+        case .before(_, let beforeID):
+            if let index = list.firstIndex(where: { $0.id == beforeID }) {
+                list.insert(step, at: index)
+            } else {
+                list.append(step)
+            }
+        case .append:
+            list.append(step)
+        }
+    }
+
+    private func insertExercise(_ exercise: Exercise, into list: inout [Exercise], target: EditDropTarget) {
+        switch target {
+        case .before(_, let beforeID):
+            if let index = list.firstIndex(where: { $0.id == beforeID }) {
+                list.insert(exercise, at: index)
+            } else {
+                list.append(exercise)
+            }
+        case .append:
+            list.append(exercise)
+        }
     }
 
     private func editableRowContent(title: String, metaParts: [String], slug: String) -> some View {
@@ -792,6 +1047,7 @@ struct RoutineView: View {
 
     private func commitRoutineEditing() {
         guard canSaveEdits else { return }
+        clearEditDragState()
         persistDraft()
         if draftListPosition != currentListNumber {
             routineOrder.move(
@@ -808,6 +1064,7 @@ struct RoutineView: View {
     }
 
     private func cancelRoutineEditing() {
+        clearEditDragState()
         draftWarmup = editSnapshotWarmup
         draftExercises = editSnapshotExercises
         draftCooldown = editSnapshotCooldown
@@ -950,23 +1207,37 @@ struct RoutineView: View {
     }
 }
 
-private enum RoutineEditSection {
+private enum RoutineEditSection: Hashable {
     case warmup, main, cooldown
 }
 
-/// Reorders edit-mode rows while a glass drag handle is dragged across neighbors.
-private struct EditReorderDropDelegate<Item: Identifiable>: DropDelegate where Item.ID == String {
+private enum EditDropTarget: Equatable {
+    case before(RoutineEditSection, String)
+    case append(RoutineEditSection)
+
+    var section: RoutineEditSection {
+        switch self {
+        case .before(let section, _), .append(let section):
+            return section
+        }
+    }
+}
+
+/// Row target: same-section live reorder, or mark insertion for a cross-section drop.
+private struct EditRowDropDelegate: DropDelegate {
+    let section: RoutineEditSection
     let itemID: String
-    @Binding var items: [Item]
     @Binding var draggingID: String?
+    @Binding var draggingSection: RoutineEditSection?
+    @Binding var dropTarget: EditDropTarget?
+    var onMove: (_ id: String, _ from: RoutineEditSection, _ to: EditDropTarget) -> Void
+    var onSameSectionReorder: (_ movingID: String, _ beforeID: String) -> Void
 
     func dropEntered(info: DropInfo) {
-        guard let draggingID, draggingID != itemID,
-              let from = items.firstIndex(where: { $0.id == draggingID }),
-              let to = items.firstIndex(where: { $0.id == itemID })
-        else { return }
-        withAnimation(.snappy(duration: 0.2)) {
-            items.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+        guard let id = draggingID, id != itemID, let from = draggingSection else { return }
+        dropTarget = .before(section, itemID)
+        if from == section {
+            onSameSectionReorder(id, itemID)
         }
     }
 
@@ -975,8 +1246,98 @@ private struct EditReorderDropDelegate<Item: Identifiable>: DropDelegate where I
     }
 
     func performDrop(info: DropInfo) -> Bool {
-        draggingID = nil
+        guard let id = draggingID, let from = draggingSection else {
+            clearDrag()
+            return false
+        }
+        if from == section {
+            clearDrag()
+            return true
+        }
+        onMove(id, from, .before(section, itemID))
         return true
+    }
+
+    func dropExited(info: DropInfo) {
+        if case .before(section, itemID) = dropTarget {
+            dropTarget = nil
+        }
+    }
+
+    private func clearDrag() {
+        draggingID = nil
+        draggingSection = nil
+        dropTarget = nil
+    }
+}
+
+/// Empty section / section chrome: append into this section.
+private struct EditSectionDropDelegate: DropDelegate {
+    let section: RoutineEditSection
+    @Binding var draggingID: String?
+    @Binding var draggingSection: RoutineEditSection?
+    @Binding var dropTarget: EditDropTarget?
+    var onMove: (_ id: String, _ from: RoutineEditSection, _ to: EditDropTarget) -> Void
+
+    func dropEntered(info: DropInfo) {
+        guard draggingID != nil else { return }
+        dropTarget = .append(section)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let id = draggingID, let from = draggingSection else {
+            draggingID = nil
+            draggingSection = nil
+            dropTarget = nil
+            return false
+        }
+        onMove(id, from, .append(section))
+        return true
+    }
+
+    func dropExited(info: DropInfo) {
+        if case .append(section) = dropTarget {
+            dropTarget = nil
+        }
+    }
+}
+
+/// End-of-list insertion line within a non-empty section.
+private struct EditAppendDropDelegate: DropDelegate {
+    let section: RoutineEditSection
+    @Binding var draggingID: String?
+    @Binding var draggingSection: RoutineEditSection?
+    @Binding var dropTarget: EditDropTarget?
+    var onMove: (_ id: String, _ from: RoutineEditSection, _ to: EditDropTarget) -> Void
+
+    func dropEntered(info: DropInfo) {
+        guard draggingID != nil else { return }
+        dropTarget = .append(section)
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let id = draggingID, let from = draggingSection else {
+            draggingID = nil
+            draggingSection = nil
+            dropTarget = nil
+            return false
+        }
+        onMove(id, from, .append(section))
+        return true
+    }
+
+    func dropExited(info: DropInfo) {
+        if case .append(section) = dropTarget {
+            dropTarget = nil
+        }
     }
 }
 

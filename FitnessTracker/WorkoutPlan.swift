@@ -242,6 +242,23 @@ struct Exercise: Identifiable {
         )
     }
 
+    /// Warm-up / cool-down row form when dragging out of Main Workout.
+    func asGuideStep(weightOverride: String? = nil) -> GuideStep {
+        let weightLbs = Self.poundsValue(from: weightOverride) > 0
+            ? Self.poundsValue(from: weightOverride)
+            : doseWeightLbs
+        var parts: [String]
+        if usesDurationDose {
+            parts = [Self.durationClockLabel(doseWorkValue), Self.setsLabel(sets)]
+        } else {
+            parts = ["\(doseReps) reps", Self.setsLabel(sets)]
+        }
+        if weightLbs > 0 {
+            parts.append("\(weightLbs) lbs")
+        }
+        return GuideStep(id: id, title: name, metaParts: parts, slug: slug)
+    }
+
     static func poundsValue(from display: String?) -> Int {
         guard let display else { return 0 }
         let cleaned = display
@@ -390,6 +407,33 @@ struct GuideStep: Identifiable, Equatable {
                 usesDuration: usesDurationDose
             ),
             slug: slug
+        )
+    }
+
+    /// Main Workout row form when dragging in from warm-up / cool-down.
+    func asExercise(displayWeight: String? = nil, restSeconds: Int = 90) -> Exercise {
+        let library = LibraryCatalog.workout(slug: slug)
+        let weightLbs: Int = {
+            if let displayWeight, Exercise.poundsValue(from: displayWeight) > 0 {
+                return Exercise.poundsValue(from: displayWeight)
+            }
+            return doseWeightLbs
+        }()
+        let timed = usesDurationDose
+        let work = doseWorkValue
+        return Exercise(
+            id: id,
+            hevyTemplateId: library?.slug ?? slug,
+            name: title,
+            equipment: library?.equipment ?? "",
+            sets: max(doseSets, 1),
+            targetReps: timed ? nil : max(work, 1),
+            targetDurationSeconds: timed ? max(work, 1) : nil,
+            restSeconds: restSeconds,
+            notes: "",
+            tracksAssistance: title.range(of: "assisted", options: .caseInsensitive) != nil,
+            slug: slug,
+            displayWeight: weightLbs > 0 ? "\(weightLbs) lbs" : nil
         )
     }
 
