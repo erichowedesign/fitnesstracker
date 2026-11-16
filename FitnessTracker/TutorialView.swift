@@ -271,9 +271,9 @@ struct ExerciseTutorialView: View {
         onDoseChange?(dose)
     }
 
-    /// Time scrubber: ±15s, shown as `m:ss` (e.g. 1:30).
+    /// Time scrubber: ±15s, shown as `m:ss` (e.g. 1:30). Cap 59:45.
     private static let durationStepSeconds = 15
-    private static let durationRange = durationStepSeconds...(60 * 10)
+    private static let durationRange = durationStepSeconds...(59 * 60 + 45)
 
     private static func formatDurationClock(_ seconds: Int) -> String {
         let clamped = max(seconds, 0)
