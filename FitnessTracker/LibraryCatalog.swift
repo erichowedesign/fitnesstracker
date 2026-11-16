@@ -378,7 +378,6 @@ enum LibraryCatalog {
         "jump-rope",
         "kneeling-hip-flexor-stretch",
         "l-sit-hold",
-        "leg-swings-stretch",
         "plank",
         "rowing",
         "running",
