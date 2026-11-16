@@ -1381,5 +1381,7 @@ private struct ThumbnailFit {
     .environment(RoutineOrderStore())
     .environment(FavoritesStore())
     .environment(WashTheme())
+    .environment(GlassModeStore())
+    .environment(RootChromeActions())
     .preferredColorScheme(.dark)
 }
