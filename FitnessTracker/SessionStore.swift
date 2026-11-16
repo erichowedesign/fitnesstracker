@@ -170,6 +170,12 @@ final class SessionStore {
         persist()
     }
 
+    func delete(id: UUID) {
+        guard sessions.contains(where: { $0.id == id }) else { return }
+        sessions.removeAll { $0.id == id }
+        persist()
+    }
+
     private func persist() {
         Self.write(sessions, to: url)
     }

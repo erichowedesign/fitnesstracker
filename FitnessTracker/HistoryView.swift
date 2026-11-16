@@ -7,6 +7,7 @@ struct HistoryView: View {
     @Environment(RoutineOrderStore.self) private var routineOrder
     @Environment(WashTheme.self) private var wash
     @Environment(\.glassPalette) private var palette
+    @State private var sessionPendingDelete: FinishedSession?
 
     private var shippingRoutines: [Routine] {
         WorkoutPlan.all().map(routineOverrides.resolved)
@@ -50,6 +51,12 @@ struct HistoryView: View {
                                     listNumber: listNumber(for: session.routineId),
                                     thumbnailSlug: thumbnailSlug(for: session)
                                 )
+                                // Long-press (not swipe): TabPanBridge owns horizontal pans on root tabs.
+                                .contextMenu {
+                                    Button("Delete", role: .destructive) {
+                                        sessionPendingDelete = session
+                                    }
+                                }
                             }
                         }
                         .padding(.top, 48)
@@ -80,6 +87,29 @@ struct HistoryView: View {
             }
             .onAppear {
                 wash.grade = .grayscale
+            }
+            .alert(
+                "Delete workout?",
+                isPresented: Binding(
+                    get: { sessionPendingDelete != nil },
+                    set: { if !$0 { sessionPendingDelete = nil } }
+                )
+            ) {
+                Button("Cancel", role: .cancel) {
+                    sessionPendingDelete = nil
+                }
+                Button("Delete", role: .destructive) {
+                    if let sessionPendingDelete {
+                        store.delete(id: sessionPendingDelete.id)
+                    }
+                    sessionPendingDelete = nil
+                }
+            } message: {
+                if let sessionPendingDelete {
+                    Text(
+                        "“\(sessionPendingDelete.routineName)” from \(sessionPendingDelete.finishedAt.formatted(date: .abbreviated, time: .shortened)) will be removed from History. This can’t be undone."
+                    )
+                }
             }
         }
     }

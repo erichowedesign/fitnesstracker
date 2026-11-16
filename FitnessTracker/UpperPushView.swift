@@ -20,6 +20,7 @@ struct RoutineView: View {
     var startsInEditMode: Bool = false
     @State private var didSave = false
     @State private var showCompleteButton = false
+    @State private var showCompleteConfirm = false
     @State private var showDeleteConfirm = false
     @State private var weights: [String: String] = [:]
     @State private var tutorial: ExerciseTutorial?
@@ -104,6 +105,15 @@ struct RoutineView: View {
             .preferredColorScheme(palette.colorScheme)
             .animation(.smooth(duration: 0.3), value: palette.mode)
             .environment(\.editMode, $editMode)
+            .alert("Complete workout?", isPresented: $showCompleteConfirm) {
+                Button("Cancel", role: .cancel) {}
+                Button("Complete") {
+                    store.complete(activeRoutine, weights: weights)
+                    didSave = true
+                }
+            } message: {
+                Text("Log “\(draftName.isEmpty ? routine.name : draftName)” to History on this iPhone.")
+            }
             .alert("Workout saved", isPresented: $didSave) {
                 Button("OK", role: .cancel) {}
             } message: {
@@ -546,8 +556,7 @@ struct RoutineView: View {
 
     private var completeWorkoutButton: some View {
         Button {
-            store.complete(activeRoutine, weights: weights)
-            didSave = true
+            showCompleteConfirm = true
         } label: {
             Text("Complete Workout")
                 .font(.title3.weight(.semibold))
