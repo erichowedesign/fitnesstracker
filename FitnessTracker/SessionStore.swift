@@ -8,6 +8,19 @@ struct LoggedLift: Codable, Identifiable, Hashable {
     var weight: String
 }
 
+/// Linked Apple Health / Watch workout stored on a Foundation session for progression.
+struct LinkedHealthWorkout: Codable, Hashable {
+    var workoutUUID: UUID
+    var activityName: String
+    var startedAt: Date
+    var endedAt: Date
+    var durationSeconds: TimeInterval
+    var activeEnergyKcal: Double?
+    var averageHeartRateBPM: Double?
+    var maxHeartRateBPM: Double?
+    var totalDistanceMeters: Double?
+}
+
 struct FinishedSession: Codable, Identifiable, Hashable {
     let id: UUID
     let routineId: String
@@ -16,13 +29,17 @@ struct FinishedSession: Codable, Identifiable, Hashable {
     let exerciseIds: [String]
     var durationMinutes: Int
     var lifts: [LoggedLift]
+    /// Optional Watch / Health workout linked after Complete Scan or History rescan.
+    var healthLink: LinkedHealthWorkout?
 
     var totalSets: Int {
         lifts.reduce(0) { $0 + $1.sets }
     }
 
+    var hasHealthLink: Bool { healthLink != nil }
+
     enum CodingKeys: String, CodingKey {
-        case id, routineId, routineName, finishedAt, exerciseIds, durationMinutes, lifts
+        case id, routineId, routineName, finishedAt, exerciseIds, durationMinutes, lifts, healthLink
     }
 
     init(
@@ -32,7 +49,8 @@ struct FinishedSession: Codable, Identifiable, Hashable {
         finishedAt: Date,
         exerciseIds: [String],
         durationMinutes: Int,
-        lifts: [LoggedLift]
+        lifts: [LoggedLift],
+        healthLink: LinkedHealthWorkout? = nil
     ) {
         self.id = id
         self.routineId = routineId
@@ -41,6 +59,7 @@ struct FinishedSession: Codable, Identifiable, Hashable {
         self.exerciseIds = exerciseIds
         self.durationMinutes = durationMinutes
         self.lifts = lifts
+        self.healthLink = healthLink
     }
 
     init(from decoder: Decoder) throws {
@@ -52,6 +71,7 @@ struct FinishedSession: Codable, Identifiable, Hashable {
         exerciseIds = try container.decodeIfPresent([String].self, forKey: .exerciseIds) ?? []
         durationMinutes = try container.decodeIfPresent(Int.self, forKey: .durationMinutes) ?? 60
         lifts = try container.decodeIfPresent([LoggedLift].self, forKey: .lifts) ?? []
+        healthLink = try container.decodeIfPresent(LinkedHealthWorkout.self, forKey: .healthLink)
     }
 }
 
@@ -143,7 +163,12 @@ final class SessionStore {
         }
     }
 
-    func complete(_ routine: Routine, weights: [String: String] = [:]) {
+    @discardableResult
+    func complete(
+        _ routine: Routine,
+        weights: [String: String] = [:],
+        healthLink: LinkedHealthWorkout? = nil
+    ) -> FinishedSession {
         let lifts = routine.exercises.map { exercise in
             LoggedLift(
                 id: exercise.id,
@@ -152,20 +177,38 @@ final class SessionStore {
                 weight: weights[exercise.id] ?? exercise.displayWeight ?? "—"
             )
         }
+        var duration = routine.minutes
+        if let healthLink {
+            duration = max(Int((healthLink.durationSeconds / 60).rounded()), 1)
+        }
         let session = FinishedSession(
             routineId: routine.id,
             routineName: routine.name,
             finishedAt: Date(),
             exerciseIds: routine.exercises.map(\.id),
-            durationMinutes: routine.minutes,
-            lifts: lifts
+            durationMinutes: duration,
+            lifts: lifts,
+            healthLink: healthLink
         )
         sessions.insert(session, at: 0)
         persist()
+        return session
     }
 
     func update(_ session: FinishedSession) {
         guard let index = sessions.firstIndex(where: { $0.id == session.id }) else { return }
+        sessions[index] = session
+        persist()
+    }
+
+    /// Attach a Health / Watch workout to an existing History session.
+    func linkHealth(_ link: LinkedHealthWorkout, to sessionID: UUID, adoptDuration: Bool = true) {
+        guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else { return }
+        var session = sessions[index]
+        session.healthLink = link
+        if adoptDuration {
+            session.durationMinutes = max(Int((link.durationSeconds / 60).rounded()), 1)
+        }
         sessions[index] = session
         persist()
     }

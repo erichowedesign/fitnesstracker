@@ -8,6 +8,8 @@ struct HistoryView: View {
     @Environment(WashTheme.self) private var wash
     @Environment(\.glassPalette) private var palette
     @State private var sessionPendingDelete: FinishedSession?
+    @State private var path: [UUID] = []
+    @State private var showHealthScan = false
 
     private var shippingRoutines: [Routine] {
         WorkoutPlan.all().map(routineOverrides.resolved)
@@ -26,7 +28,7 @@ struct HistoryView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     Text("History")
@@ -38,6 +40,21 @@ struct HistoryView: View {
                         .glassInk()
                         .padding(.top, 8)
 
+                    Button {
+                        showHealthScan = true
+                    } label: {
+                        Label("Scan Health", systemImage: "heart.text.square")
+                            .font(.body.weight(.semibold))
+                            .glassInk()
+                            .padding(.horizontal, 16)
+                            .frame(height: 44)
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .foundationGlass(interactive: true, in: Capsule())
+                    .padding(.top, 24)
+                    .accessibilityHint("Find Watch workouts and link them to completed sessions")
+
                     if sessionsNewestFirst.isEmpty {
                         Text("Complete a workout and it will show up here.")
                             .font(.body)
@@ -46,13 +63,16 @@ struct HistoryView: View {
                     } else {
                         VStack(spacing: 12) {
                             ForEach(sessionsNewestFirst) { session in
-                                // contentShape + contextMenu on the card (Home My Routines pattern).
-                                // TabPanBridge must not require these duration observers to fail.
-                                CompletedSessionCard(
-                                    session: session,
-                                    listNumber: listNumber(for: session.routineId),
-                                    thumbnailSlug: thumbnailSlug(for: session)
-                                )
+                                Button {
+                                    path.append(session.id)
+                                } label: {
+                                    CompletedSessionCard(
+                                        session: session,
+                                        listNumber: listNumber(for: session.routineId),
+                                        thumbnailSlug: thumbnailSlug(for: session)
+                                    )
+                                }
+                                .buttonStyle(.plain)
                                 .contentShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
                                 .contextMenu {
                                     Button("Delete", role: .destructive) {
@@ -61,7 +81,7 @@ struct HistoryView: View {
                                 }
                             }
                         }
-                        .padding(.top, 48)
+                        .padding(.top, 32)
                     }
                 }
                 .padding(.horizontal, 16)
@@ -86,6 +106,31 @@ struct HistoryView: View {
                         .opacity(0)
                         .accessibilityHidden(true)
                 }
+            }
+            .navigationDestination(for: UUID.self) { sessionID in
+                if let session = store.sessions.first(where: { $0.id == sessionID }) {
+                    HistorySessionDetailView(
+                        session: session,
+                        listNumber: listNumber(for: session.routineId),
+                        thumbnailSlug: thumbnailSlug(for: session)
+                    )
+                } else {
+                    Text("Session unavailable")
+                        .glassInk()
+                        .onAppear { path.removeAll() }
+                }
+            }
+            .sheet(isPresented: $showHealthScan) {
+                HistoryHealthScanSheet()
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
+                    .presentationBackground {
+                        ZStack {
+                            Color.black
+                            WashBackground(grade: .grayscale)
+                        }
+                        .ignoresSafeArea()
+                    }
             }
             .onAppear {
                 wash.grade = .grayscale
@@ -176,6 +221,11 @@ private struct CompletedSessionCard: View {
                         .multilineTextAlignment(.leading)
                         .lineLimit(2)
                         .glassInk(.secondary)
+                    if session.hasHealthLink {
+                        Text("Health linked")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(palette.accent)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -187,7 +237,7 @@ private struct CompletedSessionCard: View {
         .clipShape(RoundedRectangle(cornerRadius: 34, style: .continuous))
         .foundationGlass(interactive: false, in: RoundedRectangle(cornerRadius: 34, style: .continuous))
         .overlay(alignment: .topTrailing) {
-            Image(systemName: "checkmark.circle.fill")
+            Image(systemName: session.hasHealthLink ? "heart.circle.fill" : "checkmark.circle.fill")
                 .font(.system(size: 28, weight: .semibold))
                 .symbolRenderingMode(.palette)
                 .foregroundStyle(.white, palette.accent)
@@ -198,6 +248,7 @@ private struct CompletedSessionCard: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             "Completed Routine \(listNumber), \(session.routineName), \(completedStamp)"
+            + (session.hasHealthLink ? ", Health linked" : "")
         )
     }
 }

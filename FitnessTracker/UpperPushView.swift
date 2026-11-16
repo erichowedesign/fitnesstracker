@@ -21,7 +21,15 @@ struct RoutineView: View {
     @State private var didSave = false
     @State private var showCompleteButton = false
     @State private var showCompleteConfirm = false
+    @State private var showHealthCheckPrompt = false
     @State private var showDeleteConfirm = false
+    @State private var healthImport = HealthImportStore()
+    @State private var healthScanCandidates: [HealthWorkoutCandidate] = []
+    @State private var selectedHealthCandidate: HealthWorkoutCandidate?
+    @State private var showHealthLinkConfirm = false
+    @State private var showHealthScanEmpty = false
+    @State private var healthScanMessage: String?
+    @State private var isHealthScanning = false
     @State private var weights: [String: String] = [:]
     @State private var tutorial: ExerciseTutorial?
     @State private var isEditingRoutine = false
@@ -107,20 +115,20 @@ struct RoutineView: View {
             .preferredColorScheme(palette.colorScheme)
             .animation(.smooth(duration: 0.3), value: palette.mode)
             .environment(\.editMode, $editMode)
-            .alert("Complete workout?", isPresented: $showCompleteConfirm) {
-                Button("Cancel", role: .cancel) {}
-                Button("Complete") {
-                    store.complete(activeRoutine, weights: weights)
-                    didSave = true
-                }
-            } message: {
-                Text("Log “\(draftName.isEmpty ? routine.name : draftName)” to History on this iPhone.")
-            }
-            .alert("Workout saved", isPresented: $didSave) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text("\(draftName.isEmpty ? routine.name : draftName) is stored on this iPhone.")
-            }
+            .modifier(CompleteHealthLinkAlerts(
+                routineTitle: draftName.isEmpty ? routine.name : draftName,
+                showCompleteConfirm: $showCompleteConfirm,
+                showHealthCheckPrompt: $showHealthCheckPrompt,
+                showHealthLinkConfirm: $showHealthLinkConfirm,
+                showHealthScanEmpty: $showHealthScanEmpty,
+                didSave: $didSave,
+                isHealthScanning: isHealthScanning,
+                selectedHealthCandidate: selectedHealthCandidate,
+                healthScanMessage: healthScanMessage,
+                onSkipOrDecline: { finishComplete(health: nil) },
+                onLink: { finishComplete(health: selectedHealthCandidate?.asLinkedHealthWorkout) },
+                onScan: { Task { await scanHealthAfterComplete() } }
+            ))
             .alert("Delete routine?", isPresented: $showDeleteConfirm) {
                 Button("Cancel", role: .cancel) {}
                 Button("Delete", role: .destructive, action: deleteCustomRoutine)
@@ -874,6 +882,33 @@ struct RoutineView: View {
         editDropTarget = nil
     }
 
+    private func finishComplete(health: LinkedHealthWorkout?) {
+        store.complete(activeRoutine, weights: weights, healthLink: health)
+        selectedHealthCandidate = nil
+        healthScanCandidates = []
+        didSave = true
+    }
+
+    @MainActor
+    private func scanHealthAfterComplete() async {
+        isHealthScanning = true
+        defer { isHealthScanning = false }
+        do {
+            let found = try await healthImport.recentWorkoutsNearNow()
+            healthScanCandidates = found
+            if let first = found.first {
+                selectedHealthCandidate = first
+                showHealthLinkConfirm = true
+            } else {
+                healthScanMessage = "No workout ending in the last ~45 minutes. Stop the Watch workout, wait a few seconds, then try Scan from History if needed."
+                showHealthScanEmpty = true
+            }
+        } catch {
+            healthScanMessage = error.localizedDescription
+            showHealthScanEmpty = true
+        }
+    }
+
     private func reorderWithinSection(
         _ section: RoutineEditSection,
         movingID: String,
@@ -1338,6 +1373,62 @@ private struct EditAppendDropDelegate: DropDelegate {
         if case .append(section) = dropTarget {
             dropTarget = nil
         }
+    }
+}
+
+/// Keeps Complete → Health Skip/Scan/Link alerts off the main RoutineView body for the type checker.
+private struct CompleteHealthLinkAlerts: ViewModifier {
+    let routineTitle: String
+    @Binding var showCompleteConfirm: Bool
+    @Binding var showHealthCheckPrompt: Bool
+    @Binding var showHealthLinkConfirm: Bool
+    @Binding var showHealthScanEmpty: Bool
+    @Binding var didSave: Bool
+    var isHealthScanning: Bool
+    var selectedHealthCandidate: HealthWorkoutCandidate?
+    var healthScanMessage: String?
+    var onSkipOrDecline: () -> Void
+    var onLink: () -> Void
+    var onScan: () -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .alert("Complete workout?", isPresented: $showCompleteConfirm) {
+                Button("Cancel", role: .cancel) {}
+                Button("Complete") { showHealthCheckPrompt = true }
+            } message: {
+                Text("Log “\(routineTitle)” to History on this iPhone.")
+            }
+            .alert("Check for a Watch/Health workout?", isPresented: $showHealthCheckPrompt) {
+                Button("Skip", role: .cancel, action: onSkipOrDecline)
+                Button("Scan", action: onScan)
+            } message: {
+                Text("Scan Apple Health for a workout that just ended on Apple Watch. Skip to save without linking.")
+            }
+            .alert("Link Watch workout?", isPresented: $showHealthLinkConfirm) {
+                Button("Don’t Link", role: .cancel, action: onSkipOrDecline)
+                Button("Link", action: onLink)
+            } message: {
+                Text(selectedHealthCandidate?.summaryLine ?? "Save this Foundation session with the Watch workout.")
+            }
+            .alert("No recent Health workout", isPresented: $showHealthScanEmpty) {
+                Button("Save Without Link", action: onSkipOrDecline)
+                Button("OK", role: .cancel, action: onSkipOrDecline)
+            } message: {
+                Text(healthScanMessage ?? "Nothing ending near now. Your routine is still saved to History.")
+            }
+            .alert("Workout saved", isPresented: $didSave) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("\(routineTitle) is stored on this iPhone.")
+            }
+            .overlay {
+                if isHealthScanning {
+                    ProgressView("Scanning Health…")
+                        .padding(20)
+                        .foundationGlass(interactive: false, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                }
+            }
     }
 }
 
