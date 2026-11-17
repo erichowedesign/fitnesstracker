@@ -101,8 +101,9 @@ struct RootTabs: View {
         .animation(.smooth(duration: 0.3), value: palette.mode)
     }
 
-    /// Trailing more menu stays on every screen (including pushes). Other trailing chrome
-    /// reserves `RootChromeLayout.menuSlot` so it sits to the left of this control.
+    /// Trailing more menu stays on every screen (including pushes), except routine edit mode
+    /// where it becomes the done (checkmark) control. Other trailing chrome reserves
+    /// `RootChromeLayout.menuSlot` so it sits to the left of this control.
     /// Avoid clip/compositing on this layer so GlassActionMenu’s full-page scrim can paint over the wash.
     private var chromeMenusOverlay: some View {
         VStack {

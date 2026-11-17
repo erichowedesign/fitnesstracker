@@ -17,9 +17,17 @@ enum RootChromeLayout {
 @Observable
 final class RootChromeActions {
     var editRoutine: (() -> Void)?
+    /// When set, the top-trailing chrome shows a checkmark instead of the ellipsis menu.
+    var doneEditing: (() -> Void)?
+    var doneEditingEnabled: Bool = true
 
     func clearEditRoutine() {
         editRoutine = nil
+    }
+
+    func clearDoneEditing() {
+        doneEditing = nil
+        doneEditingEnabled = true
     }
 }
 
@@ -89,62 +97,83 @@ struct RootChromeMenu: View {
         return items
     }
 
+    private var showsDoneEditing: Bool {
+        chromeActions.doneEditing != nil
+    }
+
     var body: some View {
         ZStack {
-            switch level {
-            case .idle:
+            if let doneEditing = chromeActions.doneEditing {
                 GlassChromeIconButton(
-                    systemName: "ellipsis",
-                    accessibilityLabel: "More",
-                    action: openRootMenu
+                    systemName: "checkmark",
+                    accessibilityLabel: "Save edits",
+                    action: doneEditing
                 )
-            case .root:
-                GlassActionMenu(
-                    items: rootMenuItems,
-                    triggerSymbol: "ellipsis",
-                    arrangement: .linearDownwardFromTrailing,
-                    isExpanded: $rootExpanded,
-                    style: menuStyle
-                )
-                .onChange(of: rootExpanded) { _, open in
-                    guard !open, level == .root else { return }
-                    if pendingTheme {
-                        pendingTheme = false
-                        level = .theme
-                        themeExpanded = false
-                        DispatchQueue.main.async { themeExpanded = true }
-                    } else {
-                        level = .idle
-                        pendingTheme = false
+                .opacity(chromeActions.doneEditingEnabled ? 1 : 0.45)
+                .allowsHitTesting(chromeActions.doneEditingEnabled)
+            } else {
+                switch level {
+                case .idle:
+                    GlassChromeIconButton(
+                        systemName: "ellipsis",
+                        accessibilityLabel: "More",
+                        action: openRootMenu
+                    )
+                case .root:
+                    GlassActionMenu(
+                        items: rootMenuItems,
+                        triggerSymbol: "ellipsis",
+                        arrangement: .linearDownwardFromTrailing,
+                        isExpanded: $rootExpanded,
+                        style: menuStyle
+                    )
+                    .onChange(of: rootExpanded) { _, open in
+                        guard !open, level == .root else { return }
+                        if pendingTheme {
+                            pendingTheme = false
+                            level = .theme
+                            themeExpanded = false
+                            DispatchQueue.main.async { themeExpanded = true }
+                        } else {
+                            level = .idle
+                            pendingTheme = false
+                        }
                     }
-                }
-            case .theme:
-                GlassActionMenu(
-                    items: [
-                        .init(symbol: "circle.lefthalf.filled", label: "Dark") {
-                            glassModeStore.mode = .dark
-                        },
-                        .init(symbol: "sun.max.fill", label: "Light") {
-                            glassModeStore.mode = .light
-                        },
-                        .init(symbol: "circle", label: "Clear") {
-                            glassModeStore.mode = .clear
-                        },
-                    ],
-                    triggerSymbol: themeTriggerSymbol,
-                    arrangement: .linearDownwardFromTrailing,
-                    isExpanded: $themeExpanded,
-                    style: menuStyle
-                )
-                .onChange(of: themeExpanded) { _, open in
-                    guard !open, level == .theme else { return }
-                    level = .idle
+                case .theme:
+                    GlassActionMenu(
+                        items: [
+                            .init(symbol: "circle.lefthalf.filled", label: "Dark") {
+                                glassModeStore.mode = .dark
+                            },
+                            .init(symbol: "sun.max.fill", label: "Light") {
+                                glassModeStore.mode = .light
+                            },
+                            .init(symbol: "circle", label: "Clear") {
+                                glassModeStore.mode = .clear
+                            },
+                        ],
+                        triggerSymbol: themeTriggerSymbol,
+                        arrangement: .linearDownwardFromTrailing,
+                        isExpanded: $themeExpanded,
+                        style: menuStyle
+                    )
+                    .onChange(of: themeExpanded) { _, open in
+                        guard !open, level == .theme else { return }
+                        level = .idle
+                    }
                 }
             }
         }
         .frame(width: 48, height: 48)
         .zIndex(80)
         .accessibilityElement(children: .contain)
+        .onChange(of: showsDoneEditing) { _, showingDone in
+            guard showingDone else { return }
+            level = .idle
+            rootExpanded = false
+            themeExpanded = false
+            pendingTheme = false
+        }
     }
 
     private func openRootMenu() {

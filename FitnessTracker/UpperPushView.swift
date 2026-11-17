@@ -163,6 +163,7 @@ struct RoutineView: View {
             }
             .onDisappear {
                 chromeActions.clearEditRoutine()
+                chromeActions.clearDoneEditing()
             }
             .onChange(of: isEditingRoutine) { _, _ in
                 publishChromeEditAction()
@@ -173,14 +174,24 @@ struct RoutineView: View {
             .onChange(of: pendingLibraryWorkout != nil) { _, _ in
                 publishChromeEditAction()
             }
+            .onChange(of: draftName) { _, _ in
+                guard isEditingRoutine else { return }
+                chromeActions.doneEditingEnabled = canSaveEdits
+            }
     }
 
     private func publishChromeEditAction() {
         let sheetsOpen = showLibraryPicker || pendingLibraryWorkout != nil || stagedLibraryWorkout != nil
-        if !isEditingRoutine, !sheetsOpen {
+        if isEditingRoutine {
+            chromeActions.clearEditRoutine()
+            chromeActions.doneEditing = commitRoutineEditing
+            chromeActions.doneEditingEnabled = canSaveEdits
+        } else if !sheetsOpen {
+            chromeActions.clearDoneEditing()
             chromeActions.editRoutine = beginRoutineEditing
         } else {
             chromeActions.clearEditRoutine()
+            chromeActions.clearDoneEditing()
         }
     }
 
@@ -406,16 +417,8 @@ struct RoutineView: View {
             }
             .sharedBackgroundVisibility(.hidden)
             ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: RootChromeLayout.trailingClusterSpacing) {
-                    GlassChromeIconButton(
-                        systemName: "checkmark",
-                        accessibilityLabel: "Save edits",
-                        action: commitRoutineEditing
-                    )
-                    .opacity(canSaveEdits ? 1 : 0.45)
-                    .allowsHitTesting(canSaveEdits)
-                    RootChromeLayout.menuSlot
-                }
+                // Done lives in RootTabs' menu slot (checkmark replaces ellipsis while editing).
+                RootChromeLayout.menuSlot
             }
             .sharedBackgroundVisibility(.hidden)
         } else {
