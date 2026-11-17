@@ -115,7 +115,8 @@ struct RootTabs: View {
             .padding(.horizontal, 16)
             Spacer(minLength: 0)
         }
-        .padding(.top, 4)
+        // Center on the inline toolbar band so trailing hearts / back controls line up.
+        .padding(.top, RootChromeLayout.menuTopInset)
         // Above pages + wash so GlassActionMenu stays a floating layer.
         .zIndex(100)
     }

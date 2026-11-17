@@ -3,6 +3,11 @@ import SwiftUI
 enum RootChromeLayout {
     static let menuButtonSize: CGFloat = 48
     static let trailingClusterSpacing: CGFloat = 8
+    /// Standard inline navigation-bar content height. The floating root menu is a
+    /// 48pt circle; top inset is `(toolbarContentHeight - menuButtonSize) / 2` so it
+    /// shares the same vertical center as toolbar chrome (heart, back, menuSlot).
+    static let toolbarContentHeight: CGFloat = 44
+    static let menuTopInset: CGFloat = (toolbarContentHeight - menuButtonSize) / 2
 
     /// Invisible stand-in for the global RootTabs `RootChromeMenu` so other trailing
     /// chrome sits to its left without overlapping.

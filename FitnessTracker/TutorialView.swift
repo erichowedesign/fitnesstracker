@@ -146,7 +146,7 @@ struct ExerciseTutorialView: View {
             .sharedBackgroundVisibility(.hidden)
 
             ToolbarItem(placement: .topBarTrailing) {
-                HStack(spacing: RootChromeLayout.trailingClusterSpacing) {
+                HStack(alignment: .center, spacing: RootChromeLayout.trailingClusterSpacing) {
                     if canFavorite {
                         GlassChromeIconButton(
                             systemName: isLiked ? "heart.fill" : "heart",
@@ -160,6 +160,7 @@ struct ExerciseTutorialView: View {
                     }
                     RootChromeLayout.menuSlot
                 }
+                .frame(height: RootChromeLayout.menuButtonSize)
             }
             .sharedBackgroundVisibility(.hidden)
         }

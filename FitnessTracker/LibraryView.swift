@@ -36,6 +36,11 @@ struct LibraryView: View {
                         .opacity(0)
                         .accessibilityHidden(true)
                 }
+                // Favorites sits left of RootTabs' menu via menuSlot (same band as ellipsis).
+                ToolbarItem(placement: .topBarTrailing) {
+                    LibraryFavoritesToolbarButton(favoritesOnly: $favoritesOnly)
+                }
+                .sharedBackgroundVisibility(.hidden)
             }
             .navigationDestination(for: LibraryWorkout.self) { workout in
                 ExerciseTutorialView(
@@ -71,7 +76,8 @@ struct LibraryBrowser: View {
     var onCancel: (() -> Void)? = nil
     var onSelect: (LibraryWorkout) -> Void
 
-    private var chromeHeight: CGFloat { 48 }
+    private var chromeHeight: CGFloat { RootChromeLayout.menuButtonSize }
+    /// Clearance under the title / root-menu band (favorites lives in the toolbar on the root tab).
     private var chromeTopPadding: CGFloat { 24 }
     private var chromeBottomGap: CGFloat { 16 }
 
@@ -136,7 +142,9 @@ struct LibraryBrowser: View {
             LibraryFilterSearchChrome(
                 query: $query,
                 filter: $filter,
-                favoritesOnly: $favoritesOnly
+                favoritesOnly: $favoritesOnly,
+                // Root tab: heart is in the toolbar beside menuSlot. Sheet: keep heart in-row.
+                showsFavoritesButton: showsCancel
             )
             .padding(.horizontal, 16)
             .padding(.top, chromeTopPadding)
@@ -146,13 +154,14 @@ struct LibraryBrowser: View {
         .toolbar {
             if showsCancel {
                 ToolbarItem(placement: .topBarTrailing) {
-                    HStack(spacing: RootChromeLayout.trailingClusterSpacing) {
+                    HStack(alignment: .center, spacing: RootChromeLayout.trailingClusterSpacing) {
                         GlassChromeLabelButton(title: "Cancel") {
                             onCancel?()
                         }
                         // Library picker is a sheet — host its own trailing menu.
                         RootChromeMenu()
                     }
+                    .frame(height: RootChromeLayout.menuButtonSize)
                 }
                 .sharedBackgroundVisibility(.hidden)
             }
@@ -176,16 +185,18 @@ struct LibraryBrowser: View {
     }
 }
 
-/// Resting: filter | search | heart. Focused: search full-width | X (heart transforms; filter hides).
+/// Root tab resting: filter | search (favorites is toolbar + menuSlot).
+/// Sheet resting: filter | search | heart. Focused: search full-width | X.
 struct LibraryFilterSearchChrome: View {
     @Environment(\.glassPalette) private var palette
     @Binding var query: String
     @Binding var filter: LibraryListFilter
     @Binding var favoritesOnly: Bool
+    var showsFavoritesButton: Bool = true
     @FocusState private var searchFocused: Bool
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .center, spacing: 12) {
             if !searchFocused {
                 filterMenu
                     .transition(.move(edge: .leading).combined(with: .opacity))
@@ -194,11 +205,12 @@ struct LibraryFilterSearchChrome: View {
             if searchFocused {
                 clearButton
                     .transition(.scale.combined(with: .opacity))
-            } else {
-                favoritesButton
+            } else if showsFavoritesButton {
+                LibraryFavoritesButton(favoritesOnly: $favoritesOnly)
                     .transition(.scale.combined(with: .opacity))
             }
         }
+        .frame(height: RootChromeLayout.menuButtonSize)
         .animation(.smooth(duration: 0.25), value: searchFocused)
     }
 
@@ -214,7 +226,7 @@ struct LibraryFilterSearchChrome: View {
             Image(systemName: "line.3.horizontal.decrease")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(palette.chrome)
-                .frame(width: 48, height: 48)
+                .frame(width: RootChromeLayout.menuButtonSize, height: RootChromeLayout.menuButtonSize)
                 .contentShape(Circle())
         }
         .foundationGlass(interactive: true, in: Circle())
@@ -236,18 +248,8 @@ struct LibraryFilterSearchChrome: View {
         }
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity)
-        .frame(height: 48)
+        .frame(height: RootChromeLayout.menuButtonSize)
         .foundationGlass(interactive: true, in: Capsule())
-    }
-
-    private var favoritesButton: some View {
-        GlassChromeIconButton(
-            systemName: favoritesOnly ? "heart.fill" : "heart",
-            accessibilityLabel: favoritesOnly ? "Showing favorites" : "Show favorites",
-            ink: favoritesOnly ? palette.heart : nil,
-            action: { favoritesOnly.toggle() }
-        )
-        .accessibilityAddTraits(favoritesOnly ? .isSelected : [])
     }
 
     private var clearButton: some View {
@@ -268,6 +270,34 @@ struct LibraryFilterSearchChrome: View {
         case .equipment(let item):
             return "Filter by equipment, \(item)"
         }
+    }
+}
+
+/// Favorites heart + menuSlot — toolbar twin of Tutorial so it shares the root ellipsis band.
+struct LibraryFavoritesToolbarButton: View {
+    @Binding var favoritesOnly: Bool
+
+    var body: some View {
+        HStack(alignment: .center, spacing: RootChromeLayout.trailingClusterSpacing) {
+            LibraryFavoritesButton(favoritesOnly: $favoritesOnly)
+            RootChromeLayout.menuSlot
+        }
+        .frame(height: RootChromeLayout.menuButtonSize)
+    }
+}
+
+struct LibraryFavoritesButton: View {
+    @Environment(\.glassPalette) private var palette
+    @Binding var favoritesOnly: Bool
+
+    var body: some View {
+        GlassChromeIconButton(
+            systemName: favoritesOnly ? "heart.fill" : "heart",
+            accessibilityLabel: favoritesOnly ? "Showing favorites" : "Show favorites",
+            ink: favoritesOnly ? palette.heart : nil,
+            action: { favoritesOnly.toggle() }
+        )
+        .accessibilityAddTraits(favoritesOnly ? .isSelected : [])
     }
 }
 
